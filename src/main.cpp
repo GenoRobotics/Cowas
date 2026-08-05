@@ -40,8 +40,8 @@
 // ============ MAIN FUNCTION DECLARATION =======
 void main_program();
 void button_control();
+void SIC_control();
 
-void all_on();
 
 // ============ EXECUTION MODE ===================
 // comment this line if no system check at startup
@@ -177,31 +177,20 @@ void setup()
     // pressure2.readPressure();
 
     pump_pid.setOutputLimits(0, 100);       // always do in setup/ or in pump.begin()
-    pump_pid.setPID(200, 100, 0);
+
+    pump_pid.setPID(200, 100, 100);
 
     test_all_components();
+    // testing dna shield
+    //rotateMotor(1);
+    spool.start_origin();
 
-    CtrlPumpNoWater test_ctrl;
-    //test_ctrl.begin(&pump, &pump_pid, &pressure1, &flow_sensor_small, 200, 0.4, true);
-    test_ctrl.begin(&pump, &pump_pid, &pressure1, 0.4, true);
-    test_ctrl.set_end_cond_time(5000);
-    
-    test_ctrl.set_max_runtime(60*1000); // in ms
-    valve_23.set_I_way();       // temp
-
-    test_ctrl.run();        // RUUUUUUUN
-
-    valve_23.set_L_way();
-
-    Serial.println("Test control finished");
-    
     // fill_DNA_shield_tube();
 
 
     // all_on();
 }
 
-bool pump_on = false;
 uint32_t last_p_p = millis();
 float pressure_meas_count = 0;
 float avg_old = 0;
@@ -210,53 +199,16 @@ float avg_new = 0;
 void loop()
 {
     // flow_loop();
-    // button_control();
+    button_control();
+    // SIC_control();
     // main_program();
 
-    if (Serial.available()){
-        while (Serial.available()){
-            Serial.read();
-        }
-        
-        if (pump_on){
-            pump.set_power(0);
-            pump_on = false;
-        } else{
-            pump.set_power(80);
-            pump.start();
-            pump_on = true;
-        }
-        // digitalWrite(PUMP_ENABLE, !digitalRead(PUMP_ENABLE));
-        Serial.println("Toggled relay pump");
-    }
 
     // float pressure;
     // float pressureBig;
     // avg_old += pressure1.getPressure();
     // avg_new += pressure2.readPressure();
     // pressure_meas_count = pressure_meas_count + 1.0;
-
-
-    // if (millis() - last_p_p > 500){
-    //     pressure = pressure1.getPressure();
-    //     pressureBig = pressure2.readPressure();
-
-    //     Serial.print("Pressure Trustability avg value : ");
-    //     Serial.println(avg_old/pressure_meas_count);
-    //     // Serial.println(pressure);
-    //     Serial.print("Pressure New sensor avg value : ");
-    //     Serial.println(avg_new/pressure_meas_count);
-    //     // Serial.println(pressureBig);
-    //     Serial.println("-----");
-    //     // Serial.print("   Analog value: ");
-    //     // Serial.println(analogRead(pressure_2_pin));
-
-    //     avg_old = 0;
-    //     avg_new = 0;
-    //     pressure_meas_count = 0;
-
-    //     last_p_p = millis();
-    // }
 
     delay(50);
 }
@@ -333,22 +285,38 @@ void main_program()
     manifold: left, decrement slot and right increment
     Pump: right start, left stop
 */
+int8_t pump_power = 20;
+bool pump_on = false;
+
 void button_control(){
     static uint8_t current_slot = 0;
     if (!ctrl_button){
         return;
     }
-
+    
     switch (control_state){
         case ctrl_pump:{
             if (button_right.isPressed()) {
-                pump.set_power(80);
+                if (pump_on == false){
+                pump.set_power(pump_power);
+                valve_manifold.set_open_way();
                 pump.start();
                 button_right.waitPressedAndReleased();
+                }
+                else{
+                    pump.stop();
+                    valve_manifold.set_close_way();
+                    button_right.waitPressedAndReleased();
+                }
+                pump_on = !pump_on;
             }
             if (button_left.isPressed()){
-                pump.stop();
+                pump_power += 10;
+                if (pump_power > 100){pump_power = 20;}
+                if (pump_on){pump.set_power(pump_power);}
                 button_left.waitPressedAndReleased();
+                Serial.print("New pump power: ");
+                Serial.println(pump_power);
             } 
             break;
         }  
@@ -443,19 +411,38 @@ void button_control(){
     }
 }
 
-void all_on() {
-    // Turn on all components here
-    // Example:
-    pump.set_power(80);
-    pump.start();
-    valve_23.set_I_way();
-    valve_1.set_open_way();
-    valve_manifold.set_open_way();
-    spool.set_speed(100, up);
-    spool.start();
-    micro_pump.start();
+void SIC_control(){
+    if (button_right.isPressed()){
+        button_right.waitPressedAndReleased();
 
-    status_led.on();
-    green_led.on();
+        manifold.begin();
+        manifold.change_state(PURGE_SLOT, unaivailable); // The purge has no filter
+
+        demo_sample_process();
+
+        green_led.off();
+        status_led.off();
+    }
+    else if (button_left.isPressed()){
+        button_left.waitPressedAndReleased();
+        status_led.on();
+
+        button_start.waitPressedAndReleased();
+
+        green_led.on();
+
+        step_dive(50);
+
+        green_led.off();
+        button_start.waitPressedAndReleased();
+        green_led.on();
+        spool.start_origin();
+
+        green_led.off();
+        status_led.off();
+    }
+    
+
 }
+
 

@@ -84,10 +84,35 @@ void test_all_components(){
             }
 
             if (test_command == "temp"){    // quick debugging, change this function
-                valve_1.switch_way();
-                valve_23.switch_way();
-                valve_manifold.switch_way();
-                digitalWrite(PUMP_ENABLE, !digitalRead(PUMP_ENABLE));
+                while (true){
+                    if (Serial.available() > 0)
+                    {
+                        float d1;
+                        d1 = Serial.parseFloat();
+                        if (d1 == 0.0){
+                            Serial.println("zerrooooooooooo");
+                            continue;
+                        }
+                            
+                        angle_offset_pos = d1;
+                        Serial.println(d1);
+
+                        // up is CCW, down is CW
+                        manifold_motor.start(30, up);
+
+                        while (!Serial.available()){
+                            
+                            delay(200);
+                        }
+                        manifold_motor.stop();
+
+                        // go back to slot0 to check
+                        rotateMotor(0);  
+                        
+                    }
+                    delay(2000);
+                }
+                
             }
             
             if (test_command == "sample1m"){

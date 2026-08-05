@@ -38,7 +38,7 @@
 
 extern C_output output;
 extern Serial_device serial;
-extern Led blue_led;
+extern Led status_led;
 extern Led green_led;
 extern Trustability_ABP_Gage pressure1;
 extern BigPressure pressure2;
@@ -181,6 +181,7 @@ void step_purge(bool stop_pressure)
     // set the valves and manifold
     rotateMotor(PURGE_SLOT); // purge slot
     valve_1.set_close_way();
+    valve_manifold.set_open_way();  // enable connection to deployment
 
     delay(DELAY_ACTIONS);
 
@@ -194,6 +195,7 @@ void step_purge(bool stop_pressure)
     ctrl_flow.run();
 
     valve_1.set_close_way();
+    valve_manifold.set_close_way();     // default position of valves
 
 
     if(VERBOSE_PURGE || TIMER){output.println("Time to purge : " + String(millis() - time1) + " ms");}
@@ -215,8 +217,9 @@ void step_sampling(int slot_manifold, bool stop_pressure)
     // set the valves
     rotateMotor(slot_manifold);
     valve_1.set_close_way();
-    // valve_23.set_L_way();
-    // valve_manifold.set_open_way();
+    // * new setup, connection to deployment
+    valve_manifold.set_open_way();
+    
     delay(DELAY_ACTIONS);
 
 
@@ -225,6 +228,8 @@ void step_sampling(int slot_manifold, bool stop_pressure)
     CtrlPumpFlow ctrl_flow;
     ctrl_flow.begin(&pump, &pump_pid, &pressure1, &flow_sensor_small, STX_SAMPLE_MILLILITERS, 2, true);
     ctrl_flow.set_max_runtime(3*60*1000); // in ms
+
+    flow_sensor_small.reset_values();
 
     CtrlPumpNoWater ctrl_empty; // here we want to empty sterivex
     ctrl_empty.begin(&pump, &pump_pid, &pressure1, 0.4, true);
@@ -239,13 +244,14 @@ void step_sampling(int slot_manifold, bool stop_pressure)
     ctrl_flow.run();
 
     // emptying the tubes
-    valve_1.set_open_way();   // here we want to empty the system
+    valve_1.set_open_way();   // here we want to empty the system, to take air instead of water
+    // ! need to change name
+    valve_manifold.set_close_way(); // * closing connection to deployment 
     rotateMotor(PURGE_SLOT);   //!
-    valve_1.set_open_way();     // to take air instead of water
     if(VERBOSE_SAMPLE){output.println("Step sample: emptying through purge");}
     ctrl_empty.run();
 
-    // replaces purge_sterivex();
+    // emptying the sterivex filter
     rotateMotor(slot_manifold);
     if(VERBOSE_SAMPLE){output.println("Step sample: emptying sterivex");}
 
@@ -260,30 +266,6 @@ void step_sampling(int slot_manifold, bool stop_pressure)
 }
 
 /**
- * @brief Get most water out of Sterivex after sampling
- * ! not used anymore, or need to adapt
- * 
- * @param slot_manifold: manifold slot from current sample
- */
-void purge_sterivex(int slot_manifold)
-{
-    // aligning manifod and setting valves frm container to manifold
-    rotateMotor(slot_manifold);
-    valve_23.set_L_way();
-    valve_manifold.set_open_way();
-
-    delay(DELAY_ACTIONS);
-
-    pump.set_power(100);
-    pump.start(EMPTY_WATER_SECURITY_TIME * 4);      // ! no check on pressure
-    delay(DELAY_ACTIONS);
-
-    valve_manifold.set_close_way();
-    valve_23.set_off(); // to avoid current draw
-
-}
-
-/**
  * @brief Roll the spool back. Step_dive first.
  * 
  */
@@ -291,8 +273,12 @@ void step_rewind()
 {
     if(VERBOSE_REWIND){output.println("Step rewind started");}
 
+    // connection from air inlet to deployment, it will empty partly the tubes
     valve_1.set_open_way(); // let air enter the system
-    valve_23.set_L_way();
+    valve_manifold.set_open_way();
+
+    // the remaining water will pe pumped with the empty() step
+
     delay(DELAY_ACTIONS);
 
     uint32_t time1 = millis();
@@ -314,7 +300,9 @@ void step_rewind()
 */
 void step_empty(){
 
-    valve_1.set_close_way();    // pump from deployment
+    // pump from deployment
+    valve_1.set_close_way();    
+    valve_manifold.set_open_way(); // * new setup
     delay(DELAY_ACTIONS);
 
     // do it through the purge slot, not the sterivex
@@ -328,6 +316,8 @@ void step_empty(){
     // ! should add a security time, as no water at pressure sensor doesn't mean no water in system
 
     pump_ctrl.run();
+
+    valve_manifold.set_close_way();
 }
 
 /**
@@ -369,23 +359,26 @@ void sample_process(int depth, int manifold_slot){
     if(VERBOSE_SAMPLE){output.println("It's sampling time !");}
     if(VERBOSE_SAMPLE){output.println("Sample started at depth " + String(depth) + "cm in filter ");}
     // Sampling steps
+    delay(DELAY_ACTIONS);
     step_dive(depth);
 
+    delay(DELAY_ACTIONS);
     step_purge();       // maybe add param to tell how many miliL
 
+    delay(DELAY_ACTIONS);
     step_sampling(manifold_slot); // sample place is a human number, start at 1
     
+    delay(DELAY_ACTIONS);
     step_rewind();
 
     // adding DNA-shield to sterivex
-    step_DNA_shield(manifold_slot);
     delay(DELAY_ACTIONS);
+    step_DNA_shield(manifold_slot);
 
-    // go back to purge slot, to avoid that DNA-shield goes through pipe
-    rotateMotor(PURGE_SLOT);
 
     // emptying system
     if (VERBOSE_SAMPLE) {output.println("Last step: emptying system from water");}
+    delay(DELAY_ACTIONS);
     step_empty();
 
     // closing all valves
@@ -418,32 +411,35 @@ void demo_sample_process(){
 
     uint32_t time_sampling = millis();
 
-    // step_rewind();
     set_system_state(state_sampling);
     if(VERBOSE_SAMPLE){output.println("It's sampling time !");}
     if(VERBOSE_SAMPLE){output.println("Sample started");}
-    // Sampling steps
-    // step_dive(depth);
-    // uint8_t purge_num = 1;   // PURGE_NUMBER
-    // for(uint8_t i = 0; i < purge_num; i++){
-    //     button_start.waitPressedAndReleased();
-    //     step_fill_container();
-    //     button_start.waitPressedAndReleased();
-    //     step_purge();
-    // }
-    button_start.waitPressedAndReleased();
-    step_purge();
-    button_start.waitPressedAndReleased();
-    // step_rewind();
-    step_sampling(manifold_slot); // sample place is a human number, start at 1
 
-    // ! TODO: add DNA shield here
+    // ?
+    green_led.on();
+
+    // Sampling steps
     button_start.waitPressedAndReleased();
+
+    status_led.on();    // ?
+    step_purge();
+    status_led.off();   // ?
+
+    button_start.waitPressedAndReleased();
+
+    status_led.on();    // ?
+    step_sampling(manifold_slot); // sample place is a human number, start at 1
+    status_led.off();   // ?
+
+    button_start.waitPressedAndReleased();
+    status_led.on();    // ?
     step_DNA_shield(manifold_slot);
+    status_led.off();   // ?
+
 
     // empty deployment module
-    button_start.waitPressedAndReleased();
-    step_empty();
+    // button_start.waitPressedAndReleased();
+    // step_empty();
 
     if(VERBOSE_SAMPLE || TIMER){output.println("Time for complete sample : " + String(millis()-time_sampling) + " ms");}
 
@@ -460,14 +456,14 @@ void step_DNA_shield(int slot_manifold){
     // go to right slot
     rotateMotor(slot_manifold);
 
-    micro_pump.start(FILL_STERIVEX_TIME/100.);      // ! remove /100, only to be faster for testing
+    micro_pump.start(FILL_STERIVEX_TIME/10.);      // ! remove /100, only to be faster for testing
 
     delay(500);
 
 
     // only depending on architecture
-    valve_23.set_L_way();
-    valve_manifold.set_open_way();
+    valve_manifold.set_close_way();
+    valve_1.set_open_way(); // push shield with air
 
     pump.set_power(PUMP_SHIELD_POWER);
 
@@ -475,7 +471,10 @@ void step_DNA_shield(int slot_manifold){
     pump.start(PUMP_SHIELD_TIME);
     delay(500);
 
-    valve_manifold.set_close_way();
+    // avoid suction of shield when opening valves
+    rotateMotor(PURGE_SLOT);
+
+    valve_1.set_close_way();
 
     if(VERBOSE_SHIELD){output.println("Step DNA-shield finished");}
 }

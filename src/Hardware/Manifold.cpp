@@ -10,6 +10,9 @@ extern Button button_start;
 //----- MOTOR -----//
 const uint16_t speed = 40; // Refers to power, min 70 to move
 
+// ! move back to .h
+//float angle_offset_neg = -1.05;   // when turning CCW
+float angle_offset_pos = 5.2;   // when turning CW
 
 motor_direction direction = down; // 1 or -1
 int nb_turns = 0;

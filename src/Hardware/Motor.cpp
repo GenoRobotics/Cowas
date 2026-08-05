@@ -136,7 +136,7 @@ void Motor::start(int _depth)
     int distance = depth_goal + HEIGHT_FROM_WATER; // absolute distance from sensor
     encoder.set_distance_to_reach(distance);
     // movement setup depending of absolute depth
-    if (depth_goal > depth_current){
+    if (depth_goal > depth_current){            // ! very dangerous if saved state is wrong
         set_speed(SPEED_DOWN, down);}
     else if (depth_goal < depth_current){
         set_speed(SPEED_UP, up);}

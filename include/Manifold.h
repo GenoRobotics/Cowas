@@ -21,14 +21,22 @@
 #define RES12           12
 
 const float encoder_to_deg = 360.0 / 4096.0;
-const float purge_angle = 234.49; //is the angle at which the purge hole is aligned with the rotor hole
+
+const float purge_angle =300.06;
+// for the diff of both:
+// * option 1
+// const float purge_angle = 88.24; //is the angle at which the purge hole is aligned with the rotor hole
+// * option 2
+// const float purge_angle =156.97;
+
 const float angle_between_slots = 22.5;
 
 const int omitted_angle_nb = 12;
 
-const float angle_offset_pos = 0;// 3; //5.2 for 160 of speed
+// ! make them const again after testing
+extern float angle_offset_pos;// 3; //5.2 for 160 of speed
 //const float angle_offset_neg = 4.9+6.3;
-const float angle_offset_neg = 0;
+const float angle_offset_neg = -1.05;   // when turning CCW
 
 enum slot_state
 {

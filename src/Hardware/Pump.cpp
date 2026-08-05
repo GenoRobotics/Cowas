@@ -12,6 +12,7 @@ extern Trustability_ABP_Gage pressure1;
 extern Trustability_ABP_Gage pressure2;
 extern Led status_led;
 extern Pump pump;
+extern Flow_sensor flow_sensor_small;
 
 
 /**
@@ -194,8 +195,10 @@ void CtrlPump::run(){
             // check with bool print
             Serial.print("Pressure bar : ");
             Serial.println(pres_sens_->getPressure());
-            Serial.print("Pump power : ");
-            Serial.println(pump_->get_power());
+            // Serial.print("Pump power : ");
+            // Serial.println(pump_->get_power());
+            Serial.print("Flow measured : ");
+            Serial.println(flow_sensor_small.get_totalFlowMilliL());
 
             last_print = millis();
         }
@@ -246,6 +249,8 @@ void CtrlPumpNoWater::begin(Pump *pump, MiniPID *pid, Trustability_ABP_Gage *pre
     CtrlPump::begin(pump, pid, pressure_sens, target_pressure, print);
     pressure_thresh_ = EMPTY_WATER_PRESSURE_PURGE_THRESHOLD;
     filtered_pressure_ = 0;
+
+    reset();
 }
 
 bool CtrlPumpNoWater::check_end_cond(){
@@ -261,6 +266,8 @@ void CtrlPumpFlow::begin(Pump *pump, MiniPID *pid, Trustability_ABP_Gage *pressu
     CtrlPump::begin(pump, pid, pressure_sens, target_pressure, print);
     flow_sensor_ = flow_sensor;
     milliL_tresh_ = mL_thresh;
+
+    reset();    // somehow doesn't work well when doing start
 }
 
 bool CtrlPumpFlow::check_end_cond(){

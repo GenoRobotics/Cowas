@@ -11,7 +11,7 @@
 
 // =============== COWAS VARIABLES ===============
 // spool variables
-const uint8_t HEIGHT_FROM_WATER = 10;           // cm. between water level and spool endstop
+const uint8_t HEIGHT_FROM_WATER = 0;           // cm. between water level and spool endstop
 const uint8_t DISTANCE_FROM_STOP = 5;       // cm. distance from spool endstop at which speed is decreased
 const uint8_t SPEED_UP = 100;               // over 100. Speed when moving up - experimentaly tested
 const uint8_t SPEED_DOWN = 100;             // over 100. Speed when moving down - experimentaly tested
@@ -56,8 +56,8 @@ const uint32_t EMPTY_DEPLOYMENT_TIME = 5*60*1000;
 // ! need to change this
 const uint32_t PREPARATION_TIME = 60*30;                        // ms. system needs 30 minutes preparation before sampling
 const uint8_t PURGE_NUMBER = 3;                                 // number of water container purge before sampling
-const float PURGE_MILLILITERS = 2*1000;                        
-const float STX_SAMPLE_MILLILITERS;                             // amount of maximum volume to filter. Need to add a way to determine filter saturation and stop based on that
+const float PURGE_MILLILITERS = 0.2*1000;                        
+const float STX_SAMPLE_MILLILITERS = 100;                             // amount of maximum volume to filter. Need to add a way to determine filter saturation and stop based on that
 const uint32_t SYNC_TIME = 32400;                               // ms. Time before refetching wifi time. Not implemented
 const uint8_t MAX_FILTER_NUMBER = 14;                            // max filters possible in the system
 extern uint8_t FILTER_IN_SYSTEM;                                // max filters currently inserted in the system
@@ -123,8 +123,8 @@ const bool VERBOSE_SHIELD = true;
 
 // ============ PIN DEFINITIONS ==================
 // To update with pinout table sheet
-const uint8_t STATUS_LED_PIN = 22;
-const uint8_t GREEN_LED_PIN = 23;
+const uint8_t STATUS_LED_PIN = 23;
+const uint8_t GREEN_LED_PIN = 22;
 const uint8_t PRESSURE1_PIN = 8;
 const uint8_t pressure_2_pin = A2;    // pressure 0-16Mpa (water and air)
 const uint8_t pressure_3_pin = A1;    // pressure 0-12 bar (cheaper one, only water)

@@ -95,6 +95,7 @@ unsigned int Flow_sensor::get_totalFlowMilliL(){
 void Flow_sensor::reset_values(){
     _totalMilliLitres = 0;
     _flowRate = 0;
+    *_pulseCount = 0;
 
     _lastUpdate = millis();
 }
