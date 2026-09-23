@@ -54,14 +54,18 @@ byte Button::getState()
 
 bool Button::isPressed()
 {
-    return (getState() == HIGH);
+    return (getState() == LOW);     // depends on how the circuit is
 }
 
 bool Button::isReleased()
 {
-    return (getState() == LOW);
+    return (getState() == HIGH);    // depends on how the circuit is
 }
 
+/**
+ * @brief blocks program until button is pressed and released
+ * @note If button is malfuntioning, program will be blocked
+ */
 void Button::waitPressedAndReleased()
 {
     while (!isPressed())
@@ -74,6 +78,10 @@ void Button::waitPressedAndReleased()
     }
 }
 
+/**
+ * @brief blocks program until button is released and pressed
+ * @note If button is malfuntioning, program will be blocked
+ */
 void Button::waitReleasedAndPressed()
 {
     while (isPressed())

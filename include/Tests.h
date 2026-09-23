@@ -25,13 +25,25 @@ void test_3_sterivex_1();
 void test_3_sterivex_2();
 
 void tests();
-void test_pressure();
-
 
 void test_pressure_sensor();
+void print_pressure_once();
+void calibrate_pressure2_zero();
 
 void test_manifold();
 void go_to_zero();
 void reset_encoder();
+
+void test_linear_actuator();
+void test_load_sample();
+void test_load_sample_full();
+void test_multi_sample_loading();
+void test_multi_sample_loading_full();
+
+void calibrate_linear_actuator();
+void calibrate_flow_sensor();
+void calibrate_dna_pump_volume();
+void identify_manifold_direction();
+void run_commissioning_calibration();
 
 #endif

@@ -15,6 +15,7 @@ private:
     String ID = "no_ID";
     float max_pressure = 3.2; // in bar
     uint32_t last_reading = 0;
+    uint32_t last_error_print = 0; // throttles the "error pressure reading" print in read() - see there
 
 public:
     void begin(byte _pin_slave_select, float _max_pressure);
