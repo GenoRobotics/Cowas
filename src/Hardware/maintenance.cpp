@@ -35,7 +35,6 @@ extern Valve_2_2 valve_manifold;
 extern Pump pump;
 
 extern Micro_Pump micro_pump;
-extern Micro_Pump test_5V_micro_pump;
 
 extern Motor spool;
 extern Motor manifold_motor;
@@ -57,17 +56,6 @@ void purge_pipes_manifold(){
 
     button_start.waitPressedAndReleased();
 
-    // // fill some ethanol in the container
-    // valve_1.set_close_way();
-    // valve_23.set_I_way();
-    // // pump for 1 minute or button start is pressed
-    
-    
-    // run_pump(MAINT_FILL_TIME);
-    // delay(2000);
-
-    // alternatively 
-
     step_fill_container();
     delay(1000);
     pump.set_power(25);
@@ -88,7 +76,7 @@ void purge_pipes_manifold(){
         run_pump(MAINT_PURGE_TIME);
         valve_manifold.set_close_way();
 
-        if (slot == 8){
+        if (slot == 8){ // to avoid tangling pipe, note: should work without
             rotateMotor(4);
             rotateMotor(0);
         }
@@ -98,7 +86,7 @@ void purge_pipes_manifold(){
 
     valve_1.set_close_way();
     
-    step_purge(false);
+    step_purge(false);  // emptying container in case some water is left
 
 }
 
@@ -233,15 +221,15 @@ void calibrate_DNA_pump(){
 void fill_DNA_shield_tube(){
     output.println("THe DNA-shield need to be pumped until the first valve");
     output.println("Press RIGHT button to start, LEFT button to stop pump. When DNA-shield is at valve press STOP and then START to continue");
-     while (button_start.isReleased()){
-            if (button_right.isPressed()){
-                micro_pump.start();
-                button_right.waitPressedAndReleased();
-            }
-            if (button_left.isPressed()){
-                micro_pump.stop();
-                button_left.waitPressedAndReleased();
-            }      
+    while (button_start.isReleased()){
+        if (button_right.isPressed()){
+            micro_pump.start();
+            button_right.waitPressedAndReleased();
+        }
+        if (button_left.isPressed()){
+            micro_pump.stop();
+            button_left.waitPressedAndReleased();
+        }      
     }
     button_start.waitPressedAndReleased();
 }
@@ -262,3 +250,64 @@ void run_pump(uint32_t max_time){
 
     pump.stop();
 }
+
+
+#ifdef SYSTEM_CHECKUP
+void system_checkup()
+{
+    // check if sensor are operationnal
+    bool error = false;
+
+    // check spool switch 1
+    spool.start(20, down);
+    delay(200);
+    spool.stop();
+    if (button_spool_up.getState() == 1){
+        output.println("CHECK | Button spool working");
+        spool.start_origin();
+    }else
+    {
+        output.println("ERROR | Button spool not working");
+        error = true;
+    }
+
+    // check container switch
+    if (button_container.getState() == 1)
+        output.println("CHECK | Button container working");
+    else{
+        output.println("ERROR | Button container not working");
+        error = true;
+    }
+
+    // check spool down switch
+    if (button_spool_down.getState() == 1)
+        output.println("CHECK | Button spool down working");
+    else{
+        output.println("ERROR | Button spool down not working");
+        error = true;
+    }
+
+    //check temperature
+    // flush first time reading otherwise error (no idea why)
+    pressure1.getTemperature();
+    delay(10);
+    if (pressure1.getTemperature() > 0)
+    {
+        output.println("CHECK | Temperature okay (" + String(pressure1.getTemperature()) + ")");
+    }
+    else
+    {
+        output.println("ERROR | Temperature too low (" + String(pressure1.getTemperature()) + ")");
+        error = true;
+    }
+
+    if (error)
+    {
+        output.println("FATAL ERROR AT STARTUP ");
+        set_system_state(state_error);
+        while (true)
+            delay(500);
+    }
+}
+
+#endif

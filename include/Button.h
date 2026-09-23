@@ -3,11 +3,12 @@
 
 #include <Arduino.h>
 
+
 class Button
 {
 
 private:
-    String ID = "no_ID";
+    String ID = "no_ID";        // String used in prints
     byte input_pin;
     byte state;
     byte lastReading;
@@ -19,7 +20,7 @@ private:
 public:
     void begin(byte _input_pin);
     void begin(byte _input_pin, String _ID);
-    byte getState();
+    byte getState();        // returns logical level of button
     bool isPressed();
     bool isReleased();
     void waitPressedAndReleased();

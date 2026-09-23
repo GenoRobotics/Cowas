@@ -1,13 +1,13 @@
 /**
  * @file MAIN.CPP
  * @author Timothée Hirt & Paco Mermoud
- * @brief A GenoRobotics project - CoWaS (Continous Water Sampling). 
+ * @brief A GenoRobotics project - CoWaS (Continous Water Sampling).
  *        A project for ARDUINO DUE
  * @version 2.0
  * @date 2022-01-28
- * 
+ *
  * @copyright Copyright (c) 2022
- * 
+ *
  */
 
 #include <Arduino.h>
@@ -19,7 +19,6 @@
 #include "Micro_pump.h"
 #include "Motor.h"
 #include "Encoder.h"
-#include "Potentiometer.h"
 #include "Led.h"
 #include <SPI.h>
 #include "C_output.h"
@@ -33,66 +32,101 @@
 #include "TimeLib.h"
 #include "Manifold.h"
 #include "maintenance.h"
+#include "experiences.h"
+#include "Linear_actuator.h"
 
+#include "Flow_sensor.h"
+#include "Pressure_sensor.h"
 
 // ============ MAIN FUNCTION DECLARATION =======
-void system_checkup();
-void before_start_program();
 void main_program();
 void button_control();
-
-void cross_cont_exp();
-void exp_explore_2905();
+void SIC_control();
 
 // ============ EXECUTION MODE ===================
 // comment this line if no system check at startup
-#define  SYSTEM_CHECKUP
+#define SYSTEM_CHECKUP
 // ============ PIN DEFINITIONS ==================
 // See in Settings.h
 
 // states to manually control CoWaS with buttons
-bool ctrl_button;       // if possible to control CoWaS with buttons
-enum ctrl_state {ctrl_pump, ctrl_motor_spool, ctrl_v23, ctrl_v1, ctrl_vman, ctrl_man_slot, ctrl_micro_pump};
-uint8_t ctrl_state_len = 7; // to update when modifying lenght of control states
+bool ctrl_button; // if possible to control CoWaS with buttons
+enum ctrl_state
+{
+    ctrl_pump,
+    ctrl_motor_spool,
+    ctrl_v23,
+    ctrl_v1,
+    ctrl_vman,
+    ctrl_man_slot,
+    ctrl_micro_pump
+};
+uint8_t const ctrl_state_len = 7; // to update when modifying lenght of control states
+
+String ctrl_state_name[ctrl_state_len] = {"Pump", "Spool", "V23", "V1", "Vman", "Man Slot", "Micro Pump"};
+
 ctrl_state control_state;
 
 // ============= REAL HARDWARE =================
 // ====> do not forget to add the object.begin() in setup()
-C_output output;                       // custom print function to handle multiple outputs
-Led status_led;                             // general purpose LED
-Led green_led;                              // general purpose LED, used here for start signals
-Trustability_ABP_Gage pressure1;            // see schematics
-Valve_2_2 valve_1;                          // see schematics
-Valve_3_2 valve_23;                         // see schematics, voltage off: L_way
-Valve_2_2 valve_manifold;                   // see schematics
-Pump pump;                                  // see schematics
-Pump pump_vacuum;                           // see schematics
-Micro_Pump micro_pump;                      // For DNA shield
-Micro_Pump test_5V_micro_pump;
-Motor spool;                                // see schematics
-Motor manifold_motor;                       // see schematics
-Encoder encoder;                            // see schematics
-Button button_start;                        // User button. Normally open
-Button button_left;                         // User button. Normally open
-Button button_right;                        // User button. Normally open
-Button button_container;                    // Control button. Normally closed
-Button button_spool_up;                     // Control button. Normally closed
-Button button_spool_down;                   // Control button. Normally closed
-Potentiometer potentiometer;                // User rotary knob
-struct Timer timer_control_pressure1;       // Timer for interrupts with pressure sensor 1
-Manifold manifold;                          // Manifold
+C_output output;                 // custom print function to handle multiple outputs
+Led status_led;                  // general purpose LED
+Led green_led;                   // general purpose LED, used here for start signals
+Trustability_ABP_Gage pressure1; // see schematics
+// Valve to open connection to ambiant air
+Valve_2_2 valve_1; // see schematics
+// ! not used anymore since container is replaced by flowmeter
+Valve_3_2 valve_23; // see schematics, voltage off: L_way
+// this valve is now connected to the deployment module
+Valve_2_2 valve_manifold;             // see schematics
+Pump pump;                            // see schematics
+Pump pump_vacuum;                     // see schematics
+Micro_Pump micro_pump;                // For DNA shield
+Motor spool;                          // see schematics
+Motor manifold_motor;                 // see schematics
+Encoder encoder;                      // see schematics
+Button button_start;                  // User button. Normally open
+Button button_left;                   // User button. Normally open
+Button button_right;                  // User button. Normally open
+Button button_container;              // Control button. Normally closed
+Button button_spool_up;               // Control button. Normally closed
+Button button_spool_down;             // Control button. Normally closed
+struct Timer timer_control_pressure1; // Timer for interrupts with pressure sensor 1
+Manifold manifold;                    // Manifold
 
+// new sensors
+Flow_sensor flow_sensor_small;
+Flow_sensor flow_sensor_big;
 
-int manifold_slot; // Armand presentation
+BigPressure pressure2;
 
+Linear_actuator linear_actuator; // NEMA17 (42SHD034-20B) + A4988, bring-up in progress
+
+// Pump/CtrlPump take a plain function pointer (PressureReadFn) rather than a
+// specific sensor type, so which sensor backs pump control AND the hard cap can be
+// swapped here in one place - used by set_pressure_safety() below, and passed into
+// every CtrlPumpFlow/CtrlPumpNoWater::begin() call in Step_functions.cpp instead of
+// &pressure1 directly. Currently pressure2 (analog "new sensor") - pressure1
+// (Trustability, SPI) has an unresolved wiring/comms fault (see
+// Trustability_ABP_Gage's "invalid SPI response" error) that leaves it stuck
+// returning a stale reading, which would make the cap silently never trip and
+// would stall the flow/air-detection control loops that depend on real changing
+// pressure. Switch back to pressure1 here (only) once that's fixed and it's
+// reading real, varying values - see print_pressure_once()/`pressure` command.
+float read_pressure2()
+{
+    return pressure2.readPressure();
+}
+
+// PressureSensor pressureDFRobot;
 
 void setup()
 {
 
     // ========== SYSTEM INITIALIZATION ============
     SPI.begin();
-    output.begin(terminal); // choose output of logs
-    timer_control_pressure1 = {TC1, 0, TC3_IRQn, 4};    // timer of 1 second (4)
+    output.begin(terminal);                          // choose output of logs
+    timer_control_pressure1 = {TC1, 0, TC3_IRQn, 4}; // timer of 1 second (4)
 
     // ========== HARDWARE INITIALIZATION ==========
     status_led.begin(STATUS_LED_PIN, "status");
@@ -101,9 +135,9 @@ void setup()
     valve_1.begin(VALVE_1_PIN, "V1");
     valve_23.begin(VALVE_23_PIN, "V_23");
     valve_manifold.begin(VALVE_MANIFOLD, "V_manifold");
-    pump.begin(PUMP_PIN, true, "P1");
+    pump.begin(PUMP_PIN, true, "P1", PUMP_ENABLE);
+    pump.set_pressure_safety(read_pressure2, STX_MAX_PRESSURE); // hard cap - pump refuses to run above this, no matter what's controlling it
     micro_pump.begin(ON_OFF_33V, "DNA Shield pump");
-    test_5V_micro_pump.begin(ON_OFF_5V, "Test ON/OFF 5V pump");
     spool.begin();
     manifold_motor.begin("MANIFOLD");
     encoder.begin(ENCODER_A_PIN, ENCODER_B_PIN, ENCODER_Z_PIN, 720, 10);
@@ -112,25 +146,37 @@ void setup()
     button_start.begin(BUTTON_START_PIN, "B_start");
     button_container.begin(BUTTON_CONTAINER_PIN, "B_container");
     button_spool_up.begin(BUTTON_SPOOL_UP, "B_spool_UP");
+    // interrupt
     attachInterrupt(digitalPinToInterrupt(BUTTON_SPOOL_UP), ISR_emergency_stop_up, FALLING);
     button_spool_down.begin(BUTTON_SPOOL_DOWN, "B_spool_down");
-    // doing problem right now, to investigate
+    // ! doing problem right now, to investigate
     // attachInterrupt(digitalPinToInterrupt(BUTTON_SPOOL_DOWN), ISR_emergency_stop_down, FALLING);
     spool.endstop_up = false;
     spool.endstop_down = false;
-    potentiometer.begin(POTENTIOMETER_PIN);
     manifold.begin();
-    manifold.change_state(PURGE_SLOT, unaivailable); // The purge has no filter
+    // PURGE_SLOT no longer needs marking unavailable here - FILL_ORDER never includes it
 
+    // new sensors
+    flow_sensor_small.begin(FLOW_SMALL_PIN, calibrationFactor_small, &pulseCount_small, pulseCounter_small);
+    flow_sensor_big.begin(FLOW_BIG_PIN, calibrationFactor_big, &pulseCount_big, pulseCounter_big);
+
+    pressure2.begin(pressure_2_pin);
+
+    // TEMP DIAGNOSTIC: commented out to test whether these two inits are interfering
+    // with the manifold motor (shares no pin numbers, but worth ruling out a shared
+    // timer/peripheral conflict) - restore both lines once the manifold is confirmed
+    // working with them enabled again.
+    // lead_mm_per_rev left at 0 (steps-only) until the lead screw pitch is known
+    linear_actuator.begin(LINEAR_ACT_STEP_PIN, LINEAR_ACT_DIR_PIN, LINEAR_ACT_ENABLE_PIN, LINEAR_ACT_STEPS_PER_REV, 1);
 
     output.println("system initalized\n");
 
-    // ======== PRE-STARTING EXECUTION =========
-    output.println("========== Press start button to play program ==========================");
-    output.println("========== Press left button to move spool up ==========================");
-    output.println("========== Press right button to move spool down =======================");
-    output.println("========== Press reset button on due button to come back here ==========");
-    output.flush();
+    // // ======== PRE-STARTING EXECUTION =========
+    // output.println("========== Press start button to play program ==========================");
+    // output.println("========== Press left button to move spool up ==========================");
+    // output.println("========== Press right button to move spool down =======================");
+    // output.println("========== Press reset button on due button to come back here ==========");
+    // output.flush();
 
     green_led.on();
     status_led.on();
@@ -142,10 +188,10 @@ void setup()
     status_led.off();
 
 #ifdef SYSTEM_CHECKUP
-    #if(DEBUG_MODE_PRINT)
-        system_checkup();
-        output.println("System checked\n");
-    #endif
+#if (DEBUG_MODE_PRINT)
+    system_checkup();
+    output.println("System checked\n");
+#endif
 #endif
 
     output.println("Programm started\n");
@@ -155,87 +201,140 @@ void setup()
     // Communication with rapsberry
     Serial.begin(9600);
 
-    // For Armand Presentation
-    manifold_slot=0;
-
     ctrl_button = true;
 
     // ! calling testing function
     // purge_pipes_manifold();
-    
-    // test_all_components();
-    // cross_cont_exp();
 
+    // ! Flow sensor test
+    // flow_setup();
+    // pressure2.readPressure();
+    // delay(500);
+    // pressure2.readPressure();
 
-    // filling the DNA shield pipe
+    pump_pid.setOutputLimits(0, 100); // always do in setup/ or in pump.begin()
+
+    pump_pid.setPID(200, 100, 100);
+
+    test_all_components();
+    // testing dna shield
+    // rotateMotor(1);
+    // spool.start_origin();
+
     // fill_DNA_shield_tube();
-    // exp_explore_2905();
+
+    // all_on();
 }
 
+uint32_t last_p_p = millis();
+float pressure_meas_count = 0;
+float avg_old = 0;
+float avg_new = 0;
 
 void loop()
 {
-    
-    // button_control();
+    // flow_loop();
+    button_control();
+    // SIC_control();
     main_program();
 
+    // float pressure;
+    // float pressureBig;
+    // avg_old += pressure1.getPressure();
+    // avg_new += pressure2.readPressure();
+    // pressure_meas_count = pressure_meas_count + 1.0;
+
+    delay(50);
 }
 
 void main_program()
 {
-    if (Serial.available() > 0) {
+    if (Serial.available() > 0)
+    {
         String data = Serial.readStringUntil('\n');
-        int depth=0;
-        String cmp_temp="sample";
-        if (data.startsWith(cmp_temp)){
-            if (data.length()==15){
-                depth=data.substring(14,15).toInt();
+        int depth = 0;
+        String cmp_temp = "sample";
+        if (data.startsWith(cmp_temp))
+        {
+            if (data.length() == 15)
+            {
+                depth = data.substring(14, 15).toInt();
             }
-            else if (data.length()==16){
-                depth=data.substring(14,16).toInt();
+            else if (data.length() == 16)
+            {
+                depth = data.substring(14, 16).toInt();
             }
-            else{
+            else
+            {
                 Serial.println("Error depth");
             }
-            data="sampleFunction";
+            data = "sampleFunction";
         }
 
-        if(data == "reloadManifoldFunction"){
+        if (data == "reloadManifoldFunction")
+        {
             manifold.reload();
         }
-        else if(data == "purgeSterivexFunction"){
-            purge_sterivex(PURGE_SLOT);
+        else if (data == "purgeSterivexFunction")
+        {
+            step_purge(true);
         }
-        else if(data == "purgeContainerFunction"){
+        else if (data == "purgeContainerFunction")
+        {
             step_purge();
         }
-        else if(data == "purgePipesFunction"){
-            purge_Pipes();
+        else if (data == "purgePipesFunction")
+        {
+            purge_pipes_manifold();
         }
-        else if(data == "fillContainerFunction"){
+        else if (data == "fillContainerFunction")
+        {
             step_fill_container();
         }
-        else if(data == "sampleFunction"){
-            depth*=100; // convert m -> cm
-            sample_process(depth); 
+        else if (data == "sampleFunction")
+        {
+            depth *= 100; // convert m -> cm
+            sample_process(depth);
         }
-        else if(data == "rollingFunctionUp"){
-            uint8_t speedy = 60;
-            spool.set_speed(speedy, up);
-            spool.start();
+        else if (data == "rollingFunctionUp")
+        {
+            if (!SPOOL_USE)
+            {
+                Serial.println("Spool disabled (SPOOL_USE=false in Settings.h)");
+            }
+            else
+            {
+                uint8_t speedy = 60;
+                spool.set_speed(speedy, up);
+                spool.start();
+            }
         }
-        else if(data == "rollingFunctionDown"){
-            uint8_t speedy = 60;
-            spool.set_speed(speedy, down);
-            spool.start();
+        else if (data == "rollingFunctionDown")
+        {
+            if (!SPOOL_USE)
+            {
+                Serial.println("Spool disabled (SPOOL_USE=false in Settings.h)");
+            }
+            else
+            {
+                uint8_t speedy = 60;
+                spool.set_speed(speedy, down);
+                spool.start();
+            }
         }
-        else if(data == "stopRolling"){
-            spool.stop();
+        else if (data == "stopRolling")
+        {
+            if (SPOOL_USE)
+            {
+                spool.stop();
+            }
         }
-        else if(data == "startDNA"){
+        else if (data == "startDNA")
+        {
             micro_pump.start();
         }
-        else if(data == "stopDNA"){
+        else if (data == "stopDNA")
+        {
             micro_pump.stop();
         }
 
@@ -245,102 +344,6 @@ void main_program()
     }
 }
 
-void before_start_program()
-{
-    // Enable to move spool manualy with left and right buttons
-    // Tune speed with potentiometer
-
-    uint8_t pot_last_value = potentiometer.get_value(0, 100);
-    uint8_t pot_value = 0;
-    uint8_t speedy = 60;
-    while (!button_start.isPressed())
-    {
-        pot_value = potentiometer.get_value(0, 100);
-        if (pot_value <= pot_last_value - 4 || pot_value >= pot_last_value + 4)
-        {
-            speedy = pot_value;
-            pot_last_value = pot_value;
-            output.println("speed " + String(speedy));
-        }
-        if (button_left.isPressed())
-        {
-            spool.set_speed(speedy, up);
-            spool.start();
-            while (button_left.isPressed())
-                delay(5);
-            spool.stop();
-        }
-        if (button_right.isPressed())
-        {
-            spool.set_speed(speedy, down);
-            spool.start();
-            while (button_right.isPressed())
-                delay(5);
-            spool.stop();
-        }
-        delay(10);
-    }
-}
-
-#ifdef SYSTEM_CHECKUP
-void system_checkup()
-{
-    // check if sensor are operationnal
-    bool error = false;
-
-    // check spool switch 1
-    spool.start(20, down);
-    delay(200);
-    spool.stop();
-    if (button_spool_up.getState() == 1){
-        output.println("CHECK | Button spool working");
-        spool.start_origin();
-    }else
-    {
-        output.println("ERROR | Button spool not working");
-        error = true;
-    }
-
-    // check container switch
-    if (button_container.getState() == 1)
-        output.println("CHECK | Button container working");
-    else{
-        output.println("ERROR | Button container not working");
-        error = true;
-    }
-
-    // check spool down switch
-    if (button_spool_down.getState() == 1)
-        output.println("CHECK | Button spool down working");
-    else{
-        output.println("ERROR | Button spool down not working");
-        error = true;
-    }
-
-    //check temperature
-    // flush first time reading otherwise error (no idea why)
-    pressure1.getTemperature();
-    delay(10);
-    if (pressure1.getTemperature() > 0)
-    {
-        output.println("CHECK | Temperature okay (" + String(pressure1.getTemperature()) + ")");
-    }
-    else
-    {
-        output.println("ERROR | Temperature too low (" + String(pressure1.getTemperature()) + ")");
-        error = true;
-    }
-
-    if (error)
-    {
-        output.println("FATAL ERROR AT STARTUP ");
-        set_system_state(state_error);
-        while (true)
-            delay(500);
-    }
-}
-
-
 /*
     For valves: left close, right open
     Valves 23: left I way, right L way
@@ -348,221 +351,214 @@ void system_checkup()
     manifold: left, decrement slot and right increment
     Pump: right start, left stop
 */
-void button_control(){
+int8_t pump_power = 20;
+bool pump_on = false;
+
+void button_control()
+{
     static uint8_t current_slot = 0;
-    if (!ctrl_button){
+    if (!ctrl_button)
+    {
         return;
     }
 
-    switch (control_state){
-        case ctrl_pump:{
-            if (button_right.isPressed()) {
-                pump.set_power(80);
-                pump.start();
+    switch (control_state)
+    {
+    case ctrl_pump:
+    {
+        if (button_right.isPressed())
+        {
+            if (pump_on == false)
+            {
                 button_right.waitPressedAndReleased();
-            }
-            if (button_left.isPressed()){
-                pump.stop();
-                button_left.waitPressedAndReleased();
-            } 
-            break;
-        }  
-        case ctrl_v23:{
-            if (button_left.isPressed()){
-                valve_23.set_L_way();
-                button_left.waitPressedAndReleased();
-            }
-            if (button_right.isPressed()){
-                valve_23.set_I_way();
-                button_right.waitPressedAndReleased();
-            }
-            break;
-        }
-        case ctrl_v1: {
-            if (button_left.isPressed()){
-                valve_1.set_close_way();
-                button_left.waitPressedAndReleased();
-            }
-            if (button_right.isPressed()){
-                valve_1.set_open_way();
-                button_right.waitPressedAndReleased();
-            }
-            break;
-        }
-        case ctrl_vman: {
-            if (button_left.isPressed()){
-                valve_manifold.set_close_way();
-                button_left.waitPressedAndReleased();
-            }
-            if (button_right.isPressed()){
+                pump.set_power(pump_power);
                 valve_manifold.set_open_way();
-                button_right.waitPressedAndReleased();
+                pump.start();
             }
-            break;
+            else
+            {
+                button_right.waitPressedAndReleased();
+                pump.stop();
+                valve_manifold.set_close_way();
+            }
+            pump_on = !pump_on;
         }
-        case ctrl_man_slot: {
-            if (button_right.isPressed()){
-                current_slot++;
-                current_slot = current_slot % 15;
-                Serial.println(current_slot);
-                button_right.waitPressedAndReleased();
-                rotateMotor(current_slot);
+        if (button_left.isPressed())
+        {
+            pump_power += 10;
+            if (pump_power > 100)
+            {
+                pump_power = 20;
             }
-            if (button_left.isPressed()){
-                current_slot--;
-                if (current_slot > 14) current_slot = 14;
-                Serial.println(current_slot);
-                button_left.waitPressedAndReleased();
-                rotateMotor(current_slot);
+            if (pump_on)
+            {
+                pump.set_power(pump_power);
             }
+            button_left.waitPressedAndReleased();
+            Serial.print("New pump power: ");
+            Serial.println(pump_power);
+        }
+        break;
+    }
+    case ctrl_v23:
+    {
+        if (button_left.isPressed())
+        {
+            valve_23.set_L_way();
+            button_left.waitPressedAndReleased();
+        }
+        if (button_right.isPressed())
+        {
+            valve_23.set_I_way();
+            button_right.waitPressedAndReleased();
+        }
+        break;
+    }
+    case ctrl_v1:
+    {
+        if (button_left.isPressed())
+        {
+            valve_1.set_close_way();
+            button_left.waitPressedAndReleased();
+        }
+        if (button_right.isPressed())
+        {
+            valve_1.set_open_way();
+            button_right.waitPressedAndReleased();
+        }
+        break;
+    }
+    case ctrl_vman:
+    {
+        if (button_left.isPressed())
+        {
+            valve_manifold.set_close_way();
+            button_left.waitPressedAndReleased();
+        }
+        if (button_right.isPressed())
+        {
+            valve_manifold.set_open_way();
+            button_right.waitPressedAndReleased();
+        }
+        break;
+    }
+    case ctrl_man_slot:
+    {
+        if (button_right.isPressed())
+        {
+            current_slot++;
             current_slot = current_slot % 15;
-            break;
+            Serial.println(current_slot);
+            button_right.waitPressedAndReleased();
+            rotateMotor(current_slot);
         }
-        case ctrl_motor_spool: {
-            if (button_right.isPressed()){
-                spool.set_speed(50, down);
-                spool.start();
+        if (button_left.isPressed())
+        {
+            current_slot--;
+            if (current_slot > 14)
+                current_slot = 14;
+            Serial.println(current_slot);
+            button_left.waitPressedAndReleased();
+            rotateMotor(current_slot);
+        }
+        current_slot = current_slot % 15;
+        break;
+    }
+    case ctrl_motor_spool:
+    {
+        if (!SPOOL_USE)
+        {
+            if (button_right.isPressed())
+            {
+                Serial.println("Spool disabled (SPOOL_USE=false in Settings.h)");
                 button_right.waitPressedAndReleased();
-                spool.stop();
             }
-            if (button_left.isPressed()){
-                spool.set_speed(100, up);
-                spool.start();
+            if (button_left.isPressed())
+            {
+                Serial.println("Spool disabled (SPOOL_USE=false in Settings.h)");
                 button_left.waitPressedAndReleased();
-                spool.stop();
             }
             break;
         }
-        case ctrl_micro_pump: {
-            if (button_right.isPressed()) {
-                micro_pump.start();
-                button_right.waitPressedAndReleased();
-            }
-            if (button_left.isPressed()){
-                micro_pump.stop();
-                button_left.waitPressedAndReleased();
-            } 
-            break;
+        if (button_right.isPressed()) //! temp disabled && button_spool_down.isReleased())
+        {
+            spool.set_speed(50, down);
+            Serial.println("Spool down. Release button to stop");
+            spool.start();
+            button_right.waitPressedAndReleased();
+            spool.stop();
         }
-        default: break;
+        if (button_left.isPressed() && button_spool_up.isReleased())
+        {
+            spool.set_speed(100, up);
+            Serial.println("Spool up. Release button to stop");
+            spool.start();
+            button_left.waitPressedAndReleased();
+            spool.stop();
+        }
+        break;
+    }
+    case ctrl_micro_pump:
+    {
+        if (button_right.isPressed())
+        {
+            micro_pump.start();
+            button_right.waitPressedAndReleased();
+        }
+        if (button_left.isPressed())
+        {
+            micro_pump.stop();
+            button_left.waitPressedAndReleased();
+        }
+        break;
+    }
+    default:
+        break;
     }
 
     // check if going onto next mode
-    if (button_start.isPressed()){
+    if (button_start.isPressed())
+    {
         control_state = static_cast<ctrl_state>((static_cast<uint8_t>(control_state) + 1) % ctrl_state_len);
         button_start.waitPressedAndReleased();
         Serial.print("New control state : ");
+        Serial.print(ctrl_state_name[control_state]);
+        Serial.print(" : ");
         Serial.println(control_state);
     }
 }
 
-void cross_cont_exp(){
-    output.println("Cross contamination test started");
-    output.println("");
-    output.println("Reuse the purged water in recipient, to filter and reuse later");
-    output.println("When pipe is destilled water, press start");
+void SIC_control()
+{
+    if (button_right.isPressed())
+    {
+        button_right.waitPressedAndReleased();
 
-    // using 4 liter of distilled water
+        manifold.begin();
+        // PURGE_SLOT no longer needs marking unavailable here - FILL_ORDER never includes it
 
-    button_start.waitPressedAndReleased();
+        demo_sample_process();
 
-    // sample 1, distilled water
-    // !!!!!!!! -----------------
-    step_fill_container();
-    step_purge(false);
-    // !! ------------
-
-
-    output.println("REUSE filtered water in 5L container");
-    output.println("When pipe is in NEW destilled water, press start to start SAMPLE N°1");
-
-    button_start.waitPressedAndReleased();
-
-    step_fill_container();
-    step_sampling(1, false);
-
-    // sample 2, no need to rinse as sample before was with destilled water
-    output.println("Put filtered water in seperate recipient to discard colony later"); // !
-    output.println("When pipe is in bacterial colony, press start for SAMPLING N°2");
-
-    button_start.waitPressedAndReleased();
-    
-    step_fill_container();
-    step_sampling(2, false);
-
-    output.println("");
-    output.println("Discard the water with the bacterial colony");
-    
-
-    output.println("Reuse water in a recipient");
-    output.println("When pipe is in distilled water container 5L (2L, filtered from sample 1), press start");
-    button_start.waitPressedAndReleased();
-
-    // rinsing bacterial colony, before sample 3
-
-    step_fill_container();
-    delay(3000);
-    step_purge(false);
-
-    output.println("Filter the 4L of water (from last purge and first purge) through a serivex into the 5L container");
-    output.println("When filtered, put pipe into the 5L container (containing 4L of distilled water)");
-    output.println("Press start button when ready");
-
-    button_start.waitPressedAndReleased();
-
-    for(uint8_t i = 0; i < 2; i++){
-        step_fill_container();
-        delay(3000);
-        step_purge(false);
+        green_led.off();
+        status_led.off();
     }
+    else if (button_left.isPressed())
+    {
+        button_left.waitPressedAndReleased();
+        status_led.on();
 
+        button_start.waitPressedAndReleased();
 
+        green_led.on();
 
-    output.println("Purge finished");
-    output.println("When pipe is in NEW (the last 2L) distilled water, press start for SAMPLE N°3");
-    button_start.waitPressedAndReleased();
+        step_dive(50);
 
-    step_fill_container();
-    step_sampling(3, false);
+        green_led.off();
+        button_start.waitPressedAndReleased();
+        green_led.on();
+        spool.start_origin();
+
+        green_led.off();
+        status_led.off();
+    }
 }
-
-
-void exp_explore_2905(){
-    output.println("Start of experiment - L'EXPLORE");
-    output.println("--------------------------------------------");
-
-    // output.println("Start of sample 1 in slot 1");
-    // output.println("Depth : 39m");
-    // output.println("Press start when ready");
-    // button_start.waitPressedAndReleased();
-    // sample_process(39*100, 1);
-
-    output.println("Start of sample 2 in slot 4");
-    output.println("Depth : 5m");
-    output.println("Press start when ready");
-    button_start.waitPressedAndReleased();
-    sample_process(5*100, 4);
-
-    output.println("Start of sample 3 in slot 8");
-    output.println("Depth : 5m");
-    output.println("Press start when ready");
-    button_start.waitPressedAndReleased();
-    sample_process(5*100, 8);
-
-    output.println("Start of sample 4 in slot 11");
-    output.println("Depth : 5m");
-    output.println("Press start when ready");
-    button_start.waitPressedAndReleased();
-    sample_process(5*100, 11);
-
-    output.println("Start of sample 5 in slot 14");
-    output.println("Depth : 3m");
-    output.println("Press start when ready");
-    button_start.waitPressedAndReleased();
-    sample_process(3*100, 14);
-
-    output.println("Well done, get a drink and enjoy the succesfull experiene");
-    output.println("------------------------------------------------------------");
-}
-
-#endif

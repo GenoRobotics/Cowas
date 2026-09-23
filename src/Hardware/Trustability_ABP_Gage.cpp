@@ -66,8 +66,11 @@ void Trustability_ABP_Gage::read()
     digitalWrite(pin_slave_select, HIGH);
     SPI.endTransaction();
 
-    // filter non valid data of pressure sensor. Two first bits should be 00
-    if (!(byte1 & B11000000))
+    // filter non valid data of pressure sensor. Two first bits should be 00, AND
+    // not all three bytes zero - an all-zero frame passes the status-bit check
+    // trivially but is what a disconnected/floating SPI line typically reads as,
+    // not a real sensor response (a genuine reading is never exactly 0 counts).
+    if (!(byte1 & B11000000) && !(byte1 == 0 && byte2 == 0 && byte3 == 0))
     {
         // output of pressure sensor in bits
         // concatenate data byte into one 16 byte then cast to float
@@ -83,7 +86,14 @@ void Trustability_ABP_Gage::read()
     }
     else
     {
-        output.println("error pressure reading");
+        // this sensor gets polled very frequently (e.g. every loop iteration while
+        // a pump is running) - printing on every single bad frame would flood the
+        // terminal, so throttle it the same way as everything else that repeats.
+        if (millis() - last_error_print > 2000)
+        {
+            output.println("ERROR | " + ID + ": invalid SPI response (bad status bits) - check wiring/CS");
+            last_error_print = millis();
+        }
     }
 }
 
