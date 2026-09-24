@@ -512,7 +512,9 @@ Installed: P_in = Honeywell <ABPDANV150PGSA3 | ABPDANV060PGSA3 | NONE YET> on SP
 between the pump and the manifold. Cable length to the sensor: <N> cm. P_out: <not installed |
 ABPDANV060PGSA3 on CS D45>. (As of FW0 no sensor is installed at all, F50: the A2 analog sensor was
 removed. If still NONE, do items 1-3 and 6 with native tests and leave the checklist in
-docs/TESTS_PENDING.md.)
+docs/TESTS_PENDING.md.) Before starting, ask me for the result of the pending "Is the spare 150 psi
+ABP alive?" check in docs/TESTS_PENDING.md (pin identification + wiring + `pressure_sensors`); if it
+hasn't been done, walk me through it first.
 
 0. Naming and dead code (F50, rule 2: the user approved the removal on 2026-09-24): `pressure1`
    (Trustability ABP, SPI) becomes `p_in` everywhere. The analog sensor on A2 is physically gone:
@@ -1015,7 +1017,7 @@ include/Settings.h. I will measure things on the machine; you prepare and then r
 |---|---|
 | **HW2** Safety hardware | ☐ Relief valve set to 2.8 bar ±0.2 (check with the sensor and a clamp) and plumbed to waste · ☐ E-stop: latching mushroom switch in series with the 24 V actuator rail (DC rating ≥ 2 × max current), or through a relay if not · ☐ second contact to a Due pin (P1) · ☐ fuses per branch (pump, VNH5019, A4988, valves), rated ~1.5× the measured current · ☐ E-stop test: pump running → press → everything stops < 0.5 s |
 | **HW3** Flowmeter | ☐ Output level safe for 3.3 V (sensor powered at 3.3 V if its spec allows, or a divider/open-collector + 3.3 V pull-up) · ☐ pin chosen (keep D13 if a pulse test passes, else D36) · ☐ `calibrate_flow` against a measuring cylinder **and** by weighing: 3 runs × 500 mL, spread < 3 % · ☐ **real sampling flow** measured with a clean Sterivex at 2 bar (mL/min) → FW4's `SAMPLE_MIN_EXPECTED_FLOW` and the outlet meter decision (P2) · ☐ flow with a half-clogged filter: does the meter still count (MW-FS-2.0 minimum 0.15 L/min)? |
-| **HW4** Pressure sensor | ☐ Mounted on a tee between the pump and the manifold, port facing down or sideways (no trapped air) · ☐ barbs clamped (the pop-out issue) · ☐ short cable (< 30 cm) or twisted pairs with GND · ☐ FW3 checklist passed |
+| **HW4** Pressure sensor | ☐ Pin 1 identified before powering (6-pin DIP, not reverse-polarity protected; procedure in docs/TESTS_PENDING.md) · ☐ powered from 3.3 V, SS on D8 · ☐ Mounted on a tee between the pump and the manifold, port facing down or sideways (no trapped air) · ☐ barbs clamped (the pop-out issue) · ☐ short cable (< 30 cm) or twisted pairs with GND · ☐ FW3 checklist passed |
 | **HW5** Power | ☐ Battery (Pilot A: 12 V LiFePO4 ≥ 50 Ah with BMS) · ☐ regulated 24 V boost (≥ 1.5 × the peak current) for actuators · ☐ 5 V buck ≥ 3 A for the Pi · ☐ Due supply per HW1 · ☐ main switch + main fuse · ☐ measured: idle W, one full cycle Wh → `docs/POWER.md` → battery sized for Pilot A and B · ☐ **20 cold boots** on the battery supply, 20/20 OK · ☐ a pump start doesn't brown out the Due (watch the reset cause in the boot log) |
 | **HW6** Field fluidics (Pilot A) | ☐ Intake: strainer (~200–500 µm mesh) + weight + rope marked every metre, at a fixed depth `<1–5 m>` · ☐ hose ID and length recorded → FW4's dead volume · ☐ suction lift: the pump primes from the water level to the machine (test at the real height) · ☐ outlet discharges ≥ 5 m downstream of the intake · ☐ quick-disconnects for transport · ☐ splash-proof box (IP54+) with the electronics above the fluidics, shade cover (sun heats the box and the filters) · ☐ everything fits on one trolley/boat |
 | **HW7** O-ring lock | ☐ `lock_endurance 200`: no drift in the encoder angle, no leak at the end (`leak_hold`) · ☐ with the coils off while locked (FW4): pressurize to 2.5 bar with the outlet clamped for 10 min → no leak, no backlash (confirms the self-locking under pressure) · ☐ P1: "unlocked" home switch (sealed Hall + magnet) on D39 |

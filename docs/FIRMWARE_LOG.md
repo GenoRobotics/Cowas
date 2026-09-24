@@ -65,4 +65,4 @@ New findings get the next free ID after ROADMAP §4 (F37, F38, ...). The "Step" 
 
 **Environment notes (this laptop):** WinLibs GCC 16.1 installed with winget, for `pio test -e native`. PlatformIO downloads need a CA bundle that includes the Windows root store (TLS inspection); see CLAUDE.md.
 
-**Open questions for later steps:** Does the team still have the 150 psi ABP (for FW3 before the 060 order arrives)? See findings F37–F52.
+**Open questions for later steps:** The team has a spare 150 psi ABP (ABPDANV150PGSA3), possibly damaged. Its check (pin identification + `pressure_sensors`) is pending in docs/TESTS_PENDING.md, and the FW3 prompt asks for it first. The 060 psi sensors are being ordered (HW0 #1). See findings F37–F52.
