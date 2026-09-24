@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  firmware-build:
+    name: Firmware build (pio run -e due)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-due-${{ hashFiles('platformio.ini') }}
+      - run: pip install platformio
+      - run: pio run -e due
+
+  native-tests:
+    name: Unit tests (pio test -e native)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-native-${{ hashFiles('platformio.ini') }}
+      - run: pip install platformio
+      - run: pio test -e native
+
+  host-tests:
+    name: Host tests (pytest host/)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Placeholder until HO1 creates host/: the job passes and says it skipped.
+      - id: check
+        run: |
+          if [ -d host ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::host/ does not exist yet - pytest skipped"
+          fi
+      - if: steps.check.outputs.present == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - if: steps.check.outputs.present == 'true'
+        run: |
+          pip install pytest
+          if [ -f host/pyproject.toml ]; then pip install -e host; fi
+          pytest host/

@@ -148,7 +148,7 @@ const bool VERBOSE_MANIFOLD = false;
 const bool VERBOSE_SHIELD = true;
 
 // ============ PIN DEFINITIONS ==================
-// To update with pinout table sheet
+// Full pin map (every Due pin, who uses it, direction, level, free pins): docs/PINOUT.md
 const uint8_t STATUS_LED_PIN = 23;
 const uint8_t GREEN_LED_PIN = 22;
 const uint8_t PRESSURE1_PIN = 8;
@@ -183,7 +183,8 @@ const uint8_t MOTOR_EN2DIAG2_PIN = 5; // enable pin
 const uint8_t MOTOR_CS2_PIN = A11;
 
 const uint8_t ENCODER_MANIFOLD = 38;
-const uint8_t FLOW_SMALL_PIN = 13; // probably fried
+const uint8_t FLOW_SMALL_PIN = 13; // to be calibrated
+
 const uint8_t FLOW_BIG_PIN = 12;
 
 // Linear actuator: NEMA17 (42SHD034-20B) driven by an A4988 driver.
@@ -231,11 +232,11 @@ const float TEST_MULTI_SAMPLE_VOLUME_ML = 50.0;  // small per-slot volume for th
 // actually made contact when locking, instead of trusting dead reckoning alone.
 // ORING_CONTACT_BUTTON_INSTALLED gates that check off for now - lock_oring() runs
 // fully open-loop as long as this stays false. To wire it up later: pick a free Due
-// pin (all pins in this file are currently claimed - see the PIN DEFINITIONS section
-// below), add an ORING_CONTACT_BUTTON_PIN constant here, begin() a Button on it in
+// pin (docs/PINOUT.md lists the free ones and whether the PCB shield brings them
+// out), add an ORING_CONTACT_BUTTON_PIN constant here, begin() a Button on it in
 // main.cpp, flip this to true, and fill in the confirm check in lock_oring().
 const bool ORING_CONTACT_BUTTON_INSTALLED = false;
-// const uint8_t ORING_CONTACT_BUTTON_PIN = <TBD - assign a free pin>;
+// const uint8_t ORING_CONTACT_BUTTON_PIN = <TBD - assign a free pin, see docs/PINOUT.md>;
 
 const long LINEAR_ACT_LOCKED_STEPS = 210;          // placeholder - measure with calibrate_linear_actuator() (steps backward from unlocked to the point the motor stalls)
 const float LINEAR_ACT_LOCK_OVERDRIVE_FACTOR = 1.10; // lock_oring() commands LINEAR_ACT_LOCKED_STEPS * this, so it always re-stalls at the same physical stop regardless of drift (see comment block above)

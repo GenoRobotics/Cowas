@@ -3,6 +3,7 @@
 #include "Button.h"
 #include "C_output.h"
 #include <SPI.h>
+#include "../Core/manifold_geometry.h"
 
 extern C_output output;
 extern Motor manifold_motor;
@@ -26,6 +27,11 @@ float sterivex_angle[15];
 // sterivex_angle[]/human_idx entry was built from - kept alongside it so
 // clock_minutes_for_slot() doesn't have to redo the walk in Manifold::begin().
 int raw_slot_of_human_idx[15];
+
+// The manifold layout, as the pure math in src/Core/manifold_geometry.cpp sees it.
+static const core::ManifoldGeometry manifold_geometry = {
+    MANIFOLD_RAW_POSITIONS, PURGE_RAW_OFFSET, omitted_angle_nb, purge_angle, angle_between_slots};
+static_assert(NB_SLOT == MANIFOLD_RAW_POSITIONS - 1, "NB_SLOT must be the raw positions minus the no-hole position");
 
 /**
  * @brief Constructor for the manifold slots
@@ -73,20 +79,7 @@ void Manifold::begin()
     // Walks outward from the purge position (PURGE_RAW_OFFSET raw steps from the
     // calibrated reference), so index 0 = purge and 1..14 = samples, skipping the
     // no-hole position (omitted_angle_nb) wherever it falls along that walk.
-    int human_idx = 0;
-    for (int offset = 0; offset < 16; offset++){
-      int slot = (PURGE_RAW_OFFSET + offset) % 16;
-      if (slot == omitted_angle_nb){
-        continue; // no hole at this physical position
-      }
-      float angle = purge_angle - slot*angle_between_slots;
-      if (angle < 0){
-        angle += 360.0;
-      }
-      sterivex_angle[human_idx] = angle;
-      raw_slot_of_human_idx[human_idx] = slot;
-      human_idx++;
-    }
+    core::build_slot_angle_table(manifold_geometry, sterivex_angle, raw_slot_of_human_idx, NB_SLOT);
 
     if (VERBOSE_INIT){output.println("Manifold initiated");}
 }
@@ -204,33 +197,16 @@ bool rotateMotor(int index)
  */
 int clock_minutes_for_slot(int human_slot)
 {
-  if (human_slot < 0 || human_slot >= NB_SLOT){
-    return -1;
-  }
-
-  int raw = raw_slot_of_human_idx[human_slot];
-  float minutes = raw * (60.0 / 16.0);
-  if (!MANIFOLD_RAW_INDEX_INCREASES_CW){
-    minutes = 60.0 - minutes;
-  }
-
-  int rounded = (int)lround(minutes) % 60;
-  if (rounded < 0){
-    rounded += 60;
-  }
-  return rounded;
+  return core::clock_minutes_for_slot(raw_slot_of_human_idx, NB_SLOT, human_slot,
+                                      MANIFOLD_RAW_POSITIONS, MANIFOLD_RAW_INDEX_INCREASES_CW);
 }
 
 /// @brief Inverse of clock_minutes_for_slot() - the human slot at a given clock
 /// minute label, or -1 if none matches exactly.
 int slot_for_clock_minutes(int minutes)
 {
-  for (int human_slot = 0; human_slot < NB_SLOT; human_slot++){
-    if (clock_minutes_for_slot(human_slot) == minutes){
-      return human_slot;
-    }
-  }
-  return -1;
+  return core::slot_for_clock_minutes(raw_slot_of_human_idx, NB_SLOT, minutes,
+                                      MANIFOLD_RAW_POSITIONS, MANIFOLD_RAW_INDEX_INCREASES_CW);
 }
 
 void directionDetermination(float goal_angle)
@@ -498,19 +474,5 @@ uint16_t getRotationSPI(uint8_t encoder){
 }
 
 float scale_angle(float angle){
-  float new_angle;
-
-  new_angle = angle - purge_angle + 11.25;
-
-  uint8_t loop_nb = 0;
-  while ((new_angle < -180 || new_angle >= 180) && loop_nb < 3){
-    if (new_angle < -180){
-      new_angle += 360.0;
-    }
-    else {
-      new_angle -= 360.0;
-    }
-  }
-
-  return new_angle;
+  return core::scale_angle(angle, purge_angle, angle_between_slots);
 }

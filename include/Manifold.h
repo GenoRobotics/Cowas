@@ -34,6 +34,11 @@ const float purge_angle = 342.07;
 
 const float angle_between_slots = 22.5;
 
+// Raw positions around the rotor (360 / angle_between_slots): 15 holes + 1 no-hole
+// position. The slot math lives in src/Core/manifold_geometry.cpp (unit-tested with
+// `pio test -e native`); Manifold.cpp checks NB_SLOT against this at compile time.
+const int MANIFOLD_RAW_POSITIONS = 16;
+
 const int omitted_angle_nb = 12; // raw steps from purge_angle (the calibration reference) to the no-hole position
 
 // Raw steps from purge_angle (the calibrated reference, physically "top") to the

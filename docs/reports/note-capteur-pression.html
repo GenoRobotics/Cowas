@@ -1,0 +1,138 @@
+<title>Note capteur de pression</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+  :root {
+    --bg: #f7f9fa; --surface: #ffffff; --ink: #17222c; --muted: #5a6975; --rule: #d7dfe5;
+    --accent: #0a6c86; --good: #1d7349; --good-soft: #e3f3ea; --warn: #a15c07; --warn-soft: #fcf1e1;
+    --bad: #b3261e; --bad-soft: #fbe9e7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #10171d; --surface: #17212a; --ink: #e4ebf0; --muted: #97a7b3; --rule: #2b3a46;
+      --accent: #5cc2dc; --good: #6fcf9c; --good-soft: #17332a; --warn: #e9b262; --warn-soft: #3a2b16;
+      --bad: #f2877e; --bad-soft: #3a1d1b;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #10171d; --surface: #17212a; --ink: #e4ebf0; --muted: #97a7b3; --rule: #2b3a46;
+    --accent: #5cc2dc; --good: #6fcf9c; --good-soft: #17332a; --warn: #e9b262; --warn-soft: #3a2b16;
+    --bad: #f2877e; --bad-soft: #3a1d1b;
+  }
+  body { background: var(--bg); color: var(--ink); font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 15.5px; line-height: 1.6; }
+  .page { max-width: 780px; margin: 0 auto; padding-inline: 20px; padding-block: 32px 56px; display: flex; flex-direction: column; gap: 26px; }
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+  h1 { font-size: 25px; line-height: 1.25; margin: 0; text-wrap: balance; }
+  h2 { font-size: 17px; margin: 0; text-wrap: balance; }
+  section { display: flex; flex-direction: column; gap: 10px; }
+  p { margin: 0; }
+  ul, ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 5px; }
+  code, .num { font-family: "IBM Plex Mono", ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; }
+  code { font-size: 0.92em; }
+  .decision { background: var(--good-soft); border-left: 4px solid var(--good); padding: 12px 16px; border-radius: 0 6px 6px 0; display: flex; flex-direction: column; gap: 4px; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 600px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { color: var(--muted); }
+  .ok { color: var(--good); font-weight: 600; }
+  .ko { color: var(--bad); font-weight: 600; }
+  .mid { color: var(--warn); font-weight: 600; }
+  .sources { font-size: 12.5px; color: var(--muted); display: flex; flex-direction: column; gap: 3px; border-top: 1px solid var(--rule); padding-top: 12px; }
+  .sources a { color: var(--accent); word-break: break-all; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="page">
+  <header>
+    <span class="eyebrow">CoWaS · note de commande</span>
+    <h1>Capteur de pression : choix et commande</h1>
+  </header>
+
+  <div class="decision">
+    <strong>Proposition : 3 × Honeywell <code>ABPDANV060PGSA3</code> (fournisseur trouvé, ≈ 45 € pièce, ≈ 135 € au total).</strong>
+    <span>Un capteur pour après le filtre, un pour remplacer le capteur actuel avant le filtre, et un de rechange. C'est la même famille que notre capteur actuel (même boîtier, même bus SPI, même 3,3 V, même code, même tuyau), mais en 0–4,1 bar au lieu de 0–10,3 bar : 2,5 fois plus précis. Avec le même modèle aux deux positions, une seule pièce de rechange suffit. Le capteur 150 psi actuel devient un capteur de banc d'essai.</span>
+  </div>
+
+  <section>
+    <h2>1. Ce dont on a besoin</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Exigence</th><th>Valeur visée</th><th>Pourquoi</th></tr></thead>
+        <tbody>
+          <tr><td>Étendue</td><td class="num">≥ 3,5 bar</td><td>Seuil de sécurité à 2,5 bar, réglable jusqu'à 3 bar, plus une marge</td></tr>
+          <tr><td>Précision sur ΔP (avant − après filtre)</td><td class="num">≤ ±0,15 bar</td><td>Mesure du colmatage ; les erreurs des deux capteurs s'additionnent</td></tr>
+          <tr><td>Fluide</td><td>Eau et air</td><td>Le cycle alterne filtration et vidange à l'air</td></tr>
+          <tr><td>Alimentation / logique</td><td>3,3 V</td><td>L'Arduino Due est en 3,3 V et n'accepte pas 5 V sur ses broches</td></tr>
+          <tr><td>Surpression admissible</td><td>&gt; pression maxi de la pompe (vanne fermée)</td><td>Survivre à un blocage</td></tr>
+          <tr><td>Raccord</td><td>Compatible avec nos tuyaux, et tenue à 2,5 bar</td><td>Le capteur actuel s'est déjà déboîté</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. Comparaison</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th>Actuel<br><code>ABPDANV150PGSA3</code></th><th>Proposé<br><code>ABPDANV060PGSA3</code></th><th>Alternative industrielle<br>Honeywell MIP 6 bar</th></tr></thead>
+        <tbody>
+          <tr><td>Étendue</td><td class="num">0–10,3 bar</td><td class="num ok">0–4,1 bar</td><td class="num ok">0–6 bar absolu (≈ 0–5 bar relatif)</td></tr>
+          <tr><td>Précision (erreur totale, 0–50 °C)</td><td class="num ko">±1,5 % EM = ±0,16 bar</td><td class="num ok">±1,5 % EM = ±0,06 bar</td><td class="num ok">±1,0 % EM = ±0,06 bar</td></tr>
+          <tr><td>Précision sur ΔP (2 capteurs)</td><td class="num"><span class="ko">±0,31 bar brut</span><br><span class="mid">≈ ±0,05 bar avec étalonnages (2b)</span></td><td class="num"><span class="ok">±0,12 bar brut</span><br><span class="ok">≈ ±0,02 bar avec étalonnages (2b)</span></td><td class="num ok">±0,12 bar</td></tr>
+          <tr><td>Eau et air</td><td class="ok">Oui (option V, gel)</td><td class="ok">Oui (option V, gel)</td><td class="ok">Oui (inox soudé)</td></tr>
+          <tr><td>Alimentation / sortie</td><td class="ok">3,3 V, SPI numérique</td><td class="ok">3,3 V, SPI numérique</td><td class="mid">5 V, analogique 0,5–4,5 V (pont diviseur nécessaire)</td></tr>
+          <tr><td>Surpression admissible</td><td class="num">17 bar</td><td class="num">17 bar</td><td class="num">24 bar</td></tr>
+          <tr><td>Raccord</td><td class="mid">Port cannelé sur circuit imprimé</td><td class="mid">Identique à l'actuel (+ collier)</td><td class="ok">Filetage inox G1/4, IP67</td></tr>
+          <tr><td>Intégration</td><td>—</td><td class="ok">Aucun changement : même code, même bus, même tube</td><td class="mid">Nouveau raccord, pont diviseur, recalage du zéro (capteur absolu)</td></tr>
+          <tr><td>Prix unitaire</td><td class="num">≈ 45 €</td><td class="num ok">≈ 45 €</td><td class="num">≈ 85 €</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>EM = étendue de mesure. Le 60 psi atteint l'objectif sur ΔP sans aucun étalonnage ; le 150 psi ne l'atteint qu'avec les étalonnages de la section 2b. Le 150 psi reste une solution de repli si le fournisseur du 60 psi fait défaut.</p>
+    <p><strong>Pourquoi un ABP plutôt que le MIP :</strong> moitié prix et sans aucune modification électronique ni logicielle. Le MIP n'a d'intérêt que si le port cannelé continue de se déboîter malgré un collier : il reste alors l'option de repli, sans racheter le reste.</p>
+  </section>
+
+  <section>
+    <h2>2b. Deux étalonnages logiciels (recommandés)</h2>
+    <p>L'erreur totale de la fiche est un pire cas sur 0–50 °C, dominé par l'erreur de zéro. La linéarité seule est de ±0,25 % EM, soit ±0,01 bar pour le 60 psi. Deux étalonnages logiciels, sans matériel supplémentaire, ramènent l'erreur sur ΔP d'environ ±0,12 bar à environ ±0,02 bar (estimation) :</p>
+    <ol>
+      <li><strong>Zéro automatique</strong> avant chaque échantillon, pompe arrêtée et lignes à l'air. Il supprime l'erreur de zéro et sa dérive en température.</li>
+      <li><strong>Étalonnage croisé des deux capteurs</strong> à la mise en service : sortie fermée, pompe à 2 bar, les deux capteurs voient la même pression et doivent afficher la même valeur. On corrige le gain de l'un sur l'autre.</li>
+    </ol>
+    <p>La résolution n'est pas limitante (14 bits, ≈ 0,3 mbar par pas).</p>
+  </section>
+
+  <section>
+    <h2>3. Compatibilité avec la carte</h2>
+    <ul>
+      <li><strong>Tension :</strong> la version <code>…SA3</code> est alimentée en 3,3 V et ses signaux SPI sont en 3,3 V. Elle se branche directement sur le Due, sans adaptation. À ne pas confondre avec les versions <code>…5</code> (5 V) ou <code>…AA…</code> (analogique).</li>
+      <li><strong>Broches :</strong> le bus SPI existe déjà (MISO, SCK sur le connecteur SPI du Due), partagé avec l'encodeur du manifold. Chaque capteur n'ajoute qu'une broche de sélection (CS) : <code>D8</code> pour le capteur avant filtre (déjà câblé) et <code>D45</code> (libre dans le code) pour le capteur après filtre. Pas de broche analogique consommée.</li>
+      <li><strong>Consommation :</strong> environ 3 mA par capteur, négligeable.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>4. À vérifier avant de commander</h2>
+    <ol>
+      <li><strong>Longueur des câbles SPI.</strong> Le SPI supporte mal les câbles longs : au-delà d'environ 30 cm, il faut un câble torsadé ou blindé et une horloge SPI réduite. C'est aussi la cause la plus probable de l'erreur « invalid SPI response » du capteur actuel. Si le capteur après filtre doit être loin du Due, le MIP analogique devient préférable.</li>
+      <li><strong>Broche D45 accessible</strong> sur notre shield PCB.</li>
+      <li><strong>Pression maximale de la pompe</strong> vanne fermée : elle doit rester sous 17 bar (très probable pour notre pompe à membrane).</li>
+      <li><strong>Référence exacte :</strong> <code>ABPDANV060PGSA3</code> = boîtier DIP, port axial cannelé, option liquide avec diagnostic, 0–60 psi relatif, sortie SPI, 3,3 V. Vérifier sur le devis du fournisseur que la référence est exactement celle-ci : pas de version <code>…5</code> (5 V) ni <code>…AA…</code> (analogique). Pour un fournisseur hors distribution officielle, demander le certificat d'origine (risque de contrefaçon).</li>
+      <li><strong>À commander avec :</strong> 3 colliers pour les ports cannelés.</li>
+    </ol>
+  </section>
+
+  <div class="sources">
+    <strong>Sources</strong>
+    <span>Fiche technique Honeywell ABP (étendues, erreur totale ±1,5 % EM, surpression 250 psi, option liquide, codification) : <a href="https://prod-edam.honeywell.com/content/dam/honeywell-edam/sps/siot/ko-kr/products/sensors/pressure-sensors/board-mount-pressure-sensors/basic-abp-series/documents/sps-siot-basic-board-mount-pressure-abp-series-datasheet-32305128-ciid-155789.pdf">honeywell.com</a></span>
+    <span>Prix de référence ABP 3,3 V SPI (≈ 49 $ pour le 060PGSA3 ; même gamme de prix pour le 150PGSA3) : <a href="https://www.newark.com/honeywell/abpdanv060pgsa3/pressure-sensor-gauge-60psi-3/dp/64AH1787">newark.com</a></span>
+    <span>Fiche technique Honeywell MIP (absolu sous 8 bar, ±1,0 % EM, charge mini 2 kΩ, IP67) : <a href="https://resources.ampheo.com/static/datasheets/honeywell/mipag1xx006baaax.pdf">MIPAG1XX006BAAAX</a> ; prix ≈ 85 € : <a href="https://vikiwat.com/pressure-transducer-mipag1xx006baaax-5vdc-0-6-bar-500mv-45v-g-1-4inch">vikiwat.com</a></span>
+    <span>Prix indicatifs relevés en septembre 2026, hors frais de port.</span>
+  </div>
+</div>

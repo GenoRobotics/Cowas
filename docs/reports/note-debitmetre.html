@@ -1,0 +1,135 @@
+<title>Note débitmètre</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+  :root {
+    --bg: #f7f9fa; --surface: #ffffff; --ink: #17222c; --muted: #5a6975; --rule: #d7dfe5;
+    --accent: #0a6c86; --good: #1d7349; --good-soft: #e3f3ea; --warn: #a15c07; --warn-soft: #fcf1e1;
+    --bad: #b3261e; --bad-soft: #fbe9e7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #10171d; --surface: #17212a; --ink: #e4ebf0; --muted: #97a7b3; --rule: #2b3a46;
+      --accent: #5cc2dc; --good: #6fcf9c; --good-soft: #17332a; --warn: #e9b262; --warn-soft: #3a2b16;
+      --bad: #f2877e; --bad-soft: #3a1d1b;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #10171d; --surface: #17212a; --ink: #e4ebf0; --muted: #97a7b3; --rule: #2b3a46;
+    --accent: #5cc2dc; --good: #6fcf9c; --good-soft: #17332a; --warn: #e9b262; --warn-soft: #3a2b16;
+    --bad: #f2877e; --bad-soft: #3a1d1b;
+  }
+  body { background: var(--bg); color: var(--ink); font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 15.5px; line-height: 1.6; }
+  .page { max-width: 780px; margin: 0 auto; padding-inline: 20px; padding-block: 32px 56px; display: flex; flex-direction: column; gap: 26px; }
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+  h1 { font-size: 25px; line-height: 1.25; margin: 0; text-wrap: balance; }
+  h2 { font-size: 17px; margin: 0; text-wrap: balance; }
+  section { display: flex; flex-direction: column; gap: 10px; }
+  p { margin: 0; }
+  ul, ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 5px; }
+  code, .num { font-family: "IBM Plex Mono", ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; }
+  code { font-size: 0.92em; }
+  .decision { background: var(--warn-soft); border-left: 4px solid var(--warn); padding: 12px 16px; border-radius: 0 6px 6px 0; display: flex; flex-direction: column; gap: 4px; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 600px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { color: var(--muted); }
+  .ok { color: var(--good); font-weight: 600; }
+  .ko { color: var(--bad); font-weight: 600; }
+  .mid { color: var(--warn); font-weight: 600; }
+  .sources { font-size: 12.5px; color: var(--muted); display: flex; flex-direction: column; gap: 3px; border-top: 1px solid var(--rule); padding-top: 12px; }
+  .sources a { color: var(--accent); word-break: break-all; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="page">
+  <header>
+    <span class="eyebrow">CoWaS · note de commande</span>
+    <h1>Débitmètre de sortie : choix et commande</h1>
+  </header>
+
+  <div class="decision">
+    <strong>Proposition : mesurer d'abord notre débit réel (1 h de manip), puis commander selon le résultat.</strong>
+    <span>Notre capteur actuel, le MW-FS-2.0, ne mesure qu'à partir de 0,15 L/min. En fin de colmatage, le débit passe très probablement en dessous : le capteur sous-estime alors ou s'arrête, précisément quand on en a besoin. Commander sans cette mesure, c'est risquer de racheter dans quelques semaines.</span>
+  </div>
+
+  <section>
+    <h2>1. Ce dont on a besoin</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Exigence</th><th>Valeur visée</th><th>Pourquoi</th></tr></thead>
+        <tbody>
+          <tr><td>Débit mini mesurable</td><td class="num">≤ débit en fin de colmatage (à mesurer)</td><td>Volume filtré exact, détection de fuite jusqu'au bout</td></tr>
+          <tr><td>Débit maxi</td><td class="num">≥ débit filtre propre / purge (à mesurer)</td><td>Ne pas saturer</td></tr>
+          <tr><td>Précision</td><td class="num">≤ ±5 %</td><td>Volume par échantillon (métadonnée), comparaison entrée/sortie</td></tr>
+          <tr><td>Même modèle en entrée et en sortie</td><td>Oui</td><td>Comparer les deux directement (fuites, fusion des mesures)</td></tr>
+          <tr><td>Signal</td><td>3,3 V, ou collecteur ouvert</td><td>L'Arduino Due n'accepte pas 5 V sur ses broches</td></tr>
+          <tr><td>Raccord</td><td class="num">Tuyau Ø 6 mm</td><td>Nos tuyaux actuels</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. Comparaison</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th>Actuel<br>MW-FS-2.0</th><th>Bas débit<br>BIO-TECH FCH-m-POM-LC</th><th>Haut de gamme<br>Sensirion SLF3S-4000B</th></tr></thead>
+        <tbody>
+          <tr><td>Principe</td><td>Turbine</td><td>Turbine</td><td>Thermique, sans pièce mobile</td></tr>
+          <tr><td>Plage</td><td class="num mid">0,15–1,0 L/min</td><td class="num ok">0,015–1,0 L/min (buse 1,0 mm)</td><td class="num ok">0–0,6 L/min</td></tr>
+          <tr><td>Précision</td><td class="num">±5 %</td><td>Non publiée (à demander)</td><td class="num ok">±5 % jusqu'à 0,3 L/min, ±10 % au-delà</td></tr>
+          <tr><td>Impulsions</td><td class="num">≈ 4 620 / L</td><td class="num">≈ 10 000 / L</td><td>Numérique I²C</td></tr>
+          <tr><td>Alimentation / signal</td><td class="ok">2,5–24 V ; sortie = tension d'alim. → alimenté en 3,3 V : direct</td><td class="ok">5–24 V, collecteur ouvert NPN → pull-up 3,3 V : direct</td><td class="ok">3,2–3,8 V, I²C 3,3 V</td></tr>
+          <tr><td>Pression maxi</td><td>Non spécifiée</td><td class="num">4 bar</td><td class="num mid">3 bar (éclatement 5,5)</td></tr>
+          <tr><td>Température</td><td class="num">jusqu'à 80 °C</td><td class="num">−20 à 80 °C</td><td class="num mid">+5 à 50 °C (eau froide hors spec)</td></tr>
+          <tr><td>Eau non filtrée</td><td class="ok">Oui</td><td class="ok">Oui</td><td class="ko">Non : canal fin, uniquement après le filtre</td></tr>
+          <tr><td>Air (vidange)</td><td class="mid">Compte de faux volumes (géré par logiciel)</td><td class="mid">Idem</td><td class="ok">Pas de rotation ; signale l'air</td></tr>
+          <tr><td>Raccord</td><td class="ok">Ø 6 mm</td><td class="ok">Ø 6 mm</td><td class="mid">Raccords spécifiques</td></tr>
+          <tr><td>Prix unitaire</td><td class="num ok">≈ 4 €</td><td class="num">≈ 20–40 € (à confirmer)</td><td class="num ko">≈ 150 €</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>3. Règle de décision (après la mesure)</h2>
+    <ul>
+      <li><strong>Débit mini mesuré ≥ 0,2 L/min</strong> → on garde le <strong>MW-FS-2.0</strong> : 2 à commander (sortie + rechange), ≈ 8 €. Meilleur rapport qualité/prix, rien à changer.</li>
+      <li><strong>Débit mini &lt; 0,15 L/min</strong> (cas le plus probable avec un filtre qui colmate) → <strong>BIO-TECH FCH-m-POM-LC</strong> avec buse 1,0 mm, <strong>3 exemplaires</strong> (entrée, sortie, rechange ; même modèle aux deux positions), ≈ 60–120 €. Même tuyau Ø 6 mm, même câblage.</li>
+      <li><strong>Sensirion :</strong> seulement si l'on veut un volume filtré de précision labo en sortie et que le budget le permet. Il ne va qu'après le filtre (l'eau y est propre), jamais en entrée. Les réserves : 3 bar maxi, pas d'eau sous 5 °C, raccords à adapter.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>4. Mesure à faire avant de commander</h2>
+    <ol>
+      <li>Filtre propre, pompe à la pression de travail (2 bar) : chronométrer le remplissage d'une éprouvette → <strong>débit maxi</strong>.</li>
+      <li>Même mesure pendant la purge (sans filtre).</li>
+      <li>Eau chargée (limon), jusqu'au colmatage : noter le débit toutes les 5 min → <strong>débit mini utile</strong>.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>5. Compatibilité avec la carte</h2>
+    <ul>
+      <li><strong>Broches :</strong> le débitmètre d'entrée est sur <code>D13</code>. Celui de sortie ira sur <code>D12</code> (déjà prévue dans le code pour un second débitmètre) ou <code>D36</code>. Toutes les broches du Due acceptent les interruptions nécessaires au comptage.</li>
+      <li><strong>Tension (à vérifier dès maintenant) :</strong> le MW-FS-2.0 sort un signal égal à sa tension d'alimentation. S'il est alimenté en 5 V, il envoie 5 V sur <code>D13</code>, ce qui abîme le Due à terme. Il faut l'alimenter en 3,3 V (il fonctionne dès 2,5 V). Le BIO-TECH, à collecteur ouvert, se branche avec une résistance de tirage vers 3,3 V.</li>
+      <li><strong>Installation :</strong> en sortie, le débitmètre doit rester plein d'eau. Le monter bas, avec le tuyau qui remonte après lui, dans le sens de la flèche.</li>
+    </ul>
+  </section>
+
+  <div class="sources">
+    <strong>Sources</strong>
+    <span>MW-FS-2.0 (plage, 77 Hz par L/min, 2,5–24 V, sortie = tension d'alim., ±5 %, 4 €) : <a href="https://www.tinytronics.nl/en/sensors/liquid/mw-fs-2.0-water-flow-sensor-0.15-1.0l">tinytronics.nl</a></span>
+    <span>BIO-TECH FCH-m-POM-LC (plages selon la buse, collecteur ouvert NPN, 4 bar, −20…80 °C, Ø 6 mm) : <a href="https://www.btflowmeter.com/en/flow-meter-products/flow-meters-lowflow-flowmeters-low-flow-turbine-flow-meter-fuel-flow-meters-diesel-fuel-flow-meter-watermeters-paddlewheel-flow-meter-oil-flow-meter-oilflowmeter-waterflowmeter-water-meters-turbineflowmeter-oilflowmeter/low-flow-flowmeters-fch-m-pom-series-0002-8-lpm/fch-m-pom-10-lpm-97478038.html">btflowmeter.com</a> · <a href="https://www.rapidonline.com/bio-tech-fch-m-pom-lc-ad-6-mm-non-aggressive-liquids-low-flow-flowmeter-50-0017">rapidonline.com</a></span>
+    <span>Sensirion SLF3S-4000B (plage, précision, 3,2–3,8 V, 3 bar, 5–50 °C) : <a href="https://sensirion.com/media/documents/5D69DA5A/6387516F/Sensirion_Liquid_Flow_Sensors_Datasheet_SLF3S-4000B.pdf">fiche Sensirion</a> ; prix : <a href="https://www.digikey.co.uk/en/products/detail/sensirion-ag/SLF3S-4000B-LIQUID-FLOW-SENSOR/16579752">digikey.co.uk</a></span>
+    <span>Prix indicatifs relevés en septembre 2026, hors frais de port.</span>
+  </div>
+</div>

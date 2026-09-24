@@ -1,0 +1,112 @@
+<title>CoWaS Sensor Upgrade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+  :root {
+    --bg: #f7f9fa;
+    --surface: #ffffff;
+    --ink: #17222c;
+    --muted: #5a6975;
+    --rule: #d7dfe5;
+    --accent: #0a6c86;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #10171d;
+      --surface: #17212a;
+      --ink: #e4ebf0;
+      --muted: #97a7b3;
+      --rule: #2b3a46;
+      --accent: #5cc2dc;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #10171d;
+    --surface: #17212a;
+    --ink: #e4ebf0;
+    --muted: #97a7b3;
+    --rule: #2b3a46;
+    --accent: #5cc2dc;
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding-inline: 20px;
+    padding-block: 36px 56px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 14px; display: flex; flex-direction: column; gap: 4px; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+  h1 { font-size: 26px; line-height: 1.25; margin: 0; text-wrap: balance; }
+  h2 { font-size: 19px; margin: 0; text-wrap: balance; }
+  section { display: flex; flex-direction: column; gap: 12px; }
+  p { margin: 0; }
+  ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+  .num, code { font-family: "IBM Plex Mono", ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; }
+  code { font-size: 0.9em; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 460px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--rule); }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { color: var(--muted); }
+  .note { font-size: 13px; color: var(--muted); }
+</style>
+
+<div class="page">
+  <header>
+    <span class="eyebrow">CoWaS</span>
+    <h1>Two sensor additions</h1>
+  </header>
+
+  <section>
+    <h2>1. A second pressure sensor, after the filter</h2>
+    <p><strong>Why.</strong> Today we only measure pressure before the filter, so a clogging filter looks the same as a pinched tube or a closed valve. A sensor after the filter gives the pressure drop across the filter itself, which tells us:</p>
+    <ul>
+      <li>when to stop a sample because the filter is clogged;</li>
+      <li>how clogged each filter was, recorded in the sample metadata;</li>
+      <li>when a filter is torn (no pressure drop) or the outlet is blocked.</li>
+    </ul>
+    <p><strong>Which sensor.</strong> <code>ABPDANV060PGSA3</code>: the same Honeywell family as our current <code>ABPDANV150PGSA3</code> (water-compatible, SPI, 3.3 V, same code and wiring), but in the 0–60 psi range instead of 0–150 psi.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th>Current (150 psi)</th><th>Proposed (60 psi)</th></tr></thead>
+        <tbody>
+          <tr><td>Range</td><td class="num">0–10.3 bar</td><td class="num">0–4.1 bar</td></tr>
+          <tr><td>Accuracy (±1.5 % of range)</td><td class="num">±0.16 bar</td><td class="num">±0.06 bar</td></tr>
+          <tr><td>Clogging (difference of two sensors)</td><td class="num">±0.31 bar</td><td class="num">±0.12 bar</td></tr>
+          <tr><td>Covers the 2.5 bar safety cap</td><td>Yes</td><td>Yes (60 % of range)</td></tr>
+          <tr><td>Overpressure rating</td><td class="num">17 bar</td><td class="num">17 bar</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The clogging signal is the difference between two sensors, so their errors add up. With the 150 psi version, the error is more than 10 % of our 2.5 bar working range; with the 60 psi version, about 5 %. We suggest buying three: one after the filter, one to replace the current upstream sensor (same accuracy on both sides), and a spare.</p>
+    <p><strong>Where and how.</strong> On a tee right after the filter outlet. It shares the SPI bus with the existing sensor (3.3 V, GND, MISO, SCK) and gets its own chip-select pin (<code>D45</code>). No extra electronics are needed. Its hose barb gets a clamp: the barb is where the current sensor popped out.</p>
+  </section>
+
+  <section>
+    <h2>2. A second flow sensor, at the outlet</h2>
+    <p><strong>Why.</strong> With a flowmeter at the inlet and one at the outlet:</p>
+    <ul>
+      <li>we record the volume that actually went through the filter (eDNA results are per litre);</li>
+      <li>we detect leaks: water going in but not coming out;</li>
+      <li>we confirm clogging: flow falls while the pressure drop rises.</li>
+    </ul>
+    <p><strong>Which sensor.</strong> The same model as the inlet meter, so the two can be compared directly. Before ordering, we check that its minimum flow is below our real sampling flow (measured with a cylinder). Small turbine meters under-read at low flow, which is exactly when a filter clogs.</p>
+    <p><strong>Where and how.</strong> After the filter, mounted low so it stays full of water. Wiring: 5 V, GND, and the signal to pin <code>D12</code> (or <code>D36</code>) with a pull-up to 3.3 V.</p>
+  </section>
+
+  <p class="note">Specifications: Honeywell ABP Series datasheet (ranges, ±1.5 % total error band, 250 psi overpressure, liquid-media option).</p>
+</div>
