@@ -1,0 +1,3797 @@
+{
+ "protocol": "1.0",
+ "spec": "docs/PROTOCOL.md",
+ "matching": "Expected objects match when every listed key is present with an equal value; unlisted keys are not checked. \"$num\", \"$str\", \"$bool\" match any value of that type, \"$any\" matches anything including null. Arrays must have the same length and match element by element. expect [] = the Due sends nothing. line_gen: prefix + fill repeated up to length bytes (+ suffix, counted in length), no newline.",
+ "defaults": {
+  "state": {
+   "mode": "IDLE",
+   "lock": "locked",
+   "slot": 0,
+   "aligned": true,
+   "fault": null,
+   "recovery_cause": null,
+   "estop_pressed": false,
+   "busy": null,
+   "remembered": [],
+   "caps": {
+    "p_in": true,
+    "p_out": false,
+    "q_in": true,
+    "q_out": false,
+    "estop_input": false,
+    "spool": false,
+    "water_temp": false,
+    "leak": false,
+    "oring_home_switch": false
+   },
+   "geometry": "the firmware's Settings.h / Manifold.h (15 slots, purge 0, FILL_ORDER as in GET_INFO)",
+   "limits": {
+    "volume_ml_min": 10,
+    "volume_ml_max": 5000,
+    "max_duration_s_max": 3600,
+    "purge_ml_min": 424,
+    "duration_ms_max": 600000,
+    "max_line": 2048
+   }
+  }
+ },
+ "requests": [
+  {
+   "name": "hello_idle",
+   "desc": "HELLO in IDLE returns identity, versions and capabilities.",
+   "tags": [
+    "hello"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0001\",\"cmd\":\"HELLO\",\"args\":{\"proto\":1,\"client\":\"cowas-host 0.1.0\"}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0001",
+     "ok": true,
+     "mode": "IDLE",
+     "data": {
+      "proto": "$str",
+      "device_id": "$str",
+      "boot_id": "$str",
+      "uptime_s": "$num",
+      "fw": {
+       "version": "$str",
+       "git": "$str",
+       "dirty": "$bool",
+       "built": "$str"
+      },
+      "mode": "IDLE",
+      "recovery_required": false,
+      "recovery_cause": null,
+      "fault": null,
+      "caps": {
+       "p_in": true,
+       "p_out": false,
+       "q_in": true,
+       "q_out": false,
+       "estop_input": false,
+       "spool": false,
+       "water_temp": false,
+       "leak": false,
+       "oring_home_switch": false
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "hello_after_boot",
+   "desc": "After a power-on reset the Due reports RECOVERY_REQUIRED with its cause.",
+   "tags": [
+    "hello",
+    "recovery"
+   ],
+   "state": {
+    "mode": "RECOVERY_REQUIRED",
+    "recovery_cause": "POWER_ON",
+    "lock": "unknown"
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0002\",\"cmd\":\"HELLO\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0002",
+     "ok": true,
+     "mode": "RECOVERY_REQUIRED",
+     "data": {
+      "mode": "RECOVERY_REQUIRED",
+      "recovery_required": true,
+      "recovery_cause": "POWER_ON",
+      "fault": null
+     }
+    }
+   ]
+  },
+  {
+   "name": "hello_proto_mismatch",
+   "desc": "A host speaking protocol 2 is refused.",
+   "tags": [
+    "hello",
+    "error"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0003\",\"cmd\":\"HELLO\",\"args\":{\"proto\":2}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0003",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "proto_mismatch",
+      "msg": "$str",
+      "proto": "$str"
+     }
+    }
+   ]
+  },
+  {
+   "name": "hello_in_busy",
+   "desc": "HELLO is answered while BUSY.",
+   "tags": [
+    "hello",
+    "busy"
+   ],
+   "state": {
+    "mode": "BUSY",
+    "busy": {
+     "id": "h-0200",
+     "cmd": "RUN_CYCLE"
+    }
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0004\",\"cmd\":\"HELLO\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0004",
+     "ok": true,
+     "mode": "BUSY",
+     "data": {
+      "mode": "BUSY"
+     }
+    }
+   ]
+  },
+  {
+   "name": "ping",
+   "desc": "PING returns the uptime.",
+   "tags": [
+    "ping"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0010\",\"cmd\":\"PING\",\"args\":{}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0010",
+     "ok": true,
+     "mode": "IDLE",
+     "data": {
+      "ms": "$num"
+     }
+    }
+   ]
+  },
+  {
+   "name": "ping_without_args",
+   "desc": "args may be omitted.",
+   "tags": [
+    "ping"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0011\",\"cmd\":\"PING\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0011",
+     "ok": true,
+     "mode": "IDLE",
+     "data": {
+      "ms": "$num"
+     }
+    }
+   ]
+  },
+  {
+   "name": "ping_extra_envelope_field",
+   "desc": "Unknown top-level envelope fields are ignored.",
+   "tags": [
+    "ping",
+    "forward_compat"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0012\",\"cmd\":\"PING\",\"args\":{},\"future\":1}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0012",
+     "ok": true,
+     "mode": "IDLE",
+     "data": {
+      "ms": "$num"
+     }
+    }
+   ]
+  },
+  {
+   "name": "status_idle",
+   "desc": "STATUS in IDLE.",
+   "tags": [
+    "status"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0020\",\"cmd\":\"STATUS\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0020",
+     "ok": true,
+     "mode": "IDLE",
+     "data": {
+      "mode": "IDLE",
+      "boot_id": "$str",
+      "uptime_s": "$num",
+      "recovery_required": false,
+      "recovery_cause": null,
+      "fault": null,
+      "lock": "locked",
+      "slot": 0,
+      "angle_deg": "$num",
+      "busy": null,
+      "sensors": "$any",
+      "warnings": [],
+      "link_ok": true,
+      "tx_dropped": 0,
+      "last": null
+     }
+    }
+   ]
+  },
+  {
+   "name": "status_busy",
+   "desc": "STATUS during a RUN_CYCLE shows the running command.",
+   "tags": [
+    "status",
+    "busy"
+   ],
+   "state": {
+    "mode": "BUSY",
+    "lock": "locked",
+    "slot": 3,
+    "busy": {
+     "id": "h-0200",
+     "cmd": "RUN_CYCLE",
+     "step": "sample",
+     "phase": "water"
+    }
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0021\",\"cmd\":\"STATUS\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0021",
+     "ok": true,
+     "mode": "BUSY",
+     "data": {
+      "mode": "BUSY",
+      "lock": "locked",
+      "slot": 3,
+      "busy": {
+       "id": "h-0200",
+       "cmd": "RUN_CYCLE",
+       "step": "sample",
+       "phase": "water",
+       "elapsed_s": "$num",
+       "max_s": "$num"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "get_info",
+   "desc": "GET_INFO gives the geometry; the host never assumes 14.",
+   "tags": [
+    "get_info"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0030\",\"cmd\":\"GET_INFO\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0030",
+     "ok": true,
+     "mode": "IDLE",
+     "data": {
+      "slot_count": 15,
+      "purge_slot": 0,
+      "sample_slots": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7,
+       8,
+       9,
+       10,
+       11,
+       12,
+       13,
+       14
+      ],
+      "fill_order": [
+       1,
+       2,
+       3,
+       14,
+       13,
+       12,
+       11,
+       10,
+       9,
+       8,
+       4,
+       5,
+       6,
+       7
+      ],
+      "raw_positions": 16,
+      "clock_dir": "cw",
+      "positions": [
+       {
+        "slot": 0,
+        "angle_deg": "$num",
+        "clock": 30
+       },
+       {
+        "slot": 1,
+        "angle_deg": "$num",
+        "clock": 34
+       },
+       {
+        "slot": 2,
+        "angle_deg": "$num",
+        "clock": 38
+       },
+       {
+        "slot": 3,
+        "angle_deg": "$num",
+        "clock": 41
+       },
+       {
+        "slot": 4,
+        "angle_deg": "$num",
+        "clock": 49
+       },
+       {
+        "slot": 5,
+        "angle_deg": "$num",
+        "clock": 53
+       },
+       {
+        "slot": 6,
+        "angle_deg": "$num",
+        "clock": 56
+       },
+       {
+        "slot": 7,
+        "angle_deg": "$num",
+        "clock": 0
+       },
+       {
+        "slot": 8,
+        "angle_deg": "$num",
+        "clock": 4
+       },
+       {
+        "slot": 9,
+        "angle_deg": "$num",
+        "clock": 8
+       },
+       {
+        "slot": 10,
+        "angle_deg": "$num",
+        "clock": 11
+       },
+       {
+        "slot": 11,
+        "angle_deg": "$num",
+        "clock": 15
+       },
+       {
+        "slot": 12,
+        "angle_deg": "$num",
+        "clock": 19
+       },
+       {
+        "slot": 13,
+        "angle_deg": "$num",
+        "clock": 23
+       },
+       {
+        "slot": 14,
+        "angle_deg": "$num",
+        "clock": 26
+       }
+      ],
+      "limits": "$any",
+      "placeholders": "$any"
+     }
+    }
+   ]
+  },
+  {
+   "name": "get_info_in_busy",
+   "desc": "GET_INFO is read-only and accepted while BUSY (open question Q4).",
+   "tags": [
+    "get_info",
+    "busy"
+   ],
+   "state": {
+    "mode": "BUSY",
+    "busy": {
+     "id": "h-0200",
+     "cmd": "RUN_CYCLE"
+    }
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0031\",\"cmd\":\"GET_INFO\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0031",
+     "ok": true,
+     "mode": "BUSY",
+     "data": {
+      "slot_count": 15
+     }
+    }
+   ]
+  },
+  {
+   "name": "stop_idle",
+   "desc": "STOP from IDLE latches USER_STOP (recovery after every stop).",
+   "tags": [
+    "stop"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0040\",\"cmd\":\"STOP\"}",
+   "expect": [
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "mode",
+     "from": "IDLE",
+     "to": "FAULT",
+     "cause": "USER_STOP"
+    },
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "fault",
+     "code": "USER_STOP",
+     "msg": "$str",
+     "phase": null
+    },
+    {
+     "t": "res",
+     "id": "h-0040",
+     "ok": true,
+     "mode": "FAULT",
+     "data": {
+      "interrupted": null
+     }
+    }
+   ]
+  },
+  {
+   "name": "stop_busy",
+   "desc": "STOP during a RUN_CYCLE: events and STOP res at once; the RUN_CYCLE res follows (see sequences).",
+   "tags": [
+    "stop",
+    "busy"
+   ],
+   "state": {
+    "mode": "BUSY",
+    "busy": {
+     "id": "h-0200",
+     "cmd": "RUN_CYCLE",
+     "step": "purge",
+     "phase": "purge"
+    }
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0041\",\"cmd\":\"STOP\"}",
+   "expect": [
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "mode",
+     "from": "BUSY",
+     "to": "FAULT",
+     "cause": "USER_STOP"
+    },
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "fault",
+     "code": "USER_STOP",
+     "msg": "$str",
+     "phase": "$any"
+    },
+    {
+     "t": "res",
+     "id": "h-0041",
+     "ok": true,
+     "mode": "FAULT",
+     "data": {
+      "interrupted": {
+       "id": "h-0200",
+       "cmd": "RUN_CYCLE"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "stop_in_fault",
+   "desc": "STOP in FAULT re-applies the safe state; no mode event.",
+   "tags": [
+    "stop"
+   ],
+   "state": {
+    "mode": "FAULT",
+    "fault": {
+     "code": "OVER_PRESSURE"
+    }
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0042\",\"cmd\":\"STOP\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0042",
+     "ok": true,
+     "mode": "FAULT",
+     "data": {
+      "interrupted": null
+     }
+    }
+   ]
+  },
+  {
+   "name": "stop_in_service",
+   "desc": "STOP is accepted in SERVICE (the console is busy with a test).",
+   "tags": [
+    "stop"
+   ],
+   "state": {
+    "mode": "SERVICE"
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0043\",\"cmd\":\"STOP\"}",
+   "expect": [
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "mode",
+     "from": "SERVICE",
+     "to": "FAULT",
+     "cause": "USER_STOP"
+    },
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "fault",
+     "code": "USER_STOP",
+     "msg": "$str",
+     "phase": "$any"
+    },
+    {
+     "t": "res",
+     "id": "h-0043",
+     "ok": true,
+     "mode": "FAULT",
+     "data": {
+      "interrupted": null
+     }
+    }
+   ]
+  },
+  {
+   "name": "stop_never_deduplicated",
+   "desc": "A STOP with an id already used for STOP acts again.",
+   "tags": [
+    "stop",
+    "dedupe"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0040\",\"cmd\":\"STOP\"}",
+   "expect": [
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "mode",
+     "from": "IDLE",
+     "to": "FAULT",
+     "cause": "USER_STOP"
+    },
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "fault",
+     "code": "USER_STOP",
+     "msg": "$str",
+     "phase": null
+    },
+    {
+     "t": "res",
+     "id": "h-0040",
+     "ok": true,
+     "mode": "FAULT",
+     "data": {
+      "interrupted": null
+     }
+    }
+   ]
+  },
+  {
+   "name": "clear_fault_ok",
+   "desc": "CLEAR_FAULT after USER_STOP -> RECOVERY_REQUIRED.",
+   "tags": [
+    "fault"
+   ],
+   "state": {
+    "mode": "FAULT",
+    "fault": {
+     "code": "USER_STOP"
+    }
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0050\",\"cmd\":\"CLEAR_FAULT\"}",
+   "expect": [
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "fault_cleared",
+     "code": "USER_STOP"
+    },
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "mode",
+     "from": "FAULT",
+     "to": "RECOVERY_REQUIRED",
+     "cause": "CLEAR_FAULT"
+    },
+    {
+     "t": "res",
+     "id": "h-0050",
+     "ok": true,
+     "mode": "RECOVERY_REQUIRED",
+     "data": {
+      "cleared": "USER_STOP"
+     }
+    }
+   ]
+  },
+  {
+   "name": "clear_fault_estop_pressed",
+   "desc": "CLEAR_FAULT refused while the E-stop is still pressed.",
+   "tags": [
+    "fault",
+    "error"
+   ],
+   "state": {
+    "mode": "ESTOP",
+    "fault": {
+     "code": "ESTOP"
+    },
+    "estop_pressed": true
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0051\",\"cmd\":\"CLEAR_FAULT\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0051",
+     "ok": false,
+     "mode": "ESTOP",
+     "err": {
+      "code": "cause_persists",
+      "msg": "$str",
+      "fault": "ESTOP"
+     }
+    }
+   ]
+  },
+  {
+   "name": "clear_fault_in_idle",
+   "desc": "CLEAR_FAULT outside FAULT/ESTOP is wrong_mode.",
+   "tags": [
+    "fault",
+    "mode"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0052\",\"cmd\":\"CLEAR_FAULT\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0052",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "wrong_mode",
+      "msg": "$str",
+      "mode": "IDLE"
+     }
+    }
+   ]
+  },
+  {
+   "name": "recover_needs_confirmation",
+   "desc": "Lock unknown after boot and confirm_moving false: nothing moves.",
+   "tags": [
+    "recovery"
+   ],
+   "state": {
+    "mode": "RECOVERY_REQUIRED",
+    "recovery_cause": "POWER_ON",
+    "lock": "unknown"
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0060\",\"cmd\":\"RECOVER\",\"args\":{\"confirm_moving\":false}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0060",
+     "ok": false,
+     "mode": "RECOVERY_REQUIRED",
+     "err": {
+      "code": "confirm_required",
+      "msg": "$str",
+      "needs": [
+       "actuator_home"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "recover_needs_lock",
+   "desc": "O-ring known but unlocked: RECOVER must lock it (rest state), which moves.",
+   "tags": [
+    "recovery"
+   ],
+   "state": {
+    "mode": "RECOVERY_REQUIRED",
+    "recovery_cause": "USER_STOP",
+    "lock": "unlocked"
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0066\",\"cmd\":\"RECOVER\",\"args\":{\"confirm_moving\":false}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0066",
+     "ok": false,
+     "mode": "RECOVERY_REQUIRED",
+     "err": {
+      "code": "confirm_required",
+      "msg": "$str",
+      "needs": [
+       "lock"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "recover_confirmed_ack",
+   "desc": "RECOVER with confirm_moving true is a long command: ack first.",
+   "tags": [
+    "recovery",
+    "ack"
+   ],
+   "state": {
+    "mode": "RECOVERY_REQUIRED",
+    "recovery_cause": "POWER_ON",
+    "lock": "unknown"
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0061\",\"cmd\":\"RECOVER\",\"args\":{\"confirm_moving\":true}}",
+   "expect": [
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "step_start",
+     "id": "h-0061",
+     "cmd": "RECOVER",
+     "step": "recover"
+    },
+    {
+     "t": "ack",
+     "id": "h-0061",
+     "cmd": "RECOVER",
+     "max_s": "$num"
+    }
+   ]
+  },
+  {
+   "name": "recover_missing_arg",
+   "desc": "confirm_moving is required.",
+   "tags": [
+    "recovery",
+    "bad_args"
+   ],
+   "state": {
+    "mode": "RECOVERY_REQUIRED",
+    "recovery_cause": "POWER_ON"
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0062\",\"cmd\":\"RECOVER\",\"args\":{}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0062",
+     "ok": false,
+     "mode": "RECOVERY_REQUIRED",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "confirm_moving"
+     }
+    }
+   ]
+  },
+  {
+   "name": "recover_int_not_bool",
+   "desc": "1 is not a boolean.",
+   "tags": [
+    "recovery",
+    "bad_args"
+   ],
+   "state": {
+    "mode": "RECOVERY_REQUIRED",
+    "recovery_cause": "POWER_ON"
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0063\",\"cmd\":\"RECOVER\",\"args\":{\"confirm_moving\":1}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0063",
+     "ok": false,
+     "mode": "RECOVERY_REQUIRED",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "confirm_moving"
+     }
+    }
+   ]
+  },
+  {
+   "name": "recover_in_idle",
+   "desc": "RECOVER is only accepted in RECOVERY_REQUIRED.",
+   "tags": [
+    "recovery",
+    "mode"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0064\",\"cmd\":\"RECOVER\",\"args\":{\"confirm_moving\":true}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0064",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "wrong_mode",
+      "msg": "$str",
+      "mode": "IDLE"
+     }
+    }
+   ]
+  },
+  {
+   "name": "rotate_ok",
+   "desc": "ROTATE to a sample slot.",
+   "tags": [
+    "rotate",
+    "ack"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0070\",\"cmd\":\"ROTATE\",\"args\":{\"slot\":5}}",
+   "expect": [
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "mode",
+     "from": "IDLE",
+     "to": "BUSY",
+     "cause": "ROTATE"
+    },
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "step_start",
+     "id": "h-0070",
+     "cmd": "ROTATE",
+     "step": "rotate"
+    },
+    {
+     "t": "ack",
+     "id": "h-0070",
+     "cmd": "ROTATE",
+     "max_s": "$num"
+    }
+   ]
+  },
+  {
+   "name": "rotate_to_purge_slot",
+   "desc": "ROTATE accepts the purge slot.",
+   "tags": [
+    "rotate",
+    "ack"
+   ],
+   "state": {
+    "slot": 5
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0071\",\"cmd\":\"ROTATE\",\"args\":{\"slot\":0}}",
+   "expect": [
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "mode",
+     "from": "IDLE",
+     "to": "BUSY",
+     "cause": "ROTATE"
+    },
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "step_start",
+     "id": "h-0071",
+     "cmd": "ROTATE",
+     "step": "rotate"
+    },
+    {
+     "t": "ack",
+     "id": "h-0071",
+     "cmd": "ROTATE",
+     "max_s": "$num"
+    }
+   ]
+  },
+  {
+   "name": "rotate_slot_out_of_range",
+   "desc": "slot 15 does not exist on a 15-slot manifold.",
+   "tags": [
+    "rotate",
+    "bad_args"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0072\",\"cmd\":\"ROTATE\",\"args\":{\"slot\":15}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0072",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "slot"
+     }
+    }
+   ]
+  },
+  {
+   "name": "rotate_slot_negative",
+   "desc": "Negative slot.",
+   "tags": [
+    "rotate",
+    "bad_args"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0073\",\"cmd\":\"ROTATE\",\"args\":{\"slot\":-1}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0073",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "slot"
+     }
+    }
+   ]
+  },
+  {
+   "name": "rotate_slot_string",
+   "desc": "slot as a string is a wrong type.",
+   "tags": [
+    "rotate",
+    "bad_args"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0074\",\"cmd\":\"ROTATE\",\"args\":{\"slot\":\"3\"}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0074",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "slot"
+     }
+    }
+   ]
+  },
+  {
+   "name": "rotate_slot_float",
+   "desc": "slot as a float is a wrong type.",
+   "tags": [
+    "rotate",
+    "bad_args"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0075\",\"cmd\":\"ROTATE\",\"args\":{\"slot\":3.5}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0075",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "slot"
+     }
+    }
+   ]
+  },
+  {
+   "name": "rotate_missing_slot",
+   "desc": "Required arg missing.",
+   "tags": [
+    "rotate",
+    "bad_args"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0076\",\"cmd\":\"ROTATE\",\"args\":{}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0076",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "slot"
+     }
+    }
+   ]
+  },
+  {
+   "name": "rotate_lock_unknown",
+   "desc": "No rotation while the lock state is unknown.",
+   "tags": [
+    "rotate",
+    "interlock"
+   ],
+   "state": {
+    "lock": "unknown"
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0077\",\"cmd\":\"ROTATE\",\"args\":{\"slot\":5}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0077",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "lock_unknown",
+      "msg": "$str"
+     }
+    }
+   ]
+  },
+  {
+   "name": "rotate_in_recovery_required",
+   "desc": "Moves are refused until RECOVER passes.",
+   "tags": [
+    "rotate",
+    "mode"
+   ],
+   "state": {
+    "mode": "RECOVERY_REQUIRED",
+    "recovery_cause": "WATCHDOG"
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0078\",\"cmd\":\"ROTATE\",\"args\":{\"slot\":5}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0078",
+     "ok": false,
+     "mode": "RECOVERY_REQUIRED",
+     "err": {
+      "code": "wrong_mode",
+      "msg": "$str",
+      "mode": "RECOVERY_REQUIRED",
+      "cause": "WATCHDOG"
+     }
+    }
+   ]
+  },
+  {
+   "name": "lock_in_busy",
+   "desc": "Commands other than STOP/STATUS/PING/HELLO/GET_INFO are refused while BUSY.",
+   "tags": [
+    "lock",
+    "mode",
+    "busy"
+   ],
+   "state": {
+    "mode": "BUSY",
+    "busy": {
+     "id": "h-0200",
+     "cmd": "RUN_CYCLE"
+    }
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0080\",\"cmd\":\"LOCK\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0080",
+     "ok": false,
+     "mode": "BUSY",
+     "err": {
+      "code": "wrong_mode",
+      "msg": "$str",
+      "mode": "BUSY"
+     }
+    }
+   ]
+  },
+  {
+   "name": "unlock_service",
+   "desc": "UNLOCK leaves the machine off its rest state: a warning, then the ack.",
+   "tags": [
+    "lock",
+    "ack"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0085\",\"cmd\":\"UNLOCK\"}",
+   "expect": [
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "mode",
+     "from": "IDLE",
+     "to": "BUSY",
+     "cause": "UNLOCK"
+    },
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "step_start",
+     "id": "h-0085",
+     "cmd": "UNLOCK",
+     "step": "unlock"
+    },
+    {
+     "t": "ack",
+     "id": "h-0085",
+     "cmd": "UNLOCK",
+     "max_s": "$num"
+    }
+   ]
+  },
+  {
+   "name": "lock_not_aligned",
+   "desc": "LOCK between two slots is refused.",
+   "tags": [
+    "lock"
+   ],
+   "state": {
+    "slot": null,
+    "aligned": false
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0081\",\"cmd\":\"LOCK\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0081",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "not_aligned",
+      "msg": "$str",
+      "angle_deg": "$num"
+     }
+    }
+   ]
+  },
+  {
+   "name": "unlock_lock_unknown",
+   "desc": "UNLOCK with an unknown state needs ACTUATOR_HOME first.",
+   "tags": [
+    "lock"
+   ],
+   "state": {
+    "lock": "unknown"
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0082\",\"cmd\":\"UNLOCK\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0082",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "lock_unknown",
+      "msg": "$str"
+     }
+    }
+   ]
+  },
+  {
+   "name": "actuator_home_not_aligned",
+   "desc": "ACTUATOR_HOME only when aligned to a slot.",
+   "tags": [
+    "lock"
+   ],
+   "state": {
+    "lock": "unknown",
+    "slot": null,
+    "aligned": false
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0083\",\"cmd\":\"ACTUATOR_HOME\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0083",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "not_aligned",
+      "msg": "$str",
+      "angle_deg": "$num"
+     }
+    }
+   ]
+  },
+  {
+   "name": "lock_unknown_arg",
+   "desc": "LOCK takes no args: unknown args are refused.",
+   "tags": [
+    "lock",
+    "bad_args"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0084\",\"cmd\":\"LOCK\",\"args\":{\"force\":true}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0084",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "force"
+     }
+    }
+   ]
+  },
+  {
+   "name": "run_cycle_ok",
+   "desc": "The production cycle: ack after the checks.",
+   "tags": [
+    "run_cycle",
+    "ack"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0100\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":2000,\"max_duration_s\":1800,\"stages\":{\"purge\":true,\"sample\":true,\"shield\":true,\"empty\":true},\"sample_id\":\"CW01-D03-03-20261015T0930\"}}",
+   "expect": [
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "mode",
+     "from": "IDLE",
+     "to": "BUSY",
+     "cause": "RUN_CYCLE"
+    },
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "step_start",
+     "id": "h-0100",
+     "cmd": "RUN_CYCLE",
+     "step": "purge"
+    },
+    {
+     "t": "ack",
+     "id": "h-0100",
+     "cmd": "RUN_CYCLE",
+     "max_s": "$num"
+    }
+   ]
+  },
+  {
+   "name": "run_cycle_no_volume_cap",
+   "desc": "volume_ml null = filter until clogged or max_duration_s.",
+   "tags": [
+    "run_cycle",
+    "ack",
+    "null"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0101\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":null,\"max_duration_s\":1800}}",
+   "expect": [
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "mode",
+     "from": "IDLE",
+     "to": "BUSY",
+     "cause": "RUN_CYCLE"
+    },
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "step_start",
+     "id": "h-0101",
+     "cmd": "RUN_CYCLE",
+     "step": "purge"
+    },
+    {
+     "t": "ack",
+     "id": "h-0101",
+     "cmd": "RUN_CYCLE",
+     "max_s": "$num"
+    }
+   ]
+  },
+  {
+   "name": "run_cycle_skip_purge",
+   "desc": "A skipped stage emits no events: the first step is sample.",
+   "tags": [
+    "run_cycle",
+    "ack"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0102\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":2000,\"max_duration_s\":1800,\"stages\":{\"purge\":false}}}",
+   "expect": [
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "mode",
+     "from": "IDLE",
+     "to": "BUSY",
+     "cause": "RUN_CYCLE"
+    },
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "step_start",
+     "id": "h-0102",
+     "cmd": "RUN_CYCLE",
+     "step": "sample"
+    },
+    {
+     "t": "ack",
+     "id": "h-0102",
+     "cmd": "RUN_CYCLE",
+     "max_s": "$num"
+    }
+   ]
+  },
+  {
+   "name": "run_cycle_purge_slot",
+   "desc": "The purge slot is not a sample slot.",
+   "tags": [
+    "run_cycle",
+    "bad_args"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0103\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":0,\"purge_ml\":null,\"volume_ml\":2000,\"max_duration_s\":1800}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0103",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "slot"
+     }
+    }
+   ]
+  },
+  {
+   "name": "run_cycle_purge_below_minimum",
+   "desc": "purge_ml below the \u00a73.7 minimum is raised to it, with a warning, then runs.",
+   "tags": [
+    "run_cycle",
+    "edna",
+    "ack"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0104\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":100,\"volume_ml\":2000,\"max_duration_s\":1800}}",
+   "expect": [
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "mode",
+     "from": "IDLE",
+     "to": "BUSY",
+     "cause": "RUN_CYCLE"
+    },
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "warning",
+     "code": "PURGE_CLAMPED",
+     "msg": "$str",
+     "phase": null
+    },
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "step_start",
+     "id": "h-0104",
+     "cmd": "RUN_CYCLE",
+     "step": "purge"
+    },
+    {
+     "t": "ack",
+     "id": "h-0104",
+     "cmd": "RUN_CYCLE",
+     "max_s": "$num"
+    }
+   ]
+  },
+  {
+   "name": "run_cycle_purge_zero",
+   "desc": "purge_ml 0 is a wrong value, not a clamp.",
+   "tags": [
+    "run_cycle",
+    "bad_args"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0117\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":0,\"volume_ml\":2000,\"max_duration_s\":1800}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0117",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "purge_ml"
+     }
+    }
+   ]
+  },
+  {
+   "name": "run_cycle_missing_purge_key",
+   "desc": "purge_ml is a required key (null allowed).",
+   "tags": [
+    "run_cycle",
+    "bad_args"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0105\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"volume_ml\":2000,\"max_duration_s\":1800}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0105",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "purge_ml"
+     }
+    }
+   ]
+  },
+  {
+   "name": "run_cycle_volume_string",
+   "desc": "volume_ml as a string is a wrong type.",
+   "tags": [
+    "run_cycle",
+    "bad_args"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0106\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":\"2000\",\"max_duration_s\":1800}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0106",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "volume_ml"
+     }
+    }
+   ]
+  },
+  {
+   "name": "run_cycle_volume_negative",
+   "desc": "Negative volume.",
+   "tags": [
+    "run_cycle",
+    "bad_args"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0107\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":-5,\"max_duration_s\":1800}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0107",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "volume_ml"
+     }
+    }
+   ]
+  },
+  {
+   "name": "run_cycle_duration_zero",
+   "desc": "max_duration_s must be >= 1.",
+   "tags": [
+    "run_cycle",
+    "bad_args"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0108\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":2000,\"max_duration_s\":0}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0108",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "max_duration_s"
+     }
+    }
+   ]
+  },
+  {
+   "name": "run_cycle_all_stages_false",
+   "desc": "Nothing to do is an error.",
+   "tags": [
+    "run_cycle",
+    "bad_args"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0109\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":2000,\"max_duration_s\":1800,\"stages\":{\"purge\":false,\"sample\":false,\"shield\":false,\"empty\":false}}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0109",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "stages"
+     }
+    }
+   ]
+  },
+  {
+   "name": "run_cycle_unknown_stage",
+   "desc": "Unknown key inside stages.",
+   "tags": [
+    "run_cycle",
+    "bad_args"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0110\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":2000,\"max_duration_s\":1800,\"stages\":{\"rinse\":true}}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0110",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "stages.rinse"
+     }
+    }
+   ]
+  },
+  {
+   "name": "run_cycle_misspelled_arg",
+   "desc": "A misspelled arg is never ignored.",
+   "tags": [
+    "run_cycle",
+    "bad_args"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0111\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":2000,\"max_duration_s\":1800,\"volume\":500}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0111",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "volume"
+     }
+    }
+   ]
+  },
+  {
+   "name": "run_cycle_no_p_in",
+   "desc": "No trusted P_in: every pumping command is refused (F50).",
+   "tags": [
+    "run_cycle",
+    "sensor"
+   ],
+   "state": {
+    "caps": {
+     "p_in": false
+    }
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0112\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":2000,\"max_duration_s\":1800}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0112",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "sensor_unavailable",
+      "msg": "$str",
+      "sensor": "p_in"
+     }
+    }
+   ]
+  },
+  {
+   "name": "run_cycle_volume_without_flowmeter",
+   "desc": "A volume target needs q_in.",
+   "tags": [
+    "run_cycle",
+    "sensor"
+   ],
+   "state": {
+    "caps": {
+     "q_in": false
+    }
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0113\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":2000,\"max_duration_s\":1800}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0113",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "sensor_unavailable",
+      "msg": "$str",
+      "sensor": "q_in"
+     }
+    }
+   ]
+  },
+  {
+   "name": "run_cycle_in_fault",
+   "desc": "Refused in FAULT.",
+   "tags": [
+    "run_cycle",
+    "mode"
+   ],
+   "state": {
+    "mode": "FAULT",
+    "fault": {
+     "code": "OVER_PRESSURE"
+    }
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0114\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":2000,\"max_duration_s\":1800}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0114",
+     "ok": false,
+     "mode": "FAULT",
+     "err": {
+      "code": "wrong_mode",
+      "msg": "$str",
+      "mode": "FAULT",
+      "cause": "OVER_PRESSURE"
+     }
+    }
+   ]
+  },
+  {
+   "name": "run_cycle_in_service",
+   "desc": "Refused while a person uses the console.",
+   "tags": [
+    "run_cycle",
+    "mode"
+   ],
+   "state": {
+    "mode": "SERVICE"
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0115\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":2000,\"max_duration_s\":1800}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0115",
+     "ok": false,
+     "mode": "SERVICE",
+     "err": {
+      "code": "wrong_mode",
+      "msg": "$str",
+      "mode": "SERVICE"
+     }
+    }
+   ]
+  },
+  {
+   "name": "run_cycle_bad_args_before_mode",
+   "desc": "Args are checked before the mode (check order \u00a77).",
+   "tags": [
+    "run_cycle",
+    "order"
+   ],
+   "state": {
+    "mode": "BUSY",
+    "busy": {
+     "id": "h-0200",
+     "cmd": "RUN_CYCLE"
+    }
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0116\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":\"x\",\"purge_ml\":null,\"volume_ml\":2000,\"max_duration_s\":1800}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0116",
+     "ok": false,
+     "mode": "BUSY",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "slot"
+     }
+    }
+   ]
+  },
+  {
+   "name": "retried_id_finished",
+   "desc": "A retried RUN_CYCLE id returns the stored result and runs nothing.",
+   "tags": [
+    "dedupe",
+    "run_cycle"
+   ],
+   "state": {
+    "remembered": [
+     {
+      "id": "h-0200",
+      "cmd": "RUN_CYCLE",
+      "res": {
+       "t": "res",
+       "id": "h-0200",
+       "ok": true,
+       "mode": "IDLE",
+       "data": {
+        "slot": 3,
+        "sample_id": null,
+        "completed": true,
+        "abort": null,
+        "end_reason": "volume_reached",
+        "volume_ml": 2003.5,
+        "duration_s": 1184.2,
+        "cycle_s": 1702.4,
+        "purge_ml_target": 424,
+        "purge_ml_measured": 431.0,
+        "p_in": {
+         "max": 2.06,
+         "mean": 1.41,
+         "final": 1.98
+        },
+        "flow_ml_min": {
+         "mean": 101.5,
+         "min": 62.0,
+         "final": 64.3
+        },
+        "phases": [
+         {
+          "name": "purge",
+          "duration_s": 251.3
+         },
+         {
+          "name": "water",
+          "duration_s": 1184.2
+         },
+         {
+          "name": "air_push",
+          "duration_s": 71.8
+         },
+         {
+          "name": "shield",
+          "duration_s": 251.1
+         },
+         {
+          "name": "empty",
+          "duration_s": 95.0
+         }
+        ],
+        "shield_ms": 250000,
+        "t_end_to_shield_s": 118.5,
+        "faults": [],
+        "warnings": [],
+        "sensors": [],
+        "p_out": null,
+        "q_out": null,
+        "dp": null,
+        "r_filter": null,
+        "clog_index": null
+       }
+      }
+     }
+    ]
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0200\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":2000,\"max_duration_s\":1800}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0200",
+     "ok": true,
+     "mode": "IDLE",
+     "data": {
+      "slot": 3,
+      "sample_id": null,
+      "completed": true,
+      "abort": null,
+      "end_reason": "volume_reached",
+      "volume_ml": 2003.5,
+      "duration_s": 1184.2,
+      "cycle_s": 1702.4,
+      "purge_ml_target": 424,
+      "purge_ml_measured": 431.0,
+      "p_in": {
+       "max": 2.06,
+       "mean": 1.41,
+       "final": 1.98
+      },
+      "flow_ml_min": {
+       "mean": 101.5,
+       "min": 62.0,
+       "final": 64.3
+      },
+      "phases": [
+       {
+        "name": "purge",
+        "duration_s": 251.3
+       },
+       {
+        "name": "water",
+        "duration_s": 1184.2
+       },
+       {
+        "name": "air_push",
+        "duration_s": 71.8
+       },
+       {
+        "name": "shield",
+        "duration_s": 251.1
+       },
+       {
+        "name": "empty",
+        "duration_s": 95.0
+       }
+      ],
+      "shield_ms": 250000,
+      "t_end_to_shield_s": 118.5,
+      "faults": [],
+      "warnings": [],
+      "sensors": [],
+      "p_out": null,
+      "q_out": null,
+      "dp": null,
+      "r_filter": null,
+      "clog_index": null
+     }
+    }
+   ]
+  },
+  {
+   "name": "retried_id_finished_in_fault",
+   "desc": "Dedupe comes before the mode check: the stored result even in FAULT.",
+   "tags": [
+    "dedupe",
+    "order"
+   ],
+   "state": {
+    "mode": "FAULT",
+    "fault": {
+     "code": "USER_STOP"
+    },
+    "remembered": [
+     {
+      "id": "h-0200",
+      "cmd": "RUN_CYCLE",
+      "res": {
+       "t": "res",
+       "id": "h-0200",
+       "ok": true,
+       "mode": "IDLE",
+       "data": {
+        "slot": 3,
+        "sample_id": null,
+        "completed": true,
+        "abort": null,
+        "end_reason": "volume_reached",
+        "volume_ml": 2003.5,
+        "duration_s": 1184.2,
+        "cycle_s": 1702.4,
+        "purge_ml_target": 424,
+        "purge_ml_measured": 431.0,
+        "p_in": {
+         "max": 2.06,
+         "mean": 1.41,
+         "final": 1.98
+        },
+        "flow_ml_min": {
+         "mean": 101.5,
+         "min": 62.0,
+         "final": 64.3
+        },
+        "phases": [
+         {
+          "name": "purge",
+          "duration_s": 251.3
+         },
+         {
+          "name": "water",
+          "duration_s": 1184.2
+         },
+         {
+          "name": "air_push",
+          "duration_s": 71.8
+         },
+         {
+          "name": "shield",
+          "duration_s": 251.1
+         },
+         {
+          "name": "empty",
+          "duration_s": 95.0
+         }
+        ],
+        "shield_ms": 250000,
+        "t_end_to_shield_s": 118.5,
+        "faults": [],
+        "warnings": [],
+        "sensors": [],
+        "p_out": null,
+        "q_out": null,
+        "dp": null,
+        "r_filter": null,
+        "clog_index": null
+       }
+      }
+     }
+    ]
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0200\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":2000,\"max_duration_s\":1800}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0200",
+     "ok": true,
+     "mode": "IDLE",
+     "data": {
+      "slot": 3,
+      "sample_id": null,
+      "completed": true,
+      "abort": null,
+      "end_reason": "volume_reached",
+      "volume_ml": 2003.5,
+      "duration_s": 1184.2,
+      "cycle_s": 1702.4,
+      "purge_ml_target": 424,
+      "purge_ml_measured": 431.0,
+      "p_in": {
+       "max": 2.06,
+       "mean": 1.41,
+       "final": 1.98
+      },
+      "flow_ml_min": {
+       "mean": 101.5,
+       "min": 62.0,
+       "final": 64.3
+      },
+      "phases": [
+       {
+        "name": "purge",
+        "duration_s": 251.3
+       },
+       {
+        "name": "water",
+        "duration_s": 1184.2
+       },
+       {
+        "name": "air_push",
+        "duration_s": 71.8
+       },
+       {
+        "name": "shield",
+        "duration_s": 251.1
+       },
+       {
+        "name": "empty",
+        "duration_s": 95.0
+       }
+      ],
+      "shield_ms": 250000,
+      "t_end_to_shield_s": 118.5,
+      "faults": [],
+      "warnings": [],
+      "sensors": [],
+      "p_out": null,
+      "q_out": null,
+      "dp": null,
+      "r_filter": null,
+      "clog_index": null
+     }
+    }
+   ]
+  },
+  {
+   "name": "retried_id_running",
+   "desc": "A retried id still running gets the ack again with dup.",
+   "tags": [
+    "dedupe",
+    "busy"
+   ],
+   "state": {
+    "mode": "BUSY",
+    "busy": {
+     "id": "h-0201",
+     "cmd": "RUN_CYCLE",
+     "step": "sample",
+     "phase": "water"
+    },
+    "remembered": [
+     {
+      "id": "h-0201",
+      "cmd": "RUN_CYCLE",
+      "res": null
+     }
+    ]
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0201\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":2000,\"max_duration_s\":1800}}",
+   "expect": [
+    {
+     "t": "ack",
+     "id": "h-0201",
+     "cmd": "RUN_CYCLE",
+     "max_s": "$num",
+     "dup": true
+    }
+   ]
+  },
+  {
+   "name": "retried_id_expired",
+   "desc": "The full record was evicted (older than the last 4 procedures): summary only, nothing runs.",
+   "tags": [
+    "dedupe"
+   ],
+   "state": {
+    "remembered": [
+     {
+      "id": "h-0190",
+      "cmd": "RUN_CYCLE",
+      "res": null,
+      "summary": {
+       "ok": true,
+       "end_reason": "volume_reached",
+       "completed": true
+      },
+      "full_evicted": true
+     }
+    ]
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0190\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":2000,\"max_duration_s\":1800}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0190",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "result_expired",
+      "msg": "$str",
+      "cmd": "RUN_CYCLE",
+      "summary": {
+       "ok": true,
+       "end_reason": "volume_reached",
+       "completed": true
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "id_conflict",
+   "desc": "A remembered id reused for another command.",
+   "tags": [
+    "dedupe",
+    "error"
+   ],
+   "state": {
+    "remembered": [
+     {
+      "id": "h-0200",
+      "cmd": "RUN_CYCLE",
+      "res": {
+       "t": "res",
+       "id": "h-0200",
+       "ok": true,
+       "mode": "IDLE",
+       "data": {
+        "slot": 3,
+        "sample_id": null,
+        "completed": true,
+        "abort": null,
+        "end_reason": "volume_reached",
+        "volume_ml": 2003.5,
+        "duration_s": 1184.2,
+        "cycle_s": 1702.4,
+        "purge_ml_target": 424,
+        "purge_ml_measured": 431.0,
+        "p_in": {
+         "max": 2.06,
+         "mean": 1.41,
+         "final": 1.98
+        },
+        "flow_ml_min": {
+         "mean": 101.5,
+         "min": 62.0,
+         "final": 64.3
+        },
+        "phases": [
+         {
+          "name": "purge",
+          "duration_s": 251.3
+         },
+         {
+          "name": "water",
+          "duration_s": 1184.2
+         },
+         {
+          "name": "air_push",
+          "duration_s": 71.8
+         },
+         {
+          "name": "shield",
+          "duration_s": 251.1
+         },
+         {
+          "name": "empty",
+          "duration_s": 95.0
+         }
+        ],
+        "shield_ms": 250000,
+        "t_end_to_shield_s": 118.5,
+        "faults": [],
+        "warnings": [],
+        "sensors": [],
+        "p_out": null,
+        "q_out": null,
+        "dp": null,
+        "r_filter": null,
+        "clog_index": null
+       }
+      }
+     }
+    ]
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0200\",\"cmd\":\"ROTATE\",\"args\":{\"slot\":2}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0200",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "id_conflict",
+      "msg": "$str",
+      "cmd": "RUN_CYCLE"
+     }
+    }
+   ]
+  },
+  {
+   "name": "refusal_not_remembered",
+   "desc": "A refused id is evaluated again: now IDLE, it runs.",
+   "tags": [
+    "dedupe"
+   ],
+   "state": {
+    "history": "h-0202 was refused with wrong_mode (BUSY) earlier; refusals are not stored"
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0202\",\"cmd\":\"ROTATE\",\"args\":{\"slot\":2}}",
+   "expect": [
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "mode",
+     "from": "IDLE",
+     "to": "BUSY",
+     "cause": "ROTATE"
+    },
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "step_start",
+     "id": "h-0202",
+     "cmd": "ROTATE",
+     "step": "rotate"
+    },
+    {
+     "t": "ack",
+     "id": "h-0202",
+     "cmd": "ROTATE",
+     "max_s": "$num"
+    }
+   ]
+  },
+  {
+   "name": "purge_default_volume",
+   "desc": "PURGE with the default volume.",
+   "tags": [
+    "service",
+    "ack"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0300\",\"cmd\":\"PURGE\",\"args\":{\"volume_ml\":null}}",
+   "expect": [
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "mode",
+     "from": "IDLE",
+     "to": "BUSY",
+     "cause": "PURGE"
+    },
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "step_start",
+     "id": "h-0300",
+     "cmd": "PURGE",
+     "step": "purge"
+    },
+    {
+     "t": "ack",
+     "id": "h-0300",
+     "cmd": "PURGE",
+     "max_s": "$num"
+    }
+   ]
+  },
+  {
+   "name": "sample_missing_max_duration",
+   "desc": "SAMPLE needs max_duration_s.",
+   "tags": [
+    "service",
+    "bad_args"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0301\",\"cmd\":\"SAMPLE\",\"args\":{\"slot\":4,\"volume_ml\":500}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0301",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "max_duration_s"
+     }
+    }
+   ]
+  },
+  {
+   "name": "dna_shield_ok",
+   "desc": "DNA_SHIELD on one filter.",
+   "tags": [
+    "service",
+    "ack"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0302\",\"cmd\":\"DNA_SHIELD\",\"args\":{\"slot\":4,\"duration_ms\":25000}}",
+   "expect": [
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "mode",
+     "from": "IDLE",
+     "to": "BUSY",
+     "cause": "DNA_SHIELD"
+    },
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "step_start",
+     "id": "h-0302",
+     "cmd": "DNA_SHIELD",
+     "step": "shield"
+    },
+    {
+     "t": "ack",
+     "id": "h-0302",
+     "cmd": "DNA_SHIELD",
+     "max_s": "$num"
+    }
+   ]
+  },
+  {
+   "name": "dna_shield_duration_too_long",
+   "desc": "duration_ms above limits.duration_ms_max.",
+   "tags": [
+    "service",
+    "bad_args"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0303\",\"cmd\":\"DNA_SHIELD\",\"args\":{\"slot\":4,\"duration_ms\":3600000}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0303",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "duration_ms"
+     }
+    }
+   ]
+  },
+  {
+   "name": "empty_in_recovery_required",
+   "desc": "EMPTY refused until RECOVER.",
+   "tags": [
+    "service",
+    "mode"
+   ],
+   "state": {
+    "mode": "RECOVERY_REQUIRED",
+    "recovery_cause": "USER_STOP"
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0304\",\"cmd\":\"EMPTY\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0304",
+     "ok": false,
+     "mode": "RECOVERY_REQUIRED",
+     "err": {
+      "code": "wrong_mode",
+      "msg": "$str",
+      "mode": "RECOVERY_REQUIRED",
+      "cause": "USER_STOP"
+     }
+    }
+   ]
+  },
+  {
+   "name": "prime_shield_ok",
+   "desc": "PRIME_SHIELD with a duration.",
+   "tags": [
+    "service",
+    "ack"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0305\",\"cmd\":\"PRIME_SHIELD\",\"args\":{\"duration_ms\":10000}}",
+   "expect": [
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "mode",
+     "from": "IDLE",
+     "to": "BUSY",
+     "cause": "PRIME_SHIELD"
+    },
+    {
+     "t": "evt",
+     "ms": "$num",
+     "type": "step_start",
+     "id": "h-0305",
+     "cmd": "PRIME_SHIELD",
+     "step": "prime_shield"
+    },
+    {
+     "t": "ack",
+     "id": "h-0305",
+     "cmd": "PRIME_SHIELD",
+     "max_s": "$num"
+    }
+   ]
+  },
+  {
+   "name": "reserved_neg_control",
+   "desc": "NEG_CONTROL is reserved for P2.",
+   "tags": [
+    "reserved"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0400\",\"cmd\":\"NEG_CONTROL\",\"args\":{}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0400",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "not_available",
+      "msg": "$str"
+     }
+    }
+   ]
+  },
+  {
+   "name": "reserved_pos_control",
+   "desc": "POS_CONTROL is reserved for P2.",
+   "tags": [
+    "reserved"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0401\",\"cmd\":\"POS_CONTROL\",\"args\":{}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0401",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "not_available",
+      "msg": "$str"
+     }
+    }
+   ]
+  },
+  {
+   "name": "reserved_spool_up",
+   "desc": "SPOOL_UP is reserved for P2.",
+   "tags": [
+    "reserved"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0402\",\"cmd\":\"SPOOL_UP\",\"args\":{}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0402",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "not_available",
+      "msg": "$str"
+     }
+    }
+   ]
+  },
+  {
+   "name": "reserved_set_param",
+   "desc": "SET_PARAM is reserved for P2.",
+   "tags": [
+    "reserved"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0403\",\"cmd\":\"SET_PARAM\",\"args\":{}}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0403",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "not_available",
+      "msg": "$str"
+     }
+    }
+   ]
+  },
+  {
+   "name": "reserved_in_fault",
+   "desc": "Reserved commands answer not_available before the mode check.",
+   "tags": [
+    "reserved",
+    "order"
+   ],
+   "state": {
+    "mode": "FAULT",
+    "fault": {
+     "code": "USER_STOP"
+    }
+   },
+   "line": "{\"t\":\"req\",\"id\":\"h-0410\",\"cmd\":\"LEAK_TEST\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0410",
+     "ok": false,
+     "mode": "FAULT",
+     "err": {
+      "code": "not_available",
+      "msg": "$str"
+     }
+    }
+   ]
+  },
+  {
+   "name": "unknown_cmd",
+   "desc": "Unknown command.",
+   "tags": [
+    "error"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0420\",\"cmd\":\"SELF_DESTRUCT\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0420",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "unknown_cmd",
+      "msg": "$str"
+     }
+    }
+   ]
+  },
+  {
+   "name": "lowercase_cmd",
+   "desc": "Commands are case-sensitive.",
+   "tags": [
+    "error"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0421\",\"cmd\":\"ping\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0421",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "unknown_cmd",
+      "msg": "$str"
+     }
+    }
+   ]
+  },
+  {
+   "name": "legacy_text_command",
+   "desc": "A legacy text line on the host port is not JSON.",
+   "tags": [
+    "malformed",
+    "legacy"
+   ],
+   "line": "sampleFunction5",
+   "expect": [
+    {
+     "t": "res",
+     "id": null,
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_json",
+      "msg": "$str"
+     }
+    }
+   ]
+  },
+  {
+   "name": "malformed_json",
+   "desc": "Truncated JSON.",
+   "tags": [
+    "malformed"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0500\",\"cmd\":\"PING\"",
+   "expect": [
+    {
+     "t": "res",
+     "id": null,
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_json",
+      "msg": "$str"
+     }
+    }
+   ]
+  },
+  {
+   "name": "json_array",
+   "desc": "A JSON array is not an object.",
+   "tags": [
+    "malformed"
+   ],
+   "line": "[{\"t\":\"req\",\"id\":\"h-0501\",\"cmd\":\"PING\"}]",
+   "expect": [
+    {
+     "t": "res",
+     "id": null,
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_json",
+      "msg": "$str"
+     }
+    }
+   ]
+  },
+  {
+   "name": "json_string",
+   "desc": "A bare JSON value is not an object.",
+   "tags": [
+    "malformed"
+   ],
+   "line": "\"PING\"",
+   "expect": [
+    {
+     "t": "res",
+     "id": null,
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_json",
+      "msg": "$str"
+     }
+    }
+   ]
+  },
+  {
+   "name": "empty_line",
+   "desc": "Empty lines are ignored.",
+   "tags": [
+    "malformed"
+   ],
+   "line": "",
+   "expect": []
+  },
+  {
+   "name": "whitespace_line",
+   "desc": "Whitespace-only lines are ignored.",
+   "tags": [
+    "malformed"
+   ],
+   "line": "   \t",
+   "expect": []
+  },
+  {
+   "name": "crlf_line",
+   "desc": "A trailing CR is stripped (F37).",
+   "tags": [
+    "framing"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0502\",\"cmd\":\"PING\"}\r",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0502",
+     "ok": true,
+     "mode": "IDLE",
+     "data": {
+      "ms": "$num"
+     }
+    }
+   ]
+  },
+  {
+   "name": "line_too_long",
+   "desc": "A line over 2048 bytes is discarded.",
+   "tags": [
+    "malformed",
+    "framing"
+   ],
+   "line_gen": {
+    "prefix": "{\"t\":\"req\",\"id\":\"h-0503\",\"cmd\":\"PING\",\"args\":{\"pad\":\"",
+    "fill": "a",
+    "length": 2100
+   },
+   "expect": [
+    {
+     "t": "res",
+     "id": null,
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "line_too_long",
+      "msg": "$str",
+      "max": 2048
+     }
+    }
+   ]
+  },
+  {
+   "name": "line_at_limit",
+   "desc": "2047 bytes + LF is accepted (then args are strict: pad is unknown).",
+   "tags": [
+    "framing"
+   ],
+   "line_gen": {
+    "prefix": "{\"t\":\"req\",\"id\":\"h-0504\",\"cmd\":\"PING\",\"args\":{\"pad\":\"",
+    "fill": "a",
+    "length": 2047,
+    "suffix": "\"}}"
+   },
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0504",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_args",
+      "msg": "$str",
+      "arg": "pad"
+     }
+    }
+   ]
+  },
+  {
+   "name": "wrong_t",
+   "desc": "A host may only send req.",
+   "tags": [
+    "malformed"
+   ],
+   "line": "{\"t\":\"res\",\"id\":\"h-0505\",\"cmd\":\"PING\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0505",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_request",
+      "msg": "$str",
+      "field": "t"
+     }
+    }
+   ]
+  },
+  {
+   "name": "missing_t",
+   "desc": "t is required.",
+   "tags": [
+    "malformed"
+   ],
+   "line": "{\"id\":\"h-0506\",\"cmd\":\"PING\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0506",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_request",
+      "msg": "$str",
+      "field": "t"
+     }
+    }
+   ]
+  },
+  {
+   "name": "missing_id",
+   "desc": "id is required; it cannot be echoed.",
+   "tags": [
+    "malformed"
+   ],
+   "line": "{\"t\":\"req\",\"cmd\":\"PING\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": null,
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_request",
+      "msg": "$str",
+      "field": "id"
+     }
+    }
+   ]
+  },
+  {
+   "name": "integer_id",
+   "desc": "ids are strings.",
+   "tags": [
+    "malformed"
+   ],
+   "line": "{\"t\":\"req\",\"id\":42,\"cmd\":\"PING\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": null,
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_request",
+      "msg": "$str",
+      "field": "id"
+     }
+    }
+   ]
+  },
+  {
+   "name": "id_too_long",
+   "desc": "ids are at most 32 characters.",
+   "tags": [
+    "malformed"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"cmd\":\"PING\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": null,
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_request",
+      "msg": "$str",
+      "field": "id"
+     }
+    }
+   ]
+  },
+  {
+   "name": "id_bad_chars",
+   "desc": "ids use A-Z a-z 0-9 . _ : - only.",
+   "tags": [
+    "malformed"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h 1\",\"cmd\":\"PING\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": null,
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_request",
+      "msg": "$str",
+      "field": "id"
+     }
+    }
+   ]
+  },
+  {
+   "name": "missing_cmd",
+   "desc": "cmd is required.",
+   "tags": [
+    "malformed"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0507\"}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0507",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_request",
+      "msg": "$str",
+      "field": "cmd"
+     }
+    }
+   ]
+  },
+  {
+   "name": "args_not_object",
+   "desc": "args must be an object.",
+   "tags": [
+    "malformed"
+   ],
+   "line": "{\"t\":\"req\",\"id\":\"h-0508\",\"cmd\":\"ROTATE\",\"args\":[3]}",
+   "expect": [
+    {
+     "t": "res",
+     "id": "h-0508",
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_request",
+      "msg": "$str",
+      "field": "args"
+     }
+    }
+   ]
+  },
+  {
+   "name": "binary_garbage",
+   "desc": "Non-JSON bytes (written as escapes here).",
+   "tags": [
+    "malformed",
+    "fuzz"
+   ],
+   "line": "\u0001\u00ff\u0000{{",
+   "expect": [
+    {
+     "t": "res",
+     "id": null,
+     "ok": false,
+     "mode": "IDLE",
+     "err": {
+      "code": "bad_json",
+      "msg": "$str"
+     }
+    }
+   ]
+  }
+ ],
+ "messages": [
+  {
+   "name": "ack_run_cycle",
+   "desc": "An ack with the whole-cycle bound.",
+   "tags": [
+    "ack"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"ack\",\"id\":\"h-0100\",\"cmd\":\"RUN_CYCLE\",\"max_s\":2950}"
+  },
+  {
+   "name": "ack_dup",
+   "desc": "The ack repeated for a retried running id.",
+   "tags": [
+    "ack",
+    "dedupe"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"ack\",\"id\":\"h-0100\",\"cmd\":\"RUN_CYCLE\",\"max_s\":2950,\"dup\":true}"
+  },
+  {
+   "name": "res_run_cycle_complete",
+   "desc": "A complete cycle, all sensors present, one placeholder warning.",
+   "tags": [
+    "result"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"res\",\"id\":\"h-0100\",\"ok\":true,\"mode\":\"IDLE\",\"data\":{\"slot\":3,\"sample_id\":\"CW01-D03-03-20261015T0930\",\"completed\":true,\"abort\":null,\"end_reason\":\"volume_reached\",\"volume_ml\":2003.5,\"duration_s\":1184.2,\"cycle_s\":1702.4,\"purge_ml_target\":424,\"purge_ml_measured\":431.0,\"p_in\":{\"max\":2.06,\"mean\":1.41,\"final\":1.98},\"flow_ml_min\":{\"mean\":101.5,\"min\":62.0,\"final\":64.3},\"phases\":[{\"name\":\"purge\",\"duration_s\":251.3},{\"name\":\"water\",\"duration_s\":1184.2},{\"name\":\"air_push\",\"duration_s\":71.8},{\"name\":\"shield\",\"duration_s\":251.1},{\"name\":\"empty\",\"duration_s\":95.0}],\"shield_ms\":250000,\"t_end_to_shield_s\":118.5,\"faults\":[],\"warnings\":[{\"code\":\"PLACEHOLDER\",\"msg\":\"calibrationFactor_small\",\"phase\":null}],\"sensors\":[{\"name\":\"water_temp\",\"value\":11.8,\"unit\":\"degC\",\"stat\":\"mean\"}],\"p_out\":null,\"q_out\":null,\"dp\":null,\"r_filter\":null,\"clog_index\":null}}"
+  },
+  {
+   "name": "res_run_cycle_clogged_no_cap",
+   "desc": "No volume cap, ended clogged; no water_temp sensor; reserved fields null.",
+   "tags": [
+    "result",
+    "null"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"res\",\"id\":\"h-0101\",\"ok\":true,\"mode\":\"IDLE\",\"data\":{\"slot\":3,\"sample_id\":null,\"completed\":true,\"abort\":null,\"end_reason\":\"clogged\",\"volume_ml\":1240.0,\"duration_s\":1510.7,\"cycle_s\":2030.2,\"purge_ml_target\":424,\"purge_ml_measured\":431.0,\"p_in\":{\"max\":2.06,\"mean\":1.41,\"final\":1.98},\"flow_ml_min\":{\"mean\":49.2,\"min\":12.1,\"final\":12.1},\"phases\":[{\"name\":\"purge\",\"duration_s\":251.3},{\"name\":\"water\",\"duration_s\":1184.2},{\"name\":\"air_push\",\"duration_s\":71.8},{\"name\":\"shield\",\"duration_s\":251.1},{\"name\":\"empty\",\"duration_s\":95.0}],\"shield_ms\":250000,\"t_end_to_shield_s\":118.5,\"faults\":[],\"warnings\":[],\"sensors\":[],\"p_out\":null,\"q_out\":null,\"dp\":null,\"r_filter\":null,\"clog_index\":null}}"
+  },
+  {
+   "name": "res_run_cycle_duration_reached",
+   "desc": "No volume cap, max_duration_s reached without a clog: a normal end.",
+   "tags": [
+    "result"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"res\",\"id\":\"h-0106\",\"ok\":true,\"mode\":\"IDLE\",\"data\":{\"slot\":3,\"sample_id\":null,\"completed\":true,\"abort\":null,\"end_reason\":\"duration_reached\",\"volume_ml\":1650.3,\"duration_s\":1800.0,\"cycle_s\":2330.8,\"purge_ml_target\":424,\"purge_ml_measured\":431.0,\"p_in\":{\"max\":2.06,\"mean\":1.41,\"final\":1.98},\"flow_ml_min\":{\"mean\":55.0,\"min\":41.2,\"final\":43.9},\"phases\":[{\"name\":\"purge\",\"duration_s\":251.3},{\"name\":\"water\",\"duration_s\":1184.2},{\"name\":\"air_push\",\"duration_s\":71.8},{\"name\":\"shield\",\"duration_s\":251.1},{\"name\":\"empty\",\"duration_s\":95.0}],\"shield_ms\":250000,\"t_end_to_shield_s\":118.5,\"faults\":[],\"warnings\":[],\"sensors\":[],\"p_out\":null,\"q_out\":null,\"dp\":null,\"r_filter\":null,\"clog_index\":null}}"
+  },
+  {
+   "name": "res_run_cycle_purge_clamped",
+   "desc": "The host asked 100 mL of purge; the Due used the minimum and says so.",
+   "tags": [
+    "result",
+    "edna"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"res\",\"id\":\"h-0104\",\"ok\":true,\"mode\":\"IDLE\",\"data\":{\"slot\":3,\"sample_id\":null,\"completed\":true,\"abort\":null,\"end_reason\":\"volume_reached\",\"volume_ml\":2003.5,\"duration_s\":1184.2,\"cycle_s\":1702.4,\"purge_ml_target\":424,\"purge_ml_measured\":431.0,\"p_in\":{\"max\":2.06,\"mean\":1.41,\"final\":1.98},\"flow_ml_min\":{\"mean\":101.5,\"min\":62.0,\"final\":64.3},\"phases\":[{\"name\":\"purge\",\"duration_s\":251.3},{\"name\":\"water\",\"duration_s\":1184.2},{\"name\":\"air_push\",\"duration_s\":71.8},{\"name\":\"shield\",\"duration_s\":251.1},{\"name\":\"empty\",\"duration_s\":95.0}],\"shield_ms\":250000,\"t_end_to_shield_s\":118.5,\"faults\":[],\"warnings\":[{\"code\":\"PURGE_CLAMPED\",\"msg\":\"purge 100 mL < minimum 424 mL\",\"phase\":null}],\"sensors\":[],\"p_out\":null,\"q_out\":null,\"dp\":null,\"r_filter\":null,\"clog_index\":null}}"
+  },
+  {
+   "name": "res_run_cycle_flowmeter_dead",
+   "desc": "Flowmeter silent: volume and flow unknown (null), ended on timeout, warning.",
+   "tags": [
+    "result",
+    "null",
+    "degraded"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"res\",\"id\":\"h-0102\",\"ok\":true,\"mode\":\"IDLE\",\"data\":{\"slot\":3,\"sample_id\":null,\"completed\":true,\"abort\":null,\"end_reason\":\"timeout\",\"volume_ml\":null,\"duration_s\":1800.0,\"cycle_s\":2320.5,\"purge_ml_target\":424,\"purge_ml_measured\":null,\"p_in\":{\"max\":2.06,\"mean\":1.41,\"final\":1.98},\"flow_ml_min\":{\"mean\":null,\"min\":null,\"final\":null},\"phases\":[{\"name\":\"purge\",\"duration_s\":251.3},{\"name\":\"water\",\"duration_s\":1184.2},{\"name\":\"air_push\",\"duration_s\":71.8},{\"name\":\"shield\",\"duration_s\":251.1},{\"name\":\"empty\",\"duration_s\":95.0}],\"shield_ms\":250000,\"t_end_to_shield_s\":118.5,\"faults\":[],\"warnings\":[{\"code\":\"FLOW_SILENT\",\"msg\":\"no flow pulses while pumping water\",\"phase\":\"water\"}],\"sensors\":[],\"p_out\":null,\"q_out\":null,\"dp\":null,\"r_filter\":null,\"clog_index\":null}}"
+  },
+  {
+   "name": "res_run_cycle_stopped_in_purge",
+   "desc": "STOP during the purge: the water phase never ran.",
+   "tags": [
+    "result",
+    "null",
+    "stop"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"res\",\"id\":\"h-0103\",\"ok\":true,\"mode\":\"FAULT\",\"data\":{\"slot\":3,\"sample_id\":null,\"completed\":false,\"abort\":{\"step\":\"purge\",\"reason\":\"stopped\",\"fault\":\"USER_STOP\"},\"end_reason\":\"stopped\",\"volume_ml\":null,\"duration_s\":null,\"cycle_s\":48.3,\"purge_ml_target\":424,\"purge_ml_measured\":62.0,\"p_in\":{\"max\":null,\"mean\":null,\"final\":null},\"flow_ml_min\":{\"mean\":null,\"min\":null,\"final\":null},\"phases\":[{\"name\":\"purge\",\"duration_s\":17.9}],\"shield_ms\":null,\"t_end_to_shield_s\":null,\"faults\":[{\"code\":\"USER_STOP\",\"msg\":\"STOP from host\",\"phase\":\"purge\"}],\"warnings\":[],\"sensors\":[],\"p_out\":null,\"q_out\":null,\"dp\":null,\"r_filter\":null,\"clog_index\":null}}"
+  },
+  {
+   "name": "res_run_cycle_fault_in_shield",
+   "desc": "Water done, then a fault during the shield: end_reason keeps the water result.",
+   "tags": [
+    "result",
+    "fault"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"res\",\"id\":\"h-0104\",\"ok\":true,\"mode\":\"FAULT\",\"data\":{\"slot\":3,\"sample_id\":null,\"completed\":false,\"abort\":{\"step\":\"shield\",\"reason\":\"fault\",\"fault\":\"ENCODER\"},\"end_reason\":\"volume_reached\",\"volume_ml\":2003.5,\"duration_s\":1184.2,\"cycle_s\":1540.0,\"purge_ml_target\":424,\"purge_ml_measured\":431.0,\"p_in\":{\"max\":2.06,\"mean\":1.41,\"final\":1.98},\"flow_ml_min\":{\"mean\":101.5,\"min\":62.0,\"final\":64.3},\"phases\":[{\"name\":\"purge\",\"duration_s\":251.3},{\"name\":\"water\",\"duration_s\":1184.2},{\"name\":\"air_push\",\"duration_s\":71.8}],\"shield_ms\":0,\"t_end_to_shield_s\":null,\"faults\":[{\"code\":\"ENCODER\",\"msg\":\"encoder read failed during rotation\",\"phase\":null}],\"warnings\":[],\"sensors\":[],\"p_out\":null,\"q_out\":null,\"dp\":null,\"r_filter\":null,\"clog_index\":null}}"
+  },
+  {
+   "name": "res_run_cycle_pressure_cap",
+   "desc": "The cap tripped during the water phase.",
+   "tags": [
+    "result",
+    "fault"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"res\",\"id\":\"h-0105\",\"ok\":true,\"mode\":\"FAULT\",\"data\":{\"slot\":3,\"sample_id\":null,\"completed\":false,\"abort\":{\"step\":\"sample\",\"reason\":\"fault\",\"fault\":\"OVER_PRESSURE\"},\"end_reason\":\"pressure_cap\",\"volume_ml\":812.4,\"duration_s\":530.2,\"cycle_s\":790.0,\"purge_ml_target\":424,\"purge_ml_measured\":431.0,\"p_in\":{\"max\":2.52,\"mean\":1.66,\"final\":2.52},\"flow_ml_min\":{\"mean\":101.5,\"min\":62.0,\"final\":64.3},\"phases\":[{\"name\":\"purge\",\"duration_s\":251.3},{\"name\":\"water\",\"duration_s\":530.2}],\"shield_ms\":null,\"t_end_to_shield_s\":null,\"faults\":[{\"code\":\"OVER_PRESSURE\",\"msg\":\"P_in 2.52 bar > cap 2.50\",\"phase\":\"water\"}],\"warnings\":[],\"sensors\":[],\"p_out\":null,\"q_out\":null,\"dp\":null,\"r_filter\":null,\"clog_index\":null}}"
+  },
+  {
+   "name": "res_purge_only",
+   "desc": "A PURGE result: fields of stages that did not run are null.",
+   "tags": [
+    "result",
+    "null"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"res\",\"id\":\"h-0300\",\"ok\":true,\"mode\":\"IDLE\",\"data\":{\"slot\":0,\"sample_id\":null,\"completed\":true,\"abort\":null,\"end_reason\":null,\"volume_ml\":null,\"duration_s\":null,\"cycle_s\":282.0,\"purge_ml_target\":424,\"purge_ml_measured\":431.0,\"p_in\":{\"max\":null,\"mean\":null,\"final\":null},\"flow_ml_min\":{\"mean\":null,\"min\":null,\"final\":null},\"phases\":[{\"name\":\"purge\",\"duration_s\":251.3}],\"shield_ms\":null,\"t_end_to_shield_s\":null,\"faults\":[],\"warnings\":[],\"sensors\":[],\"p_out\":null,\"q_out\":null,\"dp\":null,\"r_filter\":null,\"clog_index\":null}}"
+  },
+  {
+   "name": "res_recover_ok",
+   "desc": "RECOVER after a boot: the O-ring was homed.",
+   "tags": [
+    "recovery"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"res\",\"id\":\"h-0061\",\"ok\":true,\"mode\":\"IDLE\",\"data\":{\"steps\":[{\"name\":\"cause_gone\",\"ok\":true},{\"name\":\"encoder\",\"ok\":true},{\"name\":\"align\",\"ok\":true},{\"name\":\"oring\",\"ok\":true,\"action\":\"actuator_home\"},{\"name\":\"valves\",\"ok\":true}]}}"
+  },
+  {
+   "name": "res_recover_failed",
+   "desc": "RECOVER stopped at the encoder step.",
+   "tags": [
+    "recovery"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"res\",\"id\":\"h-0065\",\"ok\":false,\"mode\":\"FAULT\",\"err\":{\"code\":\"recovery_failed\",\"msg\":\"encoder does not answer\",\"step\":\"encoder\",\"steps\":[{\"name\":\"cause_gone\",\"ok\":true},{\"name\":\"encoder\",\"ok\":false}]}}"
+  },
+  {
+   "name": "res_rotate_ok",
+   "desc": "ROTATE result.",
+   "tags": [
+    "rotate"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"res\",\"id\":\"h-0070\",\"ok\":true,\"mode\":\"IDLE\",\"data\":{\"slot\":5,\"lock\":\"locked\",\"angle_deg\":49.57}}"
+  },
+  {
+   "name": "res_rotate_stopped",
+   "desc": "A rotation interrupted by STOP.",
+   "tags": [
+    "rotate",
+    "stop"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"res\",\"id\":\"h-0070\",\"ok\":false,\"mode\":\"FAULT\",\"err\":{\"code\":\"stopped\",\"msg\":\"STOP during rotation\"}}"
+  },
+  {
+   "name": "res_rotate_fault",
+   "desc": "A rotation failed on the encoder.",
+   "tags": [
+    "rotate",
+    "fault"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"res\",\"id\":\"h-0071\",\"ok\":false,\"mode\":\"FAULT\",\"err\":{\"code\":\"fault\",\"msg\":\"encoder failure\",\"fault\":\"ENCODER\"}}"
+  },
+  {
+   "name": "evt_boot",
+   "desc": "Sent once after a reset.",
+   "tags": [
+    "evt"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"evt\",\"ms\":1520,\"type\":\"boot\",\"boot_id\":\"9f3c21a7\",\"reset_cause\":\"WATCHDOG\",\"proto\":\"1.0\",\"fw\":{\"version\":\"fw7\",\"git\":\"62a222d\",\"dirty\":false,\"built\":\"2026-10-20T10:00:00Z\"}}"
+  },
+  {
+   "name": "evt_mode",
+   "desc": "A mode change.",
+   "tags": [
+    "evt"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"evt\",\"ms\":81234,\"type\":\"mode\",\"from\":\"BUSY\",\"to\":\"FAULT\",\"cause\":\"USER_STOP\"}"
+  },
+  {
+   "name": "evt_fault",
+   "desc": "A latched fault.",
+   "tags": [
+    "evt"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"evt\",\"ms\":81234,\"type\":\"fault\",\"code\":\"OVER_PRESSURE\",\"msg\":\"P_in 2.52 bar > cap 2.50\",\"phase\":\"water\"}"
+  },
+  {
+   "name": "evt_warning",
+   "desc": "A warning.",
+   "tags": [
+    "evt"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"evt\",\"ms\":90000,\"type\":\"warning\",\"code\":\"FLOW_SILENT\",\"msg\":\"no flow pulses for 5 s\",\"phase\":\"water\"}"
+  },
+  {
+   "name": "evt_step_start",
+   "desc": "A stage starts.",
+   "tags": [
+    "evt"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"evt\",\"ms\":60000,\"type\":\"step_start\",\"id\":\"h-0100\",\"cmd\":\"RUN_CYCLE\",\"step\":\"sample\"}"
+  },
+  {
+   "name": "evt_step_end",
+   "desc": "A stage ends.",
+   "tags": [
+    "evt"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"evt\",\"ms\":1300000,\"type\":\"step_end\",\"id\":\"h-0100\",\"cmd\":\"RUN_CYCLE\",\"step\":\"sample\",\"ok\":true,\"duration_s\":1290.4}"
+  },
+  {
+   "name": "evt_phase",
+   "desc": "A pumping phase change.",
+   "tags": [
+    "evt"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"evt\",\"ms\":1250000,\"type\":\"phase\",\"id\":\"h-0100\",\"from\":\"water\",\"to\":\"air_push\"}"
+  },
+  {
+   "name": "evt_link_lost",
+   "desc": "The host heartbeat stopped.",
+   "tags": [
+    "evt",
+    "link"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"evt\",\"ms\":400000,\"type\":\"link\",\"state\":\"lost\",\"silent_s\":30.0}"
+  },
+  {
+   "name": "evt_unknown_type",
+   "desc": "An event type from a later minor version: the host ignores it.",
+   "tags": [
+    "evt",
+    "forward_compat"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"evt\",\"ms\":5000,\"type\":\"door_open\",\"where\":\"lid\"}"
+  },
+  {
+   "name": "tel_water",
+   "desc": "Telemetry during the water phase.",
+   "tags": [
+    "tel"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"tel\",\"ms\":90210,\"id\":\"h-0100\",\"cmd\":\"RUN_CYCLE\",\"step\":\"sample\",\"phase\":\"water\",\"elapsed_s\":412.0,\"slot\":3,\"lock\":\"locked\",\"p_in\":1.87,\"flow_ml_min\":98.4,\"volume_ml\":671.2,\"pump_pct\":74}"
+  },
+  {
+   "name": "tel_nulls",
+   "desc": "Telemetry in the shield phase: no volume, flowmeter not relevant.",
+   "tags": [
+    "tel",
+    "null"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"tel\",\"ms\":1400000,\"id\":\"h-0100\",\"cmd\":\"RUN_CYCLE\",\"step\":\"shield\",\"phase\":\"shield\",\"elapsed_s\":1330.0,\"slot\":3,\"lock\":\"locked\",\"p_in\":0.02,\"flow_ml_min\":null,\"volume_ml\":null,\"pump_pct\":0}"
+  },
+  {
+   "name": "tel_extra_field",
+   "desc": "An unknown field from a later minor version: ignored.",
+   "tags": [
+    "tel",
+    "forward_compat"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"tel\",\"ms\":91210,\"id\":\"h-0100\",\"cmd\":\"RUN_CYCLE\",\"step\":\"sample\",\"phase\":\"water\",\"elapsed_s\":413.0,\"slot\":3,\"lock\":\"locked\",\"p_in\":1.88,\"flow_ml_min\":98.1,\"volume_ml\":672.8,\"pump_pct\":74,\"water_temp\":11.9}"
+  },
+  {
+   "name": "log_info",
+   "desc": "A forwarded console line.",
+   "tags": [
+    "log"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"log\",\"ms\":90222,\"lvl\":\"info\",\"msg\":\"Step sample: pumping water through sterivex\"}"
+  },
+  {
+   "name": "log_truncated",
+   "desc": "A long log line truncated by the Due.",
+   "tags": [
+    "log"
+   ],
+   "valid": true,
+   "line": "{\"t\":\"log\",\"ms\":90300,\"lvl\":\"warn\",\"msg\":\"ctrl flow: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...\"}"
+  }
+ ],
+ "sequences": [
+  {
+   "name": "run_cycle_happy_path",
+   "desc": "Short form: purge -> sample -> shield -> empty, ends locked; PINGs interleaved.",
+   "messages": [
+    {
+     "dir": "h2d",
+     "line": "{\"t\":\"req\",\"id\":\"h-0100\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":2000,\"max_duration_s\":1800}}"
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 1000,
+      "type": "mode",
+      "from": "IDLE",
+      "to": "BUSY",
+      "cause": "RUN_CYCLE"
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 1001,
+      "type": "step_start",
+      "id": "h-0100",
+      "cmd": "RUN_CYCLE",
+      "step": "purge"
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "ack",
+      "id": "h-0100",
+      "cmd": "RUN_CYCLE",
+      "max_s": 2950
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 16000,
+      "type": "phase",
+      "id": "h-0100",
+      "from": "idle",
+      "to": "purge"
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "tel",
+      "ms": 17000,
+      "id": "h-0100",
+      "cmd": "RUN_CYCLE",
+      "step": "purge",
+      "phase": "purge",
+      "elapsed_s": 16.0,
+      "slot": 0,
+      "lock": "locked",
+      "p_in": 0.8,
+      "flow_ml_min": 110.0,
+      "volume_ml": 1.8,
+      "pump_pct": 60
+     }
+    },
+    {
+     "dir": "h2d",
+     "line": "{\"t\":\"req\",\"id\":\"h-0101\",\"cmd\":\"PING\"}"
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "res",
+      "id": "h-0101",
+      "ok": true,
+      "mode": "BUSY",
+      "data": {
+       "ms": 17100
+      }
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 280000,
+      "type": "step_end",
+      "id": "h-0100",
+      "cmd": "RUN_CYCLE",
+      "step": "purge",
+      "ok": true,
+      "duration_s": 279.0
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 280001,
+      "type": "step_start",
+      "id": "h-0100",
+      "cmd": "RUN_CYCLE",
+      "step": "sample"
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 1500000,
+      "type": "step_end",
+      "id": "h-0100",
+      "cmd": "RUN_CYCLE",
+      "step": "sample",
+      "ok": true,
+      "duration_s": 1220.0
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 1500001,
+      "type": "step_start",
+      "id": "h-0100",
+      "cmd": "RUN_CYCLE",
+      "step": "shield"
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 1800000,
+      "type": "step_end",
+      "id": "h-0100",
+      "cmd": "RUN_CYCLE",
+      "step": "shield",
+      "ok": true,
+      "duration_s": 300.0
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 1800001,
+      "type": "step_start",
+      "id": "h-0100",
+      "cmd": "RUN_CYCLE",
+      "step": "empty"
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 1900000,
+      "type": "step_end",
+      "id": "h-0100",
+      "cmd": "RUN_CYCLE",
+      "step": "empty",
+      "ok": true,
+      "duration_s": 99.0
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 1900001,
+      "type": "mode",
+      "from": "BUSY",
+      "to": "IDLE",
+      "cause": "RUN_CYCLE"
+     }
+    },
+    {
+     "dir": "note",
+     "text": "The cycle ends LOCKED at the purge slot (rest state); STATUS now shows lock=locked, slot=0."
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "res",
+      "id": "h-0100",
+      "ok": true,
+      "mode": "IDLE",
+      "data": {
+       "slot": 3,
+       "sample_id": null,
+       "completed": true,
+       "abort": null,
+       "end_reason": "volume_reached",
+       "volume_ml": 2003.5,
+       "duration_s": 1184.2,
+       "cycle_s": 1702.4,
+       "purge_ml_target": 424,
+       "purge_ml_measured": 431.0,
+       "p_in": {
+        "max": 2.06,
+        "mean": 1.41,
+        "final": 1.98
+       },
+       "flow_ml_min": {
+        "mean": 101.5,
+        "min": 62.0,
+        "final": 64.3
+       },
+       "phases": [
+        {
+         "name": "purge",
+         "duration_s": 251.3
+        },
+        {
+         "name": "water",
+         "duration_s": 1184.2
+        },
+        {
+         "name": "air_push",
+         "duration_s": 71.8
+        },
+        {
+         "name": "shield",
+         "duration_s": 251.1
+        },
+        {
+         "name": "empty",
+         "duration_s": 95.0
+        }
+       ],
+       "shield_ms": 250000,
+       "t_end_to_shield_s": 118.5,
+       "faults": [],
+       "warnings": [],
+       "sensors": [],
+       "p_out": null,
+       "q_out": null,
+       "dp": null,
+       "r_filter": null,
+       "clog_index": null
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "stop_mid_purge",
+   "desc": "STOP during the purge, then the path back to IDLE.",
+   "messages": [
+    {
+     "dir": "h2d",
+     "line": "{\"t\":\"req\",\"id\":\"h-0110\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":2000,\"max_duration_s\":1800}}"
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 1000,
+      "type": "mode",
+      "from": "IDLE",
+      "to": "BUSY",
+      "cause": "RUN_CYCLE"
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 1001,
+      "type": "step_start",
+      "id": "h-0110",
+      "cmd": "RUN_CYCLE",
+      "step": "purge"
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "ack",
+      "id": "h-0110",
+      "cmd": "RUN_CYCLE",
+      "max_s": 2950
+     }
+    },
+    {
+     "dir": "h2d",
+     "line": "{\"t\":\"req\",\"id\":\"h-0111\",\"cmd\":\"STOP\"}"
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 48000,
+      "type": "mode",
+      "from": "BUSY",
+      "to": "FAULT",
+      "cause": "USER_STOP"
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 48000,
+      "type": "fault",
+      "code": "USER_STOP",
+      "msg": "STOP from host",
+      "phase": "purge"
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "res",
+      "id": "h-0111",
+      "ok": true,
+      "mode": "FAULT",
+      "data": {
+       "interrupted": {
+        "id": "h-0110",
+        "cmd": "RUN_CYCLE"
+       }
+      }
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 48100,
+      "type": "step_end",
+      "id": "h-0110",
+      "cmd": "RUN_CYCLE",
+      "step": "purge",
+      "ok": false,
+      "duration_s": 47.1
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "res",
+      "id": "h-0110",
+      "ok": true,
+      "mode": "FAULT",
+      "data": {
+       "slot": 3,
+       "sample_id": null,
+       "completed": false,
+       "abort": {
+        "step": "purge",
+        "reason": "stopped",
+        "fault": "USER_STOP"
+       },
+       "end_reason": "stopped",
+       "volume_ml": null,
+       "duration_s": null,
+       "cycle_s": 48.3,
+       "purge_ml_target": 424,
+       "purge_ml_measured": 62.0,
+       "p_in": {
+        "max": null,
+        "mean": null,
+        "final": null
+       },
+       "flow_ml_min": {
+        "mean": null,
+        "min": null,
+        "final": null
+       },
+       "phases": [
+        {
+         "name": "purge",
+         "duration_s": 17.9
+        }
+       ],
+       "shield_ms": null,
+       "t_end_to_shield_s": null,
+       "faults": [
+        {
+         "code": "USER_STOP",
+         "msg": "STOP from host",
+         "phase": "purge"
+        }
+       ],
+       "warnings": [],
+       "sensors": [],
+       "p_out": null,
+       "q_out": null,
+       "dp": null,
+       "r_filter": null,
+       "clog_index": null
+      }
+     }
+    },
+    {
+     "dir": "h2d",
+     "line": "{\"t\":\"req\",\"id\":\"h-0112\",\"cmd\":\"CLEAR_FAULT\"}"
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 60000,
+      "type": "fault_cleared",
+      "code": "USER_STOP"
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 60000,
+      "type": "mode",
+      "from": "FAULT",
+      "to": "RECOVERY_REQUIRED",
+      "cause": "CLEAR_FAULT"
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "res",
+      "id": "h-0112",
+      "ok": true,
+      "mode": "RECOVERY_REQUIRED",
+      "data": {
+       "cleared": "USER_STOP"
+      }
+     }
+    },
+    {
+     "dir": "h2d",
+     "line": "{\"t\":\"req\",\"id\":\"h-0113\",\"cmd\":\"RECOVER\",\"args\":{\"confirm_moving\":false}}"
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 61000,
+      "type": "step_start",
+      "id": "h-0113",
+      "cmd": "RECOVER",
+      "step": "recover"
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "ack",
+      "id": "h-0113",
+      "cmd": "RECOVER",
+      "max_s": 60
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 61400,
+      "type": "step_end",
+      "id": "h-0113",
+      "cmd": "RECOVER",
+      "step": "recover",
+      "ok": true,
+      "duration_s": 0.4
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 61400,
+      "type": "mode",
+      "from": "RECOVERY_REQUIRED",
+      "to": "IDLE",
+      "cause": "RECOVER"
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "res",
+      "id": "h-0113",
+      "ok": true,
+      "mode": "IDLE",
+      "data": {
+       "steps": [
+        {
+         "name": "cause_gone",
+         "ok": true
+        },
+        {
+         "name": "encoder",
+         "ok": true
+        },
+        {
+         "name": "align",
+         "ok": true
+        },
+        {
+         "name": "oring",
+         "ok": true,
+         "action": "none"
+        },
+        {
+         "name": "valves",
+         "ok": true
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "reboot_mid_cycle",
+   "desc": "The Due resets during a cycle (watchdog). The host sees a new boot_id and must not resend h-0120.",
+   "messages": [
+    {
+     "dir": "h2d",
+     "line": "{\"t\":\"req\",\"id\":\"h-0120\",\"cmd\":\"RUN_CYCLE\",\"args\":{\"slot\":3,\"purge_ml\":null,\"volume_ml\":2000,\"max_duration_s\":1800}}"
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "ack",
+      "id": "h-0120",
+      "cmd": "RUN_CYCLE",
+      "max_s": 2950
+     }
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "evt",
+      "ms": 1510,
+      "type": "boot",
+      "boot_id": "4b7e0d12",
+      "reset_cause": "WATCHDOG",
+      "proto": "1.0",
+      "fw": {
+       "version": "fw7",
+       "git": "62a222d",
+       "dirty": false,
+       "built": "2026-10-20T10:00:00Z"
+      }
+     }
+    },
+    {
+     "dir": "h2d",
+     "line": "{\"t\":\"req\",\"id\":\"h-0121\",\"cmd\":\"HELLO\"}"
+    },
+    {
+     "dir": "d2h",
+     "msg": {
+      "t": "res",
+      "id": "h-0121",
+      "ok": true,
+      "mode": "RECOVERY_REQUIRED",
+      "data": {
+       "proto": "1.0",
+       "device_id": "cowas-V1",
+       "boot_id": "4b7e0d12",
+       "uptime_s": 3.2,
+       "fw": {
+        "version": "fw7",
+        "git": "62a222d",
+        "dirty": false,
+        "built": "2026-10-20T10:00:00Z"
+       },
+       "mode": "RECOVERY_REQUIRED",
+       "recovery_required": true,
+       "recovery_cause": "WATCHDOG",
+       "fault": null,
+       "caps": {
+        "p_in": true,
+        "p_out": false,
+        "q_in": true,
+        "q_out": false,
+        "estop_input": false,
+        "spool": false,
+        "water_temp": false,
+        "leak": false,
+        "oring_home_switch": false
+       }
+      }
+     }
+    },
+    {
+     "dir": "note",
+     "text": "boot_id changed: the host marks slot 3 SUSPECT, pauses the mission, and asks the operator to RECOVER."
+    }
+   ]
+  }
+ ]
+}

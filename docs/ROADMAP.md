@@ -143,6 +143,8 @@ Rule: **the Due never starts a sample on its own, and the host never toggles a v
 
 **Safe state:** pump and micro pump off; all valves closed; manifold motor stopped; **the O-ring stays locked** if it is locked. If it is unlocked (e.g. mid-rotation), it is left as is.
 
+**Rest state (decided 2026-09-25, FW1):** the O-ring is **locked** whenever the machine waits, sleeps or has finished a procedure. It is unlocked only to rotate: every rotation is unlock → rotate → lock, and every procedure ends locked. Any program that rotates must unlock first (FW4 auto-unlock). Implemented in FW4; see docs/PROTOCOL.md §5.1.
+
 **Recovery is enforced:** after any fault, STOP or boot, the Due refuses procedures until `RECOVER` passes: cause gone → encoder OK → O-ring state known (home if unknown) → valves to idle → IDLE. The host marks an interrupted slot `SUSPECT`.
 
 ### 3.3 Pressure: one safety value
@@ -468,7 +470,8 @@ prepare the pumping tests. ADDITIVE: existing commands keep working, EXCEPT the 
 3. O-ring lock state (F18): tri-state LOCKED / UNLOCKED / UNKNOWN, UNKNOWN at boot. `actuator_home`:
    only if the manifold is aligned to a slot (encoder within tolerance), run the overdrive lock
    (a stall against the physical stop = a known reference), then the normal unlock -> known
-   UNLOCKED. Otherwise refuse. rotateMotor() and every rotating test refuse while LOCKED or
+   UNLOCKED. Otherwise refuse. (From FW4 the rest state is LOCKED, §3.2: actuator_home then ends
+   locked; FW2 keeps unlocked because its rotation tests don't auto-unlock yet.) rotateMotor() and every rotating test refuse while LOCKED or
    UNKNOWN (the automatic unlock comes in FW4). Tell me how production paths behave on the first
    rotation after a boot; ask me before changing sample_process().
 4. Test commands. Each one: 'x' aborts at every pause; optional `auto` (no pauses);
@@ -574,6 +577,11 @@ SMALL, listed behavior changes. Nothing else.
    Check EVERY caller (goto_slot_locked, slotN, clockMM, slot0, panel Man Slot, calibrations, the
    FW2 tests); report before/after. The pure rule (ROTATE / UNLOCK_THEN_ROTATE / WAIT / REFUSE) is
    tested for every combination.
+   Rest state = LOCKED (§3.2, decided in FW1): every rotation re-locks at its target (rotate =
+   unlock -> rotate -> lock); remove the final unlock_oring() at the end of sample_process(),
+   load_slot(), load_slot_full() and abort_sample(), so procedures end locked (the legacy
+   step_purge() already does, F40 becomes the intended behaviour); actuator_home ends locked.
+   List every caller that assumed "unlocked at rest" and every test that unlocks at the end.
 5. Volume and timeout (F15, F6, F31):
    a. STX_SAMPLE_MILLILITERS = 2000; SAMPLE_VOLUME_CAP_ENABLED = true.
    b. The Flow_sensor calibration factor becomes a float (pulses per litre as float); fix the
@@ -611,8 +619,8 @@ flow finishes before the timeout; no volume cap -> the absolute maximum; bounds)
 (the worked example of §3.7 ≈ 424 mL; zero length -> the minimum); the flow factor round trip.
 Hardware checklist: calibrate_flow (if HW3 isn't done yet); lock then slot5 auto-unlocks and
 rotates; with the pump running, slot5 waits then refuses; after a reboot, slot5 asks for
-actuator_home; one full_cycle volume=500: the printed purge volume matches the formula, and the
-shield runs DNA_SHIELD_FILL_MS.
+actuator_home; one full_cycle volume=500: the printed purge volume matches the formula, the
+shield runs DNA_SHIELD_FILL_MS, and the cycle ends LOCKED; the next slotN unlocks before rotating.
 ```
 
 #### FW5: Supervisor, `wait_ms()`, watchdog (P0)
@@ -707,7 +715,9 @@ Read CLAUDE.md, docs/PROTOCOL.md, protocol/vectors.json, docs/ROADMAP.md §3.4-3
 3. Handlers call the EXISTING procedures with explicit parameters. RUN_CYCLE takes the slot from
    the host (the internal slot search stays only for the legacy commands). Long commands: an
    immediate ack, events for each step, then the result with the same id. BUSY accepts only STOP,
-   STATUS, PING, HELLO.
+   STATUS, PING, HELLO, GET_INFO.
+   Deferred from FW1 (PROTOCOL.md §14): PRIME_SHIELD's destination (purge slot?) and duration
+   (PRIME_SHIELD_MS, PLACEHOLDER): ask me, using the LA3 results if they exist.
 4. STOP from the protocol uses the FW6 path. Request-id dedupe (last 16 ids + their results).
    Link watchdog: no PING for LINK_TIMEOUT_S -> warning event; the current procedure finishes
    safely; nothing new starts until the host is back.
@@ -951,15 +961,17 @@ Goal: the numbers we need to trust each filter. We have a 0.01 g scale.
    repeatability; prints DNA_SHIELD_FILL_MS for the target volume (TEST lines).
 2. docs/LA3_PROTOCOL.md: a weighing protocol per filter:
    dry filter mass -> after RUN_CYCLE without shield (water + air push) = the residual water ->
-   after the full cycle = water + shield -> after 1, 3, 7 days in the manifold (O-ring unlocked
-   as in production, at room temperature and at <25-30> °C if possible) = retention.
+   after the full cycle = water + shield -> after 1, 3, 7 days in the manifold (O-ring LOCKED
+   as in production, the rest state of §3.2, at room temperature and at <25-30> °C if possible) = retention.
    3 filters per condition. Also test the air-push variants: today's settings, and a longer
    EMPTY_STX_MAX_MS at a higher air pressure still below the membrane bubble point.
 3. tools/analyze_la3.py: reads a CSV of masses, computes residual water, shield volume, the
    shield/water ratio, retention (% per day), mean ± SD, and prints PASS/FAIL against the lab's
    thresholds. pytest with a synthetic dataset.
-4. Recommend: DNA_SHIELD_FILL_MS, the air-push settings, and whether the O-ring should stay
-   locked or the filter outlets need caps/check valves after the shield. Ask me before changing
+4. Recommend: DNA_SHIELD_FILL_MS, the air-push settings, and whether the filter outlets need
+   caps/check valves after the shield even with the O-ring locked at rest. Also answer the question
+   deferred from FW1: how much shield PRIME_SHIELD must push to fill the line before the first
+   sample, and where it should go (the purge slot?). Ask me before changing
    code; any change goes into a small follow-up PR.
 ```
 
@@ -1020,7 +1032,7 @@ include/Settings.h. I will measure things on the machine; you prepare and then r
 | **HW4** Pressure sensor | ☐ Pin 1 identified before powering (6-pin DIP, not reverse-polarity protected; procedure in docs/TESTS_PENDING.md) · ☐ powered from 3.3 V, SS on D8 · ☐ Mounted on a tee between the pump and the manifold, port facing down or sideways (no trapped air) · ☐ barbs clamped (the pop-out issue) · ☐ short cable (< 30 cm) or twisted pairs with GND · ☐ FW3 checklist passed |
 | **HW5** Power | ☐ Battery (Pilot A: 12 V LiFePO4 ≥ 50 Ah with BMS) · ☐ regulated 24 V boost (≥ 1.5 × the peak current) for actuators · ☐ 5 V buck ≥ 3 A for the Pi · ☐ Due supply per HW1 · ☐ main switch + main fuse · ☐ measured: idle W, one full cycle Wh → `docs/POWER.md` → battery sized for Pilot A and B · ☐ **20 cold boots** on the battery supply, 20/20 OK · ☐ a pump start doesn't brown out the Due (watch the reset cause in the boot log) |
 | **HW6** Field fluidics (Pilot A) | ☐ Intake: strainer (~200–500 µm mesh) + weight + rope marked every metre, at a fixed depth `<1–5 m>` · ☐ hose ID and length recorded → FW4's dead volume · ☐ suction lift: the pump primes from the water level to the machine (test at the real height) · ☐ outlet discharges ≥ 5 m downstream of the intake · ☐ quick-disconnects for transport · ☐ splash-proof box (IP54+) with the electronics above the fluidics, shade cover (sun heats the box and the filters) · ☐ everything fits on one trolley/boat |
-| **HW7** O-ring lock | ☐ `lock_endurance 200`: no drift in the encoder angle, no leak at the end (`leak_hold`) · ☐ with the coils off while locked (FW4): pressurize to 2.5 bar with the outlet clamped for 10 min → no leak, no backlash (confirms the self-locking under pressure) · ☐ P1: "unlocked" home switch (sealed Hall + magnet) on D39 |
+| **HW7** O-ring lock | ☐ `lock_endurance 200`: no drift in the encoder angle, no leak at the end (`leak_hold`) · ☐ with the coils off while locked (FW4): pressurize to 2.5 bar with the outlet clamped for 10 min → no leak, no backlash (confirms the self-locking under pressure) · ☐ **rest locked** (FW1 decision, §3.2): O-ring locked for 7 days, then unlock/lock and `leak_hold` → no leak (checks compression set of an O-ring kept compressed between samples) · ☐ P1: "unlocked" home switch (sealed Hall + magnet) on D39 |
 | **HW8** Pilot B hardware | ☐ Enclosure IP65+, cable glands, desiccant, internal temperature logger · ☐ enclosure leak sensor at the lowest point · ☐ DS18B20 water probe on the intake · ☐ mounting/mooring plan, anti-theft, a "scientific equipment + contact" label · ☐ access agreed with the pier/harbour owner · ☐ site access and a swap plan for the battery |
 
 ### 8.5 Validation
