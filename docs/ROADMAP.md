@@ -330,7 +330,7 @@ Conventions:
 | **HO4** | Deploy on the Pi (systemd, udev, clock, backups) | HO | P1 | HO3 | Pi + TOFU | Resume after power cut (integration) | 7–9 | ☐ |
 | **HO5** | Remote access + alerts lite (Tailscale, LTE, ntfy/Telegram, daily report) | HO | P1 | HO4 | SIM, antennas | Alert rules, dedup, repeat until ack | 9–11 | ☐ |
 | **LA1** | Lab alignment → `docs/LAB_INTERFACE.md` (template drafted 2026-09-25; done when its §4 is filled in at the meeting) | LA | P0 | — | — | — | 1 | ☐ |
-| **LA2** | SOPs: filter loading/unloading, cleaning, labels, chain of custody | LA | P0 | LA1 | — | — | 2 | ☐ |
+| **LA2** | SOPs: filter loading/unloading, cleaning, labels, chain of custody (docs/SOP_FILTERS.md drafted 2026-09-25 with the lab values as proposals; done after the LA1 answers + the dry run, see the LA2 prompt) | LA | P0 | LA1 | — | — | 2 | ☐ |
 | **LA3** | Shield volume, residual water, shield retention (weighing) | LA | P0 | FW4, LA1 | scale 0.01 g | Analysis script tests | 4–5 | ☐ |
 | **LA4** | Carry-over and slot cross-talk (dye tracer ± qPCR) | LA | P0 | FW4, HW6 | dye, spectrophotometer or phone photometry | Analysis script tests | 5–6 | ☐ |
 | **HW0** | Order everything (§11.1) | HW | P0 | — | — | — | 0–1 | ☐ |
@@ -946,6 +946,15 @@ Also add a one-page "Sterivex handling in CoWaS" summary for the lab.
 
 #### LA2: SOPs: filter loading/unloading, cleaning, labels, chain of custody (P0)
 
+**Status (2026-09-25): drafted, not done.** docs/SOP_FILTERS.md covers items 1–6 below, with a checkbox and a "Who" field on every step (branch `la2-sops`; FIRMWARE_LOG "LA2"). It was written **before** the lab meeting, so LAB_INTERFACE.md was not filled in.
+
+Left to do:
+1. After the LA1 meeting: replace every `⟨LAB X⟩` marker in the SOP (list in its §0.2) with LAB_INTERFACE §4: bleach % and contact time (L1, L2), biosecurity drying rule (L3), transport and storage (D2–D5), unused filters and caps (D6, D7), `sample_id` and labels (E1–E3), blank volume and water (F2, F3), hose tip before the end blank (F7), the lab's own custody form (I1–I3). If the lab asks for a Shield-line rinse, add it to §4.2.9.
+2. On the hardware: check the Sterivex orientation text (inlet = female luer-lock) on the real filter model, and whether the rotor turns when a filter is screwed on with the O-ring locked.
+3. Commands the SOP names but that don't exist yet: `cowas slots load` / `slots unload` / `cowas clean` (HO2 prompt, item 4) and the pause around equipment blanks (HO3 prompt). Once they exist, drop the "until HO2/HO3" notes in the SOP. The printed labels need HO2's `tools/labels.py`.
+4. The SOP dry run in docs/TESTS_PENDING.md (loading ≤ 30 min, unloading ≤ 20 min, 0 caps left on, 0 thread drips, 0 label mismatches). Loading and unloading alone can run before FW7.
+5. Then tick LA2 in §7.
+
 ```text
 Read docs/ROADMAP.md §3.7, docs/LAB_INTERFACE.md (filled in), docs/COMMANDS.md.
 Write docs/SOP_FILTERS.md, a checklist people can print:
@@ -1143,7 +1152,7 @@ Specs, not brands. Check each part against your fittings, tube sizes and measure
 | 12 | **Intake kit** | 1 | Strainer (200–500 µm mesh), weight, 10 m hose (same ID as today, food-grade), rope; optional foot valve (helps priming; the purge handles the retained water) | HW6 |
 | 13 | Quick-disconnect fittings | 4 | Intake, outlet, purge | HW6 |
 | 14 | Splash-proof box IP54+ + shade cover | 1 | Pilot A | HW6 |
-| 15 | **Lab consumables** | — | Sterivex ≥ 40 (tests + pilot), DNA/RNA Shield (≥ 14 × target volume + ~100 mL for calibration), DNA-free water ≥ 5 L, luer caps for both ends, cryo labels (type: LAB_INTERFACE.md E2; Sterivex model: A3), gloves, bleach, a cooler + ice packs | LA2–LA4, VA2 |
+| 15 | **Lab consumables** | — | Sterivex ≥ 40 (tests + pilot), DNA/RNA Shield (≥ 14 × target volume + ~100 mL for calibration), DNA-free water ≥ 10 L (≈ 6 L for 2 equipment blanks at 2 L + their purges, the field blank, and the DNA-free rinses before loading and after a deployment: SOP_FILTERS.md §4.2.6, §6.1; LAB_INTERFACE F2), new luer caps for both ends (loading and retrieval), cryo labels (type: LAB_INTERFACE.md E2; Sterivex model: A3), gloves, bleach, a cooler + ice packs | LA2–LA4, VA2 |
 | 16 | **Test bench** | — | Scale 0.01 g (≥ 200 g), 1 L measuring cylinder, bucket, tube clamp or needle valve, food dye (+ a conductivity meter or photometer if available) | LA3, LA4, HW3 |
 | 17 | Spare Arduino Due | 1 | A bench board + a field spare | all |
 | 18 | O-ring spare sets | 3 | | HW7 |

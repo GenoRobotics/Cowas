@@ -131,8 +131,9 @@ New findings get the next free ID after ROADMAP §4 (F37, F38, ...). **When step
 - `docs/LAB_INTERFACE.md`: new questions D6 (unused filters), D7 (caps at retrieval), F7 (hose tip before the end blank), and a §4 row for them.
 - `docs/ROADMAP.md`: HO2 prompt item 4 names the host commands the SOP uses (`cowas slots`, `slots load`, `slots unload` with the retrieval time, `cowas clean`); HO3 prompt: equipment-blank events pause before and after for the operator; §9.1 checklist points to the SOP and packs ≈ 6 L of DNA-free water (resolves LA1's first open point, pending F2).
 - `docs/TESTS_PENDING.md`: the SOP dry run, with numeric pass criteria.
+- Follow-up (same day): the ROADMAP LA2 prompt gets a "Status / left to do" block and the §7 row says drafted, not done; HW0 #15 DNA-free water ≥ 5 L → ≥ 10 L (the SOP's blanks + rinses), new caps for loading and retrieval.
 
-**Tests:** none (docs only). `pio run -e due` / `pio test -e native`: tree unchanged (not affected).
+**Tests:** docs only. Run on `la2-sops` anyway (2026-09-25): `pio run -e due` SUCCESS, `pio test -e native` 15/15 pass.
 
 **Hardware checklist:** the SOP dry run in docs/TESTS_PENDING.md (loading ≤ 30 min, unloading ≤ 20 min, 0 caps left, 0 thread drips, 0 label mismatches). Not run.
 
