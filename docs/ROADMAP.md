@@ -334,7 +334,7 @@ Conventions:
 | **LA3** | Shield volume, residual water, shield retention (weighing) | LA | P0 | FW4, LA1 | scale 0.01 g | Analysis script tests | 4–5 | ☐ |
 | **LA4** | Carry-over and slot cross-talk (dye tracer ± qPCR) | LA | P0 | FW4, HW6 | dye, spectrophotometer or phone photometry | Analysis script tests | 5–6 | ☐ |
 | **HW0** | Order everything (§11.1) | HW | P0 | — | — | — | 0–1 | ☐ |
-| **HW1** | Electrical audit → `docs/PINOUT.md`, `docs/POWER.md` | HW | P0 | FW0 | multimeter, scope if available | — | 1 | ☐ |
+| **HW1** | Electrical audit → `docs/PINOUT.md`, `docs/POWER.md` | HW | P0 | FW0 | multimeter, scope if available | — | 1 | ☐ part 1 done 2026-09-25 (POWER.md + checklist M1–M44); part 2 waits for the measurements (see the HW1 prompt) |
 | **HW2** | Relief valve, E-stop in the 24 V line, fuses | HW | P0 | HW1 | parts | — | 2–3 | ☐ |
 | **HW3** | Flowmeter: level-safe input, calibration, real flow measurement | HW | P0 | HW1 | cylinder, scale | — | 2 | ☐ |
 | **HW4** | Install and plumb the pressure sensor(s) | HW | P0 | HW0 | sensors, clamps | — | 3 | ☐ |
@@ -1027,16 +1027,37 @@ include/Settings.h. I will measure things on the machine; you prepare and then r
    pin move, fuse) with the parts to add to ROADMAP §11.
 ```
 
+**Status (2026-09-25):** items 1–2 done on branch `hw1-electrical-audit` (`docs/POWER.md`; the checklist is POWER.md §4, M1–M44, with commands and acceptance values; a row in TESTS_PENDING.md). **Part 2, prompt for the session that gets the results:**
+
+```text
+Read CLAUDE.md, docs/FIRMWARE_LOG.md (HW1 entry), docs/POWER.md, docs/PINOUT.md. Here are the HW1
+results: <M-number: value, ...>.
+1. Fill in the Result column of POWER.md §4, every ___ in POWER.md §1 and the load table, and
+   PINOUT.md's "Reachable on the PCB shield?" (M44, F20) and "Measured level" columns.
+2. Flag every result outside its "Acceptable" value. For each: the fix and its parts, added to
+   ROADMAP §11.1 (or §11.2 for a pin move). Candidates: DAC buffer, with gain if the pump driver
+   input is above 2.75 V full scale (F25); flowmeter at 3.3 V or a divider (F26 -> HW3); the
+   ARDVIN=VOUT jumper removed (M9); the shield logic VDD / EN/DIAG level (M22-M23, needed before
+   FW5 reads the VNH5019 diagnostics, F47); missing flyback diodes; the D11 pull-up (M25); fuse
+   ratings = 1.5 x the measured branch currents (M32-M39) -> HW2; the E-stop DC rating and the
+   boost rating from the peak (M34) -> HW2/HW5.
+3. Decide the Due supply for the pilot topology (POWER.md §3) and write it into HW5.
+4. Log new findings in FIRMWARE_LOG.md (<F-range if steps run in parallel>), finish the HW1 entry,
+   move the TESTS_PENDING row to Done, tick HW1 in §7.
+```
+
+Notes for later steps: **don't change the A4988 Vref** without re-running `calibrate_actuator` (the stall point sets `LINEAR_ACT_LOCKED_STEPS`; HW7, FW4). Pumping during HW1 only with an open outlet (F50). POWER.md §5 (energy) is filled in by HW5.
+
 #### HW2–HW8: tasks and checklists (people)
 
 | Task | Checklist (tick when done) |
 |---|---|
-| **HW2** Safety hardware | ☐ Relief valve set to 2.8 bar ±0.2 (check with the sensor and a clamp) and plumbed to waste · ☐ E-stop: latching mushroom switch in series with the 24 V actuator rail (DC rating ≥ 2 × max current), or through a relay if not · ☐ second contact to a Due pin (P1) · ☐ fuses per branch (pump, VNH5019, A4988, valves), rated ~1.5× the measured current · ☐ E-stop test: pump running → press → everything stops < 0.5 s |
-| **HW3** Flowmeter | ☐ Output level safe for 3.3 V (sensor powered at 3.3 V if its spec allows, or a divider/open-collector + 3.3 V pull-up) · ☐ pin chosen (keep D13 if a pulse test passes, else D36) · ☐ `calibrate_flow` against a measuring cylinder **and** by weighing: 3 runs × 500 mL, spread < 3 % · ☐ **real sampling flow** measured with a clean Sterivex at 2 bar (mL/min) → FW4's `SAMPLE_MIN_EXPECTED_FLOW` and the outlet meter decision (P2) · ☐ flow with a half-clogged filter: does the meter still count (MW-FS-2.0 minimum 0.15 L/min)? |
-| **HW4** Pressure sensor | ☐ Pin 1 identified before powering (6-pin DIP, not reverse-polarity protected; procedure in docs/TESTS_PENDING.md) · ☐ powered from 3.3 V, SS on D8 · ☐ Mounted on a tee between the pump and the manifold, port facing down or sideways (no trapped air) · ☐ barbs clamped (the pop-out issue) · ☐ short cable (< 30 cm) or twisted pairs with GND · ☐ FW3 checklist passed |
-| **HW5** Power | ☐ Battery (Pilot A: 12 V LiFePO4 ≥ 50 Ah with BMS) · ☐ regulated 24 V boost (≥ 1.5 × the peak current) for actuators · ☐ 5 V buck ≥ 3 A for the Pi · ☐ Due supply per HW1 · ☐ main switch + main fuse · ☐ measured: idle W, one full cycle Wh → `docs/POWER.md` → battery sized for Pilot A and B · ☐ **20 cold boots** on the battery supply, 20/20 OK · ☐ a pump start doesn't brown out the Due (watch the reset cause in the boot log) |
+| **HW2** Safety hardware | ☐ Relief valve set to 2.8 bar ±0.2 (check with the sensor and a clamp) and plumbed to waste · ☐ E-stop: latching mushroom switch in series with the 24 V actuator rail (DC rating ≥ 2 × max current), or through a relay if not · ☐ second contact to a Due pin (P1) · ☐ fuses per branch (pump, VNH5019, A4988, valves), rated ~1.5× the measured current (HW1 M32–M39) · ☐ ≥ 47 µF across the A4988 VMOT at the driver · ☐ the E-stop cuts the actuators only, not the Due (POWER.md §3) · ☐ E-stop test: pump running → press → everything stops < 0.5 s |
+| **HW3** Flowmeter | ☐ Start from HW1 M15–M17 (supply, D13 level, D12 wiring) · ☐ Output level safe for 3.3 V (sensor powered at 3.3 V if its spec allows, or a divider/open-collector + 3.3 V pull-up) · ☐ pin chosen (keep D13 if a pulse test passes, else D36) · ☐ `calibrate_flow` against a measuring cylinder **and** by weighing: 3 runs × 500 mL, spread < 3 % · ☐ **real sampling flow** measured with a clean Sterivex at 2 bar (mL/min) → FW4's `SAMPLE_MIN_EXPECTED_FLOW` and the outlet meter decision (P2) · ☐ flow with a half-clogged filter: does the meter still count (MW-FS-2.0 minimum 0.15 L/min)? |
+| **HW4** Pressure sensor | ☐ Pin 1 identified before powering (6-pin DIP, not reverse-polarity protected; procedure in docs/TESTS_PENDING.md) · ☐ powered from 3.3 V (confirmed at the connector in HW1 M20), SS on D8 · ☐ Mounted on a tee between the pump and the manifold, port facing down or sideways (no trapped air) · ☐ barbs clamped (the pop-out issue) · ☐ short cable (< 30 cm) or twisted pairs with GND · ☐ FW3 checklist passed |
+| **HW5** Power | ☐ Battery (Pilot A: 12 V LiFePO4 ≥ 50 Ah with BMS) · ☐ regulated 24 V boost (≥ 1.5 × the peak current) for actuators · ☐ 5 V buck ≥ 3 A for the Pi · ☐ Due supply per HW1 (POWER.md §3; the VNH5019 ARDVIN=VOUT jumper removed, HW1 M9) · ☐ fill in POWER.md §5 (energy) · ☐ main switch + main fuse · ☐ measured: idle W, one full cycle Wh → `docs/POWER.md` → battery sized for Pilot A and B · ☐ **20 cold boots** on the battery supply, 20/20 OK · ☐ a pump start doesn't brown out the Due (watch the reset cause in the boot log) |
 | **HW6** Field fluidics (Pilot A) | ☐ Intake: strainer (~200–500 µm mesh) + weight + rope marked every metre, at a fixed depth `<1–5 m>` · ☐ hose ID and length recorded → FW4's dead volume · ☐ suction lift: the pump primes from the water level to the machine (test at the real height) · ☐ outlet discharges ≥ 5 m downstream of the intake · ☐ quick-disconnects for transport · ☐ splash-proof box (IP54+) with the electronics above the fluidics, shade cover (sun heats the box and the filters) · ☐ everything fits on one trolley/boat |
-| **HW7** O-ring lock | ☐ `lock_endurance 200`: no drift in the encoder angle, no leak at the end (`leak_hold`) · ☐ with the coils off while locked (FW4): pressurize to 2.5 bar with the outlet clamped for 10 min → no leak, no backlash (confirms the self-locking under pressure) · ☐ **rest locked** (FW1 decision, §3.2): O-ring locked for 7 days, then unlock/lock and `leak_hold` → no leak (checks compression set of an O-ring kept compressed between samples) · ☐ P1: "unlocked" home switch (sealed Hall + magnet) on D39 |
+| **HW7** O-ring lock | ☐ A4988 Vref unchanged since the last `calibrate_actuator` (HW1 M42; any Vref change moves the stall point → recalibrate) · ☐ `lock_endurance 200`: no drift in the encoder angle, no leak at the end (`leak_hold`) · ☐ with the coils off while locked (FW4): pressurize to 2.5 bar with the outlet clamped for 10 min → no leak, no backlash (confirms the self-locking under pressure) · ☐ **rest locked** (FW1 decision, §3.2): O-ring locked for 7 days, then unlock/lock and `leak_hold` → no leak (checks compression set of an O-ring kept compressed between samples) · ☐ P1: "unlocked" home switch (sealed Hall + magnet) on D39 |
 | **HW8** Pilot B hardware | ☐ Enclosure IP65+, cable glands, desiccant, internal temperature logger · ☐ enclosure leak sensor at the lowest point · ☐ DS18B20 water probe on the intake · ☐ mounting/mooring plan, anti-theft, a "scientific equipment + contact" label · ☐ access agreed with the pier/harbour owner · ☐ site access and a swap plan for the battery |
 
 ### 8.5 Validation
