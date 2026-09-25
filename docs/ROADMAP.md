@@ -649,6 +649,8 @@ Goal: what must ALWAYS run keeps running during long procedures.
 5. Report the reset cause at boot (the SAM3X RSTC status: power-on / watchdog / software / user).
 6. Native tests: the cap trips at the exact threshold; NaN and implausible values trip; the deadline
    trips; the latch holds until cleared; the waits return false once should_abort() is true.
+Before reading the VNH5019 EN/DIAG or CS pins (F47), check HW1 M22-M23 in docs/POWER.md: they must
+be <= 3.3 V at the Due pins.
 Hardware checklist: wdt_test resets the board and the boot prints "watchdog"; a cap trip during
 full_cycle (clamp at the outlet, CAP at 1.0 bar) stops the pump within <200 ms> and the procedure
 returns; full_cycle timing unchanged within 5 %; the max service() gap printed < 50 ms.
