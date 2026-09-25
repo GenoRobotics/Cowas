@@ -116,3 +116,27 @@ New findings get the next free ID after ROADMAP §4 (F37, F38, ...). **When step
 **Open points (no F-number: documentation, not code/hardware):**
 - ROADMAP §9.1 packs "DNA-free water ≥ 3 L for blanks + purge". If an equipment blank filters the same 2 L as a sample, 2 blanks + their purges need ~5 L. LAB_INTERFACE F2 asks the lab; fix §9.1 with the answer.
 - Proposed `sample_id` scheme for blanks and manual samples (`EB1`, `FB`, `MANn` in place of the slot) and the roles `field_blank` / `manual_sample` go beyond ROADMAP §3.6's roles; HO2 decides after E1/H1.
+
+---
+
+## LA2: SOPs for filters, cleaning, biosecurity, chain of custody (2026-09-25)
+
+**Branch:** `la2-sops` (from `18db617`, the LA1 commit, so LAB_INTERFACE.md is present; worktree `../Cowas-la2`, because the main folder holds HO1's uncommitted `host/`) · **Status:** drafted **before the lab meeting**: LAB_INTERFACE.md §4 is still empty, so every lab value in the SOP is our proposal, marked `⟨LAB X⟩` with the question ID. LA2 is done once those markers are replaced by the lab's answers and the dry run (TESTS_PENDING) has passed.
+
+**Behavior changes:** none (documentation only, no code).
+
+**Added:** `docs/SOP_FILTERS.md`, a printable checklist (a ☐, a record field and a "Who" field on every step): §0 deployment header, the pending lab values, general rules (gloves, E-stop before hands in the manifold, never pump against a capped outlet (F50), O-ring stays locked and the rotor is never turned by hand, no bleach with Shield or lysis buffers); §1 cleaning before loading; §2 loading (slots in `FILL_ORDER`, orientation, finger-tight + ¼ turn, inlet cap off → screw on → all outlet caps off last with a count and a second-person check, photo, `cowas slots load`); §3 unloading (blanks first, outlet cap while mounted → unscrew → inlet cap, labels, retrieval time, cool box, photos, count); §4 cleaning + biosecurity (drain at the site, bleach / water / DNA-free water flush of the purge path and every slot, dry ≥ 5 days before another water body); §5 chain-of-custody form (header, 24 filter rows, transfers, lab reception); §6 equipment blank (water budget ≈ 3 L per blank, hose tip handling for the start and end blanks, role `equipment_blank`, purge with blank water first); §7 sign-off.
+
+**Changed:**
+- `docs/LAB_INTERFACE.md`: new questions D6 (unused filters), D7 (caps at retrieval), F7 (hose tip before the end blank), and a §4 row for them.
+- `docs/ROADMAP.md`: HO2 prompt item 4 names the host commands the SOP uses (`cowas slots`, `slots load`, `slots unload` with the retrieval time, `cowas clean`); HO3 prompt: equipment-blank events pause before and after for the operator; §9.1 checklist points to the SOP and packs ≈ 6 L of DNA-free water (resolves LA1's first open point, pending F2).
+- `docs/TESTS_PENDING.md`: the SOP dry run, with numeric pass criteria.
+
+**Tests:** none (docs only). `pio run -e due` / `pio test -e native`: tree unchanged (not affected).
+
+**Hardware checklist:** the SOP dry run in docs/TESTS_PENDING.md (loading ≤ 30 min, unloading ≤ 20 min, 0 caps left, 0 thread drips, 0 label mismatches). Not run.
+
+**Open points (no F-number: documentation):**
+- To verify at the first loading: whether the rotor can turn when a filter is screwed on with the O-ring locked, and whether the Sterivex model's inlet/outlet match the SOP's orientation text (inlet = female luer-lock).
+- The bleach flush (§4.2) has no one-shot command before HO2's `cowas clean`; until then only someone who knows the console runs it (F5/F40 cautions). Its volumes (50 mL per slot) are a proposal; LA4 measures the dead volume and may change them.
+- Shield line cleaning is left to LA3 (`PRIME_SHIELD`); the SOP forbids bleach there.

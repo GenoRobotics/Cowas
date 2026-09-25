@@ -830,6 +830,11 @@ Read CLAUDE.md, docs/ROADMAP.md §3.6, §3.7, finding F1, docs/LAB_INTERFACE.md,
    transition. At startup, IN_PROGRESS -> SUSPECT.
 4. The reload flow: the operator confirms which slots got fresh filters (and the filter lot);
    the previous deployment is archived; those slots become READY; DISABLED keeps its reason.
+   Command names used by docs/SOP_FILTERS.md (LA2): `cowas slots` (list), `cowas slots load
+   <slots> --filter-lot <lot>`, `cowas slots unload` (enter the retrieval time per filter ->
+   retrieval_time_utc, and mark unused filters), `cowas clean` (decontamination flush with no
+   filters: PURGE, then SAMPLE through each sample slot, then EMPTY, pausing for the operator
+   between the bleach / water / DNA-free water buckets).
 5. A SampleRecord per filter = the RUN_CYCLE result + event + deployment + versions + notes.
    Export ONE CSV with all selected filters (a deployment, a date range, or all): one row per
    filter, the columns of ROADMAP §3.6 in the order of docs/LAB_INTERFACE.md, a header comment
@@ -857,7 +862,10 @@ Read CLAUDE.md, docs/ROADMAP.md §3.1, §3.6, §3.7, host/ (HO1-HO2), docs/PROTO
    - system fault (STOP, ESTOP, OVER_PRESSURE, LEAK, RECOVERY_REQUIRED after a reboot): pause the
      mission, never auto-retry, wait for the operator (`cowas recover`, `cowas resume`);
    - warnings: continue, flag the record;
-   - end_reason clogged: NOT a fault, the sample is kept.
+   - end_reason clogged: NOT a fault, the sample is kept;
+   - equipment_blank events (docs/SOP_FILTERS.md §6): pause BEFORE the event (the operator moves
+     the intake hose into the DNA-free water bottle) and AFTER it (back to the lake, or retrieval
+     after the end blank); resume only on the operator's confirmation, never on a timer.
 3. Before the first event, and before each event, check the Due: HELLO (firmware hash as
    expected), STATUS IDLE, no recovery pending.
 4. Cold-boot resume (the host restarts or loses power): reload the mission from SQLite;
@@ -1089,8 +1097,8 @@ Go/no-go rule: all tests 1-8 PASS; a FAIL on 9-10 needs a written workaround.
 **Checklist:**
 - [ ] VA1 passed; firmware hash and host version recorded.
 - [ ] Site access confirmed; weather checked (wind, thunderstorms); life jackets if on a boat.
-- [ ] Filters loaded and labelled per SOP (LA2); photo of the manifold; slots READY in the host.
-- [ ] Battery charged (voltage recorded); spare fuses; tools; spare Sterivex; DNA-free water (≥ 3 L for blanks + purge); cooler + ice packs; gloves; bleach; the paper field log.
+- [ ] Filters loaded per [SOP_FILTERS.md](SOP_FILTERS.md) §1–§2 (LA2); photo of the manifold; slots READY in the host; a printed copy of the SOP + the chain-of-custody form (§5) + the printed labels.
+- [ ] Battery charged (voltage recorded); spare fuses; tools; spare Sterivex; DNA-free water (**≈ 6 L** for 2 equipment blanks at 2 L + their purges, SOP_FILTERS §6.1, + the field blank; adjust with LAB_INTERFACE F2); cooler + ice packs; gloves; bleach; new luer caps; the paper field log.
 - [ ] Intake at `<depth>` m, strainer on, outlet downstream; hose ID and length entered in the deployment.
 - [ ] Time synced on the host; site coordinates entered.
 - [ ] Equipment blank run → OK. Then the mission starts.
