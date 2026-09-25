@@ -705,7 +705,8 @@ refused; clear + recover -> normal run; power-cycle mid-lock -> the boot asks fo
 #### FW7: Protocol v1 in firmware, Native USB, boot into host mode (P0)
 
 ```text
-Read CLAUDE.md, docs/PROTOCOL.md, protocol/vectors.json, docs/ROADMAP.md §3.4-3.5, F8, F10, F24, F33.
+Read CLAUDE.md, docs/PROTOCOL.md, protocol/vectors.json, docs/ROADMAP.md §3.4-3.5, F8, F10, F24, F33,
+and docs/FIRMWARE_LOG.md F37 (strip CR) and F53 (SerialUSB writes may block).
 1. ArduinoJson (pin the version). The parser/serializer + the dispatch table live in src/Core/
    (native-tested against vectors.json, plus malformed, oversized and binary-garbage lines).
 2. Two channels (§3.4): HOST_PORT = SerialUSB (protocol + {"t":"log"} copies of every log line),
@@ -722,6 +723,9 @@ Read CLAUDE.md, docs/PROTOCOL.md, protocol/vectors.json, docs/ROADMAP.md §3.4-3
    Link watchdog: no PING for LINK_TIMEOUT_S -> warning event; the current procedure finishes
    safely; nothing new starts until the host is back.
 5. Telemetry at ~1 Hz while BUSY via service() (P_in, flow, volume, phase, pump %, step).
+   F53: output to the host port must NEVER block (PROTOCOL.md §2): check availableForWrite() on
+   SerialUSB, drop + count lines (STATUS.tx_dropped, warning OUTPUT_DROPPED). Test it: a host that
+   opens the port and stops reading mid-PURGE must not stall service() (max gap < 50 ms).
 6. BOOT_DEFAULT = IDLE (the host mode). The console stays reachable: `service` on the
    Programming port (refused while BUSY). Legacy main_program() commands: keep them behind
    LEGACY_PROTOCOL_ENABLED (default false), and remove them in P2.
