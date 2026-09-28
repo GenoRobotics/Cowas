@@ -24,7 +24,6 @@ New findings get the next free ID after ROADMAP §4 (F37, F38, ...). **When step
 | F49 | `Serial.begin(9600)` is called twice: `C_output.cpp:30`, then again at `main.cpp:202`. The second call resets the UART while the last boot lines are still in the TX buffer, so `system initalized` / `Programm started` and the last "Button ... initiated" lines are lost and a garbage byte appears. Seen on the FW0 smoke test. Cosmetic today, but it hides boot messages that FW6 will rely on (reset cause, self-check). | `main.cpp:202` | Low | FW6 (boot rework) | open |
 | F50 | **No pressure sensor is installed** (FW0 bench check, 2026-09-24). The analog sensor on A2 (`pressure2`) was physically removed, yet it still backs the pump cap and every PID loop: `pressure` reads 0.11 bar from the floating pin, **so the cap can never trip**. Nothing answers on the ABP chip select D8 (`pressure1`): `ERROR \| P1: invalid SPI response (bad status bits)`, 0.00 bar. Until FW3 + HW4: no pumping against a closed or clogged outlet, and none unattended. FW3 renames `pressure1` → `p_in` and deletes the A2 code (user-approved). | `main.cpp:116-139`, `Step_functions.cpp`, `Pressure_sensor.cpp` | **Blocking** | FW3 + HW4 | open |
 | F51 | **The 3/2 valve V23 was physically removed** (user, 2026-09-24). Its relay on D40 still clicks (`valves` test), and the code still switches `valve_23` in `step_fill_container`, `sample_process`, `demo_sample_process`, `purge_pipes_manifold`, `calibrate_DNA_pump`, `test_valves` and the panel mode V23. Harmless, but dead. Removal is user-approved and planned in FW4 item 11. | `main.cpp:79,136`, several | Low | FW4 | open |
-| F52 | `enc_rot` (`getRotationSPI()`) prints a meaningless turn count (16382 = 0x3FFE: the single-turn AMT22 doesn't answer the turns command) and an angle above 360° (637.38°): it scales the 14-bit value by the 12-bit factor without the `>> 2`. Display only; `rotateMotor()` uses `getPositionSPI()`, which is correct. | `Manifold.cpp:449-474` | Low | FW2 | open |
 | F70 | The Due's dedupe table (last 16 ids) outlives a **host** restart, but PROTOCOL.md §3.1 only asks ids to be unique "for the lifetime of a host session". A restarted host that counts from `h-000001` again could get an old stored result instead of an action (e.g. a `ROTATE` that silently doesn't move). The host now uses a random per-session prefix (`h<6 hex>-<n>`). §3.1 should say "unique while the Due is up (use a per-session prefix)". | PROTOCOL.md §3.1, `host/src/cowas/client.py` | Medium | FW7 (doc wording) | mitigated in HO1 (2026-09-28) |
 | F71 | **RECOVER can deadlock**: with the lock state `unknown` (every boot) and the manifold between slots, the `align` step needs a rotation (forbidden while the lock is unknown), and `ACTUATOR_HOME` refuses `not_aligned`. PROTOCOL.md §5.6 orders `align` before `oring`. The simulator fails RECOVER at `align` (`recovery_failed`). FW6 must choose: a manual procedure (free the O-ring by hand, `service`), or homing the actuator off-slot if that is mechanically safe. | PROTOCOL.md §5.6, §5.10 | Medium | FW6 (+ FW4) | open |
 | F72 | The request vectors' `expect` lists contain protocol messages only, but §3.6 says every console line is also sent as `{"t":"log"}`. A Due that logs while accepting a command would fail a literal match. The host tests leave out `t:"log"` when they compare; FW7's C++ tests should do the same, or §13 should say so. | `protocol/vectors.json`, PROTOCOL.md §13 | Low | FW7 | open |
@@ -147,6 +146,9 @@ New findings get the next free ID after ROADMAP §4 (F37, F38, ...). **When step
 - To verify at the first loading: whether the rotor can turn when a filter is screwed on with the O-ring locked, and whether the Sterivex model's inlet/outlet match the SOP's orientation text (inlet = female luer-lock).
 - The bleach flush (§4.2) has no one-shot command before HO2's `cowas clean`; until then only someone who knows the console runs it (F5/F40 cautions). Its volumes (50 mL per slot) are a proposal; LA4 measures the dead volume and may change them.
 - Shield line cleaning is left to LA3 (`PRIME_SHIELD`); the SOP forbids bleach there.
+
+---
+
 ## HW1: Electrical audit (2026-09-25)
 
 **Branch:** `hw1-electrical-audit` (from `bed1b77`, the FW1 tip; worktree `../Cowas-hw1`) · **Status:** part 1 done (POWER.md + checklist); waiting for the measurements.
@@ -160,6 +162,9 @@ New findings get the next free ID after ROADMAP §4 (F37, F38, ...). **When step
 **Tests:** no code. `pio run -e due` / `pio test -e native`: tree unchanged (not affected).
 
 **Hardware checklist:** docs/POWER.md §4, to fill in. Part 2 (after the results): fill in PINOUT.md (reachable, measured), POWER.md, the fixes and their parts in ROADMAP §11, and any new findings.
+
+---
+
 ## HO1: Host skeleton, protocol client, simulator, CLI (2026-09-28)
 
 **Branch:** `ho1-host-skeleton` (from `fw1-protocol-spec`, because FW1 is not merged into `cowas-v2` yet) · **Status:** code and tests done; bench check waits for FW7.
@@ -185,6 +190,9 @@ New findings get the next free ID after ROADMAP §4 (F37, F38, ...). **When step
 3. **F71** (RECOVER deadlock) needs a user decision in FW6; **F70, F72–F74** are PROTOCOL.md wording/choices for FW7. Pointers added to both ROADMAP prompts.
 4. **ROADMAP §7:** HO1 not ticked; tick it after the merge and the bench check in TESTS_PENDING (needs FW7).
 5. **CA bundle:** the PEM used for pip was built in a session scratch folder and is gone. Rebuild it (certifi + Windows root store) the next time pip/pio downloads fail with `CERTIFICATE_VERIFY_FAILED`; consider keeping one outside the repo, e.g. `%USERPROFILE%\.certs\`.
+
+---
+
 ## LA3: Shield volume, residual water, shield retention: protocol and tools (2026-09-25)
 
 **Branch:** `la3-shield-retention` (from `18db617`, the LA1 commit: it has FW1's PROTOCOL.md and LAB_INTERFACE.md; neither is merged into `cowas-v2` yet), worktree `../Cowas-la3` · **Finding IDs:** F80–F89 · **Status:** tools and protocol done; **no measurement yet**. The dependencies are not met (FW4 not done, LAB_INTERFACE §4 empty), so this step delivers everything that doesn't need them. Part A can run now.
@@ -229,9 +237,12 @@ New findings get the next free ID after ROADMAP §4 (F37, F38, ...). **When step
 | F80 | The Shield's air push is `PUMP_SHIELD_POWER = 13 %` for `PUMP_SHIELD_TIME = 300 ms`. With the DAC offset (F25) and the pump's spin-up, it's unverified that this moves any air at all, so the Shield may stay in the manifold passage (and then go to the purge on the next rotation, not into the filter). | `Settings.h:32-33`, `step_DNA_shield()` | Medium (data quality) | LA3 Part C measures the dose reaching the filter; FW4 | open |
 | F81 | There is no Shield prime anywhere: the first sample of a deployment (and the first after a bottle change) loses the volume of the Shield tube, which can be as large as the whole dose (1 m of 1.6 mm ID = 2 mL). | `step_DNA_shield()`, `sample_process()` | High (data quality) | FW7 (`PRIME_SHIELD`, LA3_PROTOCOL §5.4) | open |
 | F82 | `micro_pump` (10 s) and `calibrate_dna_volume` (operator-typed duration, not bounded) run the micro pump with `delay()`: no key stops them. `shield_calibrate` doesn't have this problem. | `Tests.cpp:300`, `Tests.cpp` `calibrate_dna_pump_volume()` | Low | FW5 (`wait_ms()`) | open |
+
+---
+
 ## LA4: Carry-over and slot cross-talk (IN PROGRESS, paused 2026-09-28)
 
-**Branch:** `la4-carryover` in the worktree `../Cowas-la4`, from `18db617` (FW1 + LA1; `cowas-v2` doesn't have them yet) · **Finding IDs for this step:** F80–F89 · **Status:** analysis tool done; the protocol document is **not written yet**; nothing is committed (the files are untracked in the worktree: **commit or copy them before removing the worktree or merging folders**).
+**Branch:** `la4-carryover` in the worktree `../Cowas-la4`, from `18db617` (FW1 + LA1; `cowas-v2` doesn't have them yet) · **Finding IDs for this step:** F110–F119 · **Status:** analysis tool done; the protocol document is **not written yet**; nothing is committed (the files are untracked in the worktree: **commit or copy them before removing the worktree or merging folders**).
 
 **Done:**
 - `tools/analyze_la4.py` (stdlib only, Python ≥ 3.8): calibration from a dilution series (piecewise-linear, blanks → LOD 3σ / LOQ 10σ), `washout` (test a: line volume = area under the curve, exponential fit, early-vs-late tailing check, conservative purge for the target, model-free purge, `INTERNAL_DEAD_VOLUME_ML` and `PURGE_DEAD_VOLUME_FACTOR` recommendation = max needed factor × 1.2 rounded up to 0.5), `carryover` (test b: outlet cups + filter eluate, PASS/FAIL/INCONCLUSIVE with an LOD upper bound), `crosstalk` (test c: fraction of the source found per slot, neighbours from the `clocklist` minutes, no hard-coded slot count, `passed_over`, controls). Optional `dilution` columns for out-of-range cups.
@@ -242,26 +253,29 @@ New findings get the next free ID after ROADMAP §4 (F37, F38, ...). **When step
 1. `docs/LA4_PROTOCOL.md` (not started). Design decided so far:
    - Tracer: **20 g/L NaCl + blue food dye (E133)** in demineralised water. Conductivity (a pen, ATC) gives the numbers, and the dye makes leaks and stained membranes visible. A spectrophotometer (630 nm) is optional if the lab lends one. Standards are made by mass on the 0.01 g scale (1, 0.1, 0.01, 1e-3, 1e-4 + 3 blanks) at every session. Rinse the machine with ≥ 2 L of fresh water afterwards.
    - Test a (washout) **can run before FW4 and should**, so FW4 gets a measured `INTERNAL_DEAD_VOLUME_ML`. It pumps through the purge slot 0 with an open outlet (no filter), supervised (F50). Lock by hand (`linear_actuator`) before FW4, then `pump` at low power. Stop-and-go is allowed. Cups: 25 mL up to 500 mL, then 50, then 100 mL, until 3 cups are below the LOQ. Run 3 times, with the HW6 hose if it's ready (else a bench hose whose volume is known by weighing).
-   - Tests b and c pump through Sterivex filters: **blocked by FW3 + HW4 (the cap) and FW4** (purge formula; FW2 `full_cycle`). Test b: dyed cycle on A, then a clear cycle on B with the FW4 purge, 500 mL (smaller = conservative). B's outlet goes in cups (4 × 25 mL, 100 mL, rest pooled), plus a 10 mL syringe eluate of B's filter; 3 A/B pairs. Optional b2: tracer in the micro-pump reservoir (shield path, F81).
+   - Tests b and c pump through Sterivex filters: **blocked by FW3 + HW4 (the cap) and FW4** (purge formula; FW2 `full_cycle`). Test b: dyed cycle on A, then a clear cycle on B with the FW4 purge, 500 mL (smaller = conservative). B's outlet goes in cups (4 × 25 mL, 100 mL, rest pooled), plus a 10 mL syringe eluate of B's filter; 3 A/B pairs. Optional b2: tracer in the micro-pump reservoir (shield path, F111).
    - Test c: load the source (≈ 100 g/L NaCl + dye, its own standards) into A by syringe, with the production shield volume. Hold ≥ 24 h locked at rest, then run short clear cycles (≈ 100 mL) on the other slots. **Sensitivity rule: (measured volume per slot × LOD) < target × source volume.** A 500 mL outlet with a 2 mL source can't prove 0.1 % (a pytest pins this). The first slot after A must be far from A, so that common-path carry-over is told apart from neighbour leakage. Record `passed_over`. Finish with photos of the membranes and a wipe of the manifold face.
    - Test d (qPCR spike) only with the lab (LAB_INTERFACE G3).
-2. Recommendations (§3 of the prompt): **`PURGE_DEAD_VOLUME_FACTOR`: provisional 5, not 3 (F80)**, final value from test a. `INTERNAL_DEAD_VOLUME_ML`: the test a result (PLACEHOLDER until then). **Bleach flush:** not for Pilot A. For Pilot B, decide from the data: b/c pass, test d (if done), and a clean end-of-Pilot-A equipment blank → no flush (P2 stays P2); otherwise promote it (thiosulfate neutralisation + rinse needed, or it destroys the next sample's DNA). Consider a mid-deployment equipment blank at the day 3–4 visit.
+2. Recommendations (§3 of the prompt): **`PURGE_DEAD_VOLUME_FACTOR`: provisional 5, not 3 (F110)**, final value from test a. `INTERNAL_DEAD_VOLUME_ML`: the test a result (PLACEHOLDER until then). **Bleach flush:** not for Pilot A. For Pilot B, decide from the data: b/c pass, test d (if done), and a clean end-of-Pilot-A equipment blank → no flush (P2 stays P2); otherwise promote it (thiosulfate neutralisation + rinse needed, or it destroys the next sample's DNA). Consider a mid-deployment equipment blank at the day 3–4 visit.
 3. `docs/TESTS_PENDING.md`: rows for LA4 a (blocked by buying the tracer and meter; the pump may refuse to start, F17), b/c (FW3 + HW4, FW4, HW6), d (the lab).
 4. ROADMAP §11.1 #16: add a conductivity pen, NaCl, demineralised water ≈ 10 L, ≈ 40 numbered cups, 10 mL syringes.
 5. CI: `tools/tests` is not run by CI yet (only `pytest host/`). Add a job, or include it in the host job.
 
 **Open questions for the user (unanswered on 2026-09-28):**
 - Which instrument is available (conductivity pen / spectrophotometer / phone)? The user didn't know what a tracer is; it was explained (a harmless substance, salt or dye, added to the test water, not firmware). The plan above assumes buying a cheap conductivity pen.
-- Update the FW4 prompt's `PURGE_DEAD_VOLUME_FACTOR = 3` to 5 provisionally (F80)? Not edited, as it waits for the user.
+- Update the FW4 prompt's `PURGE_DEAD_VOLUME_FACTOR = 3` to 5 provisionally (F110)? Not edited, as it waits for the user.
 - The field hose (HW6): placeholders 6 mm ID × 5 m (ROADMAP §3.7 example) until HW6.
 - Commit LA4 locally? (Nothing is committed; see [[git-local-only]] in memory.)
 
-**Findings (proposed, F80–F89 range):**
+**Findings (proposed, F110–F119 range; renumbered from F80/F81 at the merge, 2026-09-28: F80–F82 were already taken by LA3):**
 
 | # | Finding | Where | Severity | Step | Status |
 |---|---|---|---|---|---|
-| F80 | "Purge ≥ 3 × dead volume" (§3.7) only works for near plug flow. A well-mixed volume (pump chamber, sensor tee) needs ln(1/0.001) ≈ **6.9 volumes** for 0.1 % carry-over; 3 × leaves up to 5 %. The factor must come from the LA4 washout; provisional 5. A larger purge also outgrows `step_purge`'s fixed 3 min timeout (FW4 item 6 must size it). | `Settings.h` (FW4), ROADMAP §3.7 | High (data quality) | FW4, LA4 | open |
-| F81 | Per the `step_DNA_shield()` code, the shield is pushed with air through the common line and the rotor channel into the slot. Shield and residue stay in the common path until the next purge, which flushes only through slot 0. This carry-over path is not measured yet (LA4 test b2). | `Step_functions.cpp:659-695` | Medium | LA4 | open |
+| F110 | "Purge ≥ 3 × dead volume" (§3.7) only works for near plug flow. A well-mixed volume (pump chamber, sensor tee) needs ln(1/0.001) ≈ **6.9 volumes** for 0.1 % carry-over; 3 × leaves up to 5 %. The factor must come from the LA4 washout; provisional 5. A larger purge also outgrows `step_purge`'s fixed 3 min timeout (FW4 item 6 must size it). | `Settings.h` (FW4), ROADMAP §3.7 | High (data quality) | FW4, LA4 | open |
+| F111 | Per the `step_DNA_shield()` code, the shield is pushed with air through the common line and the rotor channel into the slot. Shield and residue stay in the common path until the next purge, which flushes only through slot 0. This carry-over path is not measured yet (LA4 test b2). | `Step_functions.cpp:659-695` | Medium | LA4 | open |
+
+---
+
 ## FW2: Mechanical test suite, lock tri-state, test logging (2026-09-28)
 
 **Branch:** `fw2-mech-tests` (from the FW1 tip `bed1b77`, like HO1/HW1; worktree `../Cowas-fw2`) · **Status:** code done, builds and tests pass; **hardware checklist not run yet** (nothing flashed).
@@ -320,4 +334,20 @@ New findings get the next free ID after ROADMAP §4 (F37, F38, ...). **When step
 | F62 | Sensorless mode assumes the flowmeter (D13) sits on the water path of the water phase; if it doesn't see water within 5 s the run stops with `no_flow` (safe). The air push is time-only (10 s, PLACEHOLDER); its effect on a wet membrane is F28. | `Test_openloop.cpp` | Low | HW3 | open |
 | F63 | `purge_pipes_manifold()` rotates without unlocking and pumps without locking (pre-existing). Since FW2 it refuses unless UNLOCKED and without the sensor, but with a sensor it would pump through an unlocked O-ring. | `maintenance.cpp:54` | Low | FW4 (auto-unlock/lock) | open |
 | F64 | Dev laptop: Windows Application Control intermittently blocks the freshly built native test executables (`[WinError 4551]`), so `pio test -e native` shows random ERRORED suites. Not a code failure; rerun the suite. CI (Linux) is unaffected. | environment | Low | — | open |
+
+---
+
+## Merge of the parallel steps into `cowas-v2` (2026-09-28)
+
+**Done in the worktree `../Cowas-merge`, local only (nothing pushed).** Merge order: FW1 → LA1 → LA2 → HW1 → HO1 → LA3 → LA4 → FW2 (`--no-ff`, one merge commit each).
+
+**Committed first** (they were only in their working trees when their chats closed): HO1 (`72284cc`), the user's run-status notes in ROADMAP §8 that sat in HO1's folder (separate commit `b351b27`), LA3 (`b18c47b`), LA4 (`8797014`, partial: see its entry), FW2 (`64f34fc`).
+
+**Conflicts resolved (both sides kept):** ROADMAP LA2 heading (user note + LA2 status); `ci.yml` (HO1's ruff + host matrix job, and one `tools-tests` job, which LA3 and FW2 had both added); CLAUDE.md (host and tools test lines, one CI line); `src/Tests.cpp` includes (LA3's `shield_calibration.h` + FW2's `Tests_mech.h`). LA3's `shield_calibrate` drives the micro pump only, so FW2's lock and pressure gates don't affect it; FW2's `help` now lists it.
+
+**Log clean-up:** the union merge kept two F52 rows (the old "open" one is removed); LA4's proposed F80/F81 clashed with LA3's F80–F82 and are renumbered **F110/F111** (LA4's assigned range F110–F119); the `---` separators before HW1, HO1, LA3, LA4 and FW2 are restored.
+
+**Checks on the merged tree:** `pio run -e due` pass (flash 129,904 B, RAM 8,328 B); `pio test -e native` 82/82 (6 suites; F64: rerun a suite if Windows blocks its exe); `pytest host/` 364 pass + `ruff check` / `ruff format --check` clean (HO1's venv, `PYTHONPATH=host/src`); `pytest tools/` 78 pass (FW2 9, LA3 + LA4 69).
+
+**Still open after the merge (not lost, just pointed to):** the HO1, LA3 and LA4 entries above ("Unanswered when ... closed" / LA4 to-do list); LA4 is still in progress (LA4_PROTOCOL.md, TESTS_PENDING rows, order list); the FW2 hardware checklist; ROADMAP §7 ticks (HO1 after its bench check, which needs FW7); the user note `mock community?HW1 )` in the LA1 prompt (ROADMAP §8.3) looks like a stray edit, kept as written.
 
