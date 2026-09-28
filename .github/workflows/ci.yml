@@ -36,25 +36,19 @@ jobs:
       - run: pio test -e native
 
   host-tests:
-    name: Host tests (pytest host/)
-    runs-on: ubuntu-latest
+    name: Host tests (ruff + pytest host/, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Windows = the Pilot A laptop; Linux = the Raspberry Pi later.
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
-      # Placeholder until HO1 creates host/: the job passes and says it skipped.
-      - id: check
-        run: |
-          if [ -d host ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::host/ does not exist yet - pytest skipped"
-          fi
-      - if: steps.check.outputs.present == 'true'
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - if: steps.check.outputs.present == 'true'
-        run: |
-          pip install pytest
-          if [ -f host/pyproject.toml ]; then pip install -e host; fi
-          pytest host/
+      - run: pip install -e "host[dev]"
+      - run: ruff check host
+      - run: ruff format --check host
+      - run: pytest host/

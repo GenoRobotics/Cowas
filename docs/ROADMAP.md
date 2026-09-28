@@ -659,7 +659,9 @@ returns; full_cycle timing unchanged within 5 %; the max service() gap printed <
 #### FW6: STOP, safe state, fault latch, recovery, boot, lean modes (P0)
 
 ```text
-Read CLAUDE.md, docs/ROADMAP.md §3.2 (DECIDED safe state and recovery), §3.5 (lean modes), F11, F23.
+Read CLAUDE.md, docs/ROADMAP.md §3.2 (DECIDED safe state and recovery), §3.5 (lean modes), F11, F23,
+and docs/FIRMWARE_LOG.md F71 (RECOVER deadlock: lock unknown + manifold between slots): ask me how
+to resolve it (manual procedure, or homing the actuator off-slot if mechanically safe).
 Hardware: E-stop <switch in series with the 24 V actuator rail, second contact on pin <D37>, NC to
 GND with INPUT_PULLUP | switch only, no input yet: ESTOP_INPUT_INSTALLED=false>.
 
@@ -708,7 +710,10 @@ refused; clear + recover -> normal run; power-cycle mid-lock -> the boot asks fo
 
 ```text
 Read CLAUDE.md, docs/PROTOCOL.md, protocol/vectors.json, docs/ROADMAP.md §3.4-3.5, F8, F10, F24, F33,
-and docs/FIRMWARE_LOG.md F37 (strip CR) and F53 (SerialUSB writes may block).
+and docs/FIRMWARE_LOG.md F37 (strip CR) and F53 (SerialUSB writes may block), and the HO1 findings
+F70 (id uniqueness across host restarts: fix the PROTOCOL.md §3.1 wording), F72 (vectors vs log
+copies), F73 (STATUS.warnings format), F74 (which commands need P_in): answer each in PROTOCOL.md.
+Test against the host simulator too: host/ (`cowas --sim`), protocol behaviour must match it.
 1. ArduinoJson (pin the version). The parser/serializer + the dispatch table live in src/Core/
    (native-tested against vectors.json, plus malformed, oversized and binary-garbage lines).
 2. Two channels (§3.4): HOST_PORT = SerialUSB (protocol + {"t":"log"} copies of every log line),
@@ -792,6 +797,8 @@ home switch; a water-temperature reading vs a reference thermometer (within 0.5 
 ### 8.2 Host track
 
 #### HO1: Host skeleton, protocol client, simulator, CLI (P0)
+
+Aldready ran before
 
 ```text
 Read CLAUDE.md, docs/ROADMAP.md §3.1, §3.4, §5, docs/PROTOCOL.md, protocol/vectors.json, and
@@ -924,6 +931,8 @@ These prompts produce documents, tools and analysis scripts. The lab work itself
 
 #### LA1: Lab alignment (P0, week 1)
 
+This was run before.
+
 ```text
 Read docs/ROADMAP.md §3.6, §3.7. Draft docs/LAB_INTERFACE.md as a meeting template with the lab
 <lab name, contact>, with an empty "answer" column that we fill in during the meeting:
@@ -937,7 +946,7 @@ Read docs/ROADMAP.md §3.6, §3.7. Draft docs/LAB_INTERFACE.md as a meeting temp
 - labelling: the sample_id format, label type (freezer- and ethanol-proof), who prints them;
 - blanks: equipment blanks per deployment (proposal: start + end), field blank, extraction
   blanks, PCR negatives; the DNA-free water source for equipment blanks;
-- positive control policy (later: automated; now: none, or a lab mock community?);
+- positive control policy (later: automated; now: none, or a lab mock community?HW1 );
 - the metadata columns the lab needs and their names (start from ROADMAP §3.6), units, formats;
 - chain of custody (who hands over what, a form);
 - the markers/assays planned (e.g. 12S fish, COI, 16S) -> do they change the volume target?
@@ -947,6 +956,8 @@ Also add a one-page "Sterivex handling in CoWaS" summary for the lab.
 ```
 
 #### LA2: SOPs: filter loading/unloading, cleaning, labels, chain of custody (P0)
+
+This was run before.
 
 **Status (2026-09-25): drafted, not done.** docs/SOP_FILTERS.md covers items 1–6 below, with a checkbox and a "Who" field on every step (branch `la2-sops`; FIRMWARE_LOG "LA2"). It was written **before** the lab meeting, so LAB_INTERFACE.md was not filled in.
 
@@ -977,6 +988,8 @@ Each step has a checkbox and a "who" field.
 
 #### LA3: Shield volume, residual water, shield retention (P0)
 
+This was run before.
+
 ```text
 Read CLAUDE.md, docs/ROADMAP.md §3.7, findings F4, F28, F29, docs/LAB_INTERFACE.md (target shield
 volume <x> mL, max residual water <y> mL, retention limit, temperatures: its §4, B1-B5, D1), and the FW4
@@ -1003,6 +1016,8 @@ Goal: the numbers we need to trust each filter. We have a 0.01 g scale.
 
 #### LA4: Carry-over and slot cross-talk (P0)
 
+This was run before.
+
 ```text
 Read CLAUDE.md, docs/ROADMAP.md §3.7, findings F29, F30, and HW6 (intake hose ID/length).
 Goal: prove that a sample doesn't contain the previous one, and that slots don't leak into each
@@ -1025,6 +1040,8 @@ instruments for: <spectrophotometer | conductivity meter | phone camera photomet
 ```
 
 ### 8.4 Hardware / field track (with Claude's help)
+
+Part 1 and 2 already ran before
 
 #### HW1: Electrical audit (P0, week 1) — prompt
 
