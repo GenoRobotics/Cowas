@@ -54,6 +54,7 @@ bash tools/golden/capture_manifold_golden.sh   # regenerate manifold goldens: on
 - `src/Core/`: **pure logic, no Arduino.h**, unit-tested natively. Today: `manifold_geometry` (slot-angle table, clock labels, `scale_angle`).
 - `test/test_*/`: native Unity tests. `test/stubs/` = a fake Arduino.h/TimeLib.h so tests can read the real `include/Settings.h` constants (never used by the firmware).
 - `include/Settings.h`: all tunables and pins. `include/Manifold.h`: manifold calibration (`purge_angle`, ...).
+- Host protocol v1 (the contract for FW7 and the host track): [docs/PROTOCOL.md](docs/PROTOCOL.md) + `protocol/vectors.json` (shared C++/Python test vectors).
 - Every command, with its hardware, blocking and pressure dependence: [docs/COMMANDS.md](docs/COMMANDS.md). Tests waiting for hardware: [docs/TESTS_PENDING.md](docs/TESTS_PENDING.md).
 
 ## Rules (ROADMAP §6, verbatim)
@@ -85,6 +86,7 @@ bash tools/golden/capture_manifold_golden.sh   # regenerate manifold goldens: on
 - **The spool is disabled** (`SPOOL_USE = false`), but its pins are still configured and its end-stop interrupt stays attached.
 - **Rotation ignores the O-ring lock** in `slotN`, `clockMM`, `slot0`, panel Man Slot, `cal`, `zero`, `manifold`, `encoder_manifold` (F5), and the lock state is `false` at every boot (F18).
 - The V23 valve (D40) is physically removed, but the code still switches its relay (F51, cleaned up in FW4).
+- **Rest state decided in FW1 (2026-09-25): the O-ring is LOCKED at rest, unlocked only to rotate** (ROADMAP §3.2, PROTOCOL.md §5.1). Implemented in FW4; until then `sample_process()` and `load_slot*()` still end unlocked.
 - `scale_angle()`'s loop guard is dead (inherited, kept in FW0): ±inf would hang it. `go_to_zero` (`zero`) has no timeout.
 
 ## Working here
