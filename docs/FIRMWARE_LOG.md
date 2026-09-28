@@ -141,3 +141,16 @@ New findings get the next free ID after ROADMAP §4 (F37, F38, ...). **When step
 - To verify at the first loading: whether the rotor can turn when a filter is screwed on with the O-ring locked, and whether the Sterivex model's inlet/outlet match the SOP's orientation text (inlet = female luer-lock).
 - The bleach flush (§4.2) has no one-shot command before HO2's `cowas clean`; until then only someone who knows the console runs it (F5/F40 cautions). Its volumes (50 mL per slot) are a proposal; LA4 measures the dead volume and may change them.
 - Shield line cleaning is left to LA3 (`PRIME_SHIELD`); the SOP forbids bleach there.
+## HW1: Electrical audit (2026-09-25)
+
+**Branch:** `hw1-electrical-audit` (from `bed1b77`, the FW1 tip; worktree `../Cowas-hw1`) · **Status:** part 1 done (POWER.md + checklist); waiting for the measurements.
+
+**Behavior changes:** none (documentation only, no code).
+
+**Added:** `docs/POWER.md`: today's power flow (ASCII, with `___` for the unknowns) and a per-load table; the rules from ROADMAP §11.3; the proposed pilot topology (§3.8: 12 V LiFePO4 → regulated 24 V boost behind the E-stop, 5 V buck for the Pi, a separate fused Due supply that the E-stop does not cut, one ground star); the measurement checklist M1–M44 with commands and acceptance values; the HW5 energy table. `docs/TESTS_PENDING.md`: one row pointing at the checklist.
+
+**Points to watch in the results:** the VNH5019 shield's ARDVIN=VOUT jumper (it would put the shield's 24 V on the Due's Vin, limit 16 V); the shield's logic VDD (5 V would put 5 V pull-ups on D5/D30); the pump driver's input range vs the DAC's 2.75 V maximum (F25); the A4988 Vref: don't change it without redoing `calibrate_actuator`, since the stall point sets `LINEAR_ACT_LOCKED_STEPS`.
+
+**Tests:** no code. `pio run -e due` / `pio test -e native`: tree unchanged (not affected).
+
+**Hardware checklist:** docs/POWER.md §4, to fill in. Part 2 (after the results): fill in PINOUT.md (reachable, measured), POWER.md, the fixes and their parts in ROADMAP §11, and any new findings.
