@@ -275,6 +275,90 @@ void test_build_never_writes_past_capacity(void)
     }
 }
 
+// ---------------------------------------------------------------- FW2 additions
+
+void test_scale_angle_non_finite_and_huge_inputs_terminate(void)
+{
+    // F46: these used to loop forever.
+    float r = core::scale_angle(INFINITY, FIRMWARE.reference_angle_deg, FIRMWARE.slot_pitch_deg);
+    TEST_ASSERT_TRUE(r != r); // NaN
+    r = core::scale_angle(-INFINITY, FIRMWARE.reference_angle_deg, FIRMWARE.slot_pitch_deg);
+    TEST_ASSERT_TRUE(r != r);
+    r = core::scale_angle(NAN, FIRMWARE.reference_angle_deg, FIRMWARE.slot_pitch_deg);
+    TEST_ASSERT_TRUE(r != r);
+    const float huge[] = {1e30f, -1e30f, 3.4e38f, 1e7f, -1e7f, 360.0f * 5000};
+    for (unsigned i = 0; i < sizeof huge / sizeof huge[0]; i++)
+    {
+        r = core::scale_angle(huge[i], FIRMWARE.reference_angle_deg, FIRMWARE.slot_pitch_deg);
+        TEST_ASSERT_TRUE(r >= -180.0f && r < 180.0f);
+    }
+    // just past the bit-exact range: still the right angle
+    float a = FIRMWARE.reference_angle_deg + 360.0f * (core::SCALE_ANGLE_MAX_TURNS + 3);
+    r = core::scale_angle(a, FIRMWARE.reference_angle_deg, FIRMWARE.slot_pitch_deg);
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 0.5f * FIRMWARE.slot_pitch_deg, r);
+}
+
+void test_angle_diff(void)
+{
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, core::angle_diff_deg(10.0f, 10.0f));
+    TEST_ASSERT_EQUAL_FLOAT(5.0f, core::angle_diff_deg(15.0f, 10.0f));
+    TEST_ASSERT_EQUAL_FLOAT(-5.0f, core::angle_diff_deg(5.0f, 10.0f));
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, 2.0f, core::angle_diff_deg(1.0f, 359.0f));  // across 0
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, -2.0f, core::angle_diff_deg(359.0f, 1.0f));
+    TEST_ASSERT_EQUAL_FLOAT(-180.0f, core::angle_diff_deg(180.0f, 0.0f));       // range is [-180, 180)
+    TEST_ASSERT_EQUAL_FLOAT(-180.0f, core::angle_diff_deg(0.0f, 180.0f));
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, 179.0f, core::angle_diff_deg(179.0f, 0.0f));
+    TEST_ASSERT_FLOAT_WITHIN(1e-3f, 10.0f, core::angle_diff_deg(730.0f, 0.0f)); // several turns
+    float d = core::angle_diff_deg(NAN, 0.0f);
+    TEST_ASSERT_TRUE(d != d);
+}
+
+static void check_nearest_slot(const ManifoldGeometry &g)
+{
+    Table t = build(g);
+    float err;
+    for (int i = 0; i < t.count; i++)
+    {
+        // on the slot, and +/- a bit less than half the pitch
+        const float offsets[] = {0.0f, 0.3f, -0.3f, 3.0f, -3.0f, 0.49f * g.slot_pitch_deg, -0.49f * g.slot_pitch_deg};
+        for (unsigned k = 0; k < sizeof offsets / sizeof offsets[0]; k++)
+        {
+            float angle = fmodf(t.angles[i] + offsets[k] + 360.0f, 360.0f);
+            int s = core::nearest_slot(t.angles, t.count, angle, &err);
+            // the no-hole position may be the nearest "slot" only if it isn't in the table
+            TEST_ASSERT_EQUAL_INT(i, s);
+            TEST_ASSERT_FLOAT_WITHIN(1e-3f, offsets[k], err);
+        }
+    }
+    TEST_ASSERT_EQUAL_INT(-1, core::nearest_slot(t.angles, 0, 10.0f, &err));
+    TEST_ASSERT_TRUE(err != err);
+    TEST_ASSERT_EQUAL_INT(-1, core::nearest_slot(t.angles, t.count, NAN, &err));
+    TEST_ASSERT_EQUAL_INT(-1, core::nearest_slot(t.angles, t.count, NAN, 0)); // null error pointer
+}
+
+void test_nearest_slot_16_positions_firmware(void)
+{
+    check_nearest_slot(FIRMWARE);
+}
+
+void test_nearest_slot_24_positions(void)
+{
+    const ManifoldGeometry g = {24, 12, 18, 200.0f, 15.0f};
+    check_nearest_slot(g);
+}
+
+void test_nearest_slot_at_the_no_hole_position_is_half_a_pitch_off_or_more(void)
+{
+    // The no-hole position is not a slot: the nearest real slot is a whole pitch away.
+    Table t = build(FIRMWARE);
+    float no_hole = FIRMWARE.reference_angle_deg - FIRMWARE.omitted_raw * FIRMWARE.slot_pitch_deg;
+    no_hole = fmodf(no_hole + 720.0f, 360.0f);
+    float err;
+    int s = core::nearest_slot(t.angles, t.count, no_hole, &err);
+    TEST_ASSERT_TRUE(s >= 0);
+    TEST_ASSERT_FLOAT_WITHIN(1e-3f, FIRMWARE.slot_pitch_deg, fabsf(err));
+}
+
 void setUp(void) {}
 void tearDown(void) {}
 
@@ -296,5 +380,10 @@ int main(int, char **)
     RUN_TEST(test_geometry_24_positions);
     RUN_TEST(test_geometry_24_positions_no_hole_before_purge);
     RUN_TEST(test_build_never_writes_past_capacity);
+    RUN_TEST(test_scale_angle_non_finite_and_huge_inputs_terminate);
+    RUN_TEST(test_angle_diff);
+    RUN_TEST(test_nearest_slot_16_positions_firmware);
+    RUN_TEST(test_nearest_slot_24_positions);
+    RUN_TEST(test_nearest_slot_at_the_no_hole_position_is_half_a_pitch_off_or_more);
     return UNITY_END();
 }

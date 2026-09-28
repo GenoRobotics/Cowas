@@ -371,6 +371,10 @@ void button_control()
             if (pump_on == false)
             {
                 button_right.waitPressedAndReleased();
+                if (!require_pressure_sensor("panel Pump mode")) // FW2
+                {
+                    break;
+                }
                 pump.set_power(pump_power);
                 valve_manifold.set_open_way();
                 pump.start();

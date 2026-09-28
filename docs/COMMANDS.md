@@ -113,3 +113,32 @@ Sent by `computer_interface/cowas_loop.py` over the same `Serial` port at 9600 b
 | `step_purge` (`purge…Function`) | **locked** at purge | V1 closed, Vman closed |
 | `load_slot` / `load_slot_full` (`sample_cycle*`, `multi_sample*`) | unlocked | V1 closed |
 | `abort` | unlocked | set by the last step |
+
+## 4. FW2 changes (2026-09-28)
+
+**Lock tri-state (F18):** LOCKED / UNLOCKED / UNKNOWN, UNKNOWN at boot and after `linear_actuator` jogs or `calibrate_actuator`. `rotateMotor()` refuses unless UNLOCKED, so `slotN`, `slot0`, `clockMM`, `manifold`, panel Man Slot, `cal`, `zero`, `temp`, `encoder_manifold` and `manifold_direction` print `REFUSED | ...` instead of rotating while locked or unknown (the F5 marks above no longer apply). After every reset: `actuator_home`.
+
+**Pressure gate (F17/F50):** with `PRESSURE_SENSOR_AVAILABLE = false` these refuse, and nothing moves: `abort` (pumps off, valves closed only), `sample1m`, `demo`, `cal_DNA`, `pump`, `sample_cycle`, `sample_cycle_full`, `multi_sample_full`, `calibrate_flow`, `calibrate_all` → flow stage, panel Pump mode, and the legacy Pi `purge…`, `purgePipesFunction`, `fillContainerFunction`, `sample…`.
+
+**Procedures stop on a failed move:** `goto_slot_locked()` and the `step_*` functions return `bool`. On a refused or failed unlock/rotate/lock they stop the pumps, close the valves and return false. `sample_process`, `demo` and `abort` then skip the remaining steps (user-approved).
+
+**Fixes:** `clock` / `clockxx` print the usage instead of rotating to slot 7 (F38). `zero` has a timeout and an encoder-failure stop (F43). `enc_rot` prints the right angle (F52).
+
+**New commands** (`help` lists everything; options: `x` aborts at every pause, `auto` = no pauses, `from=<slot> count=<n> order=index|fill`; each prints `TEST|...` lines + a summary table):
+
+| Command | Hardware | Needs P? | Notes |
+|---|---|---|---|
+| `help`, `oring_state` | encoder (read) | no | |
+| `actuator_home` | L, encoder | no | refuses unless within ±3° of a slot; ends UNLOCKED |
+| `oring_lock`, `oring_unlock` | L | no | state must be known; lock needs alignment |
+| `lock_cycle [n] [auto]` | L | no | default 5; lock/unlock times |
+| `lock_endurance [n] [auto]` | L, encoder | no | default 200 (~47 min); drift every 10, "too hot?" every 50 |
+| `rotate_all [dry] [hold=s] [auto] [from= count= order=]` | M, L | no | purge + FILL_ORDER; `dry` = no lock/hold/unlock |
+| `encoder_repeat [slot] [n] [auto]` | M | no | default: the aligned slot, 10 repeats, from both sides |
+| `valve_check` | V1, Vman | no | y/n per open/close; V23 skipped (F51) |
+| `leak_hold [mL \| Ns] [power=%]` | L, P, V1, Vman, F | sensorless (NOSENSOR) or sensor | default 50 mL |
+| `multi_sample [volume=] [power=] [auto] [from= count= order=]` | M, L, P, V1, Vman, F | sensorless (NOSENSOR) or sensor | replaces the old exact `multi_sample` in the menu; same default (50 mL, FILL_ORDER, pause per slot) |
+| `shield_only [slot] [ms] [auto]` | µP, L (M if a slot is given) | no | default `FILL_STERIVEX_TIME / 10` (PLACEHOLDER, F4) |
+| `full_cycle [slot] purge= shield= empty= volume=` | everything | **yes** (SKIP today) | the real step functions |
+| `full_all [purge= shield= empty= volume=] [auto] [from= count= order=]` | everything | **yes** (SKIP today) | |
+

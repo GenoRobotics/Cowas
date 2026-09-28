@@ -4,6 +4,7 @@
 #include "C_output.h"
 #include <SPI.h>
 #include "../Core/manifold_geometry.h"
+#include "Oring_lock.h"
 
 extern C_output output;
 extern Motor manifold_motor;
@@ -111,6 +112,19 @@ bool rotateMotor(int index)
   // if the manifold is not connected to the system, exit function
   if(MANIFOLD_USE == false){
     return true;
+  }
+
+  // FW2 (F5, F18): never rotate while the O-ring is locked or its state is unknown.
+  if (!core::may_rotate(oring_lock_state()))
+  {
+    output.println(String("REFUSED | rotateMotor: O-ring lock state is ") + oring_lock_state_name() +
+                   (is_oring_locked() ? " - unlock first" : " - run actuator_home first") + ", manifold not moved");
+    return false;
+  }
+  if (index < 0 || index >= NB_SLOT)
+  {
+    output.println("REFUSED | rotateMotor: no slot " + String(index));
+    return false;
   }
 
   // SETUP//
@@ -387,6 +401,11 @@ uint8_t spiWriteRead(uint8_t sendByte, uint8_t encoder, uint8_t releaseLine)
  * so there's time to react and stop the motor exactly aligned.
  */
 void calibrateEncoder(uint16_t speed){
+    if (!core::may_rotate(oring_lock_state()))
+    {
+        output.println(String("REFUSED | cal: O-ring lock state is ") + oring_lock_state_name() + " - the manifold must not rotate");
+        return;
+    }
     output.println("Calibrating encoder of the manifold");
     output.println("Be ready to press a key when the motor is aligned with slot 0");
     output.println("Send 'c' to rotate clockwise, 'x' to abort, or any other key to rotate anticlockwise");
@@ -469,10 +488,64 @@ uint16_t getRotationSPI(uint8_t encoder){
     Serial.print("Manifold encoder turns : ");
     Serial.println(encoderTurns);
     Serial.print("With angle value : ");
-    Serial.println(encoderPosition * encoder_to_deg);
+    Serial.println((encoderPosition >> 2) * encoder_to_deg); // F52: 14-bit frame, 12-bit encoder -> >> 2 (as getPositionSPI does)
     return encoderTurns;
 }
 
 float scale_angle(float angle){
   return core::scale_angle(angle, purge_angle, angle_between_slots);
+}
+
+bool read_manifold_angle(float *angle_deg)
+{
+  for (uint8_t attempt = 0; attempt < 3; attempt++)
+  {
+    uint16_t pos = getPositionSPI(ENCODER_MANIFOLD, RES12);
+    if (pos != 0xFFFF)
+    {
+      *angle_deg = pos * encoder_to_deg;
+      return true;
+    }
+  }
+  return false;
+}
+
+float slot_encoder_angle(int slot)
+{
+  if (slot < 0 || slot >= NB_SLOT)
+  {
+    return NAN;
+  }
+  return sterivex_angle[slot];
+}
+
+int manifold_nearest_slot(float *error_deg, bool *encoder_ok)
+{
+  float angle;
+  bool ok = read_manifold_angle(&angle);
+  if (encoder_ok)
+  {
+    *encoder_ok = ok;
+  }
+  if (!ok)
+  {
+    if (error_deg)
+    {
+      *error_deg = NAN;
+    }
+    return -1;
+  }
+  return core::nearest_slot(sterivex_angle, NB_SLOT, angle, error_deg);
+}
+
+bool manifold_slot_error(int slot, float *error_deg)
+{
+  float angle;
+  if (slot < 0 || slot >= NB_SLOT || !read_manifold_angle(&angle))
+  {
+    *error_deg = NAN;
+    return false;
+  }
+  *error_deg = core::angle_diff_deg(angle, sterivex_angle[slot]);
+  return true;
 }

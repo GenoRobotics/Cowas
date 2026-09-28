@@ -97,6 +97,12 @@ int clock_minutes_for_slot(int human_slot);    // human_slot 0-14 (0=purge) -> m
 int slot_for_clock_minutes(int minutes);       // minutes -> human_slot, or -1 if no slot has that label
 
 float scale_angle(float angle);
+
+// FW2 encoder helpers (single reads, 3 attempts; no motion)
+bool read_manifold_angle(float *angle_deg);                    // raw encoder angle 0..360, false on a bad read
+float slot_encoder_angle(int slot);                            // table angle of a slot, NaN if out of range
+int manifold_nearest_slot(float *error_deg, bool *encoder_ok); // nearest slot + signed error, -1 on encoder failure
+bool manifold_slot_error(int slot, float *error_deg);          // signed error to `slot`, false on encoder failure
 void directionDetermination(float goal_angle);
 bool readEncoder(bool init_setup); // returns false if the encoder read failed (bad checksum after retries) - current_angle is left unchanged in that case
 uint8_t spiWriteRead(uint8_t sendByte, uint8_t encoder, uint8_t releaseLine);
