@@ -657,7 +657,9 @@ returns; full_cycle timing unchanged within 5 %; the max service() gap printed <
 #### FW6: STOP, safe state, fault latch, recovery, boot, lean modes (P0)
 
 ```text
-Read CLAUDE.md, docs/ROADMAP.md §3.2 (DECIDED safe state and recovery), §3.5 (lean modes), F11, F23.
+Read CLAUDE.md, docs/ROADMAP.md §3.2 (DECIDED safe state and recovery), §3.5 (lean modes), F11, F23,
+and docs/FIRMWARE_LOG.md F71 (RECOVER deadlock: lock unknown + manifold between slots): ask me how
+to resolve it (manual procedure, or homing the actuator off-slot if mechanically safe).
 Hardware: E-stop <switch in series with the 24 V actuator rail, second contact on pin <D37>, NC to
 GND with INPUT_PULLUP | switch only, no input yet: ESTOP_INPUT_INSTALLED=false>.
 
@@ -706,7 +708,10 @@ refused; clear + recover -> normal run; power-cycle mid-lock -> the boot asks fo
 
 ```text
 Read CLAUDE.md, docs/PROTOCOL.md, protocol/vectors.json, docs/ROADMAP.md §3.4-3.5, F8, F10, F24, F33,
-and docs/FIRMWARE_LOG.md F37 (strip CR) and F53 (SerialUSB writes may block).
+and docs/FIRMWARE_LOG.md F37 (strip CR) and F53 (SerialUSB writes may block), and the HO1 findings
+F70 (id uniqueness across host restarts: fix the PROTOCOL.md §3.1 wording), F72 (vectors vs log
+copies), F73 (STATUS.warnings format), F74 (which commands need P_in): answer each in PROTOCOL.md.
+Test against the host simulator too: host/ (`cowas --sim`), protocol behaviour must match it.
 1. ArduinoJson (pin the version). The parser/serializer + the dispatch table live in src/Core/
    (native-tested against vectors.json, plus malformed, oversized and binary-garbage lines).
 2. Two channels (§3.4): HOST_PORT = SerialUSB (protocol + {"t":"log"} copies of every log line),

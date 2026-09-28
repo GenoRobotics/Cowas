@@ -38,12 +38,14 @@ pio test -e native              # host unit tests for src/Core/ (must pass)
 pio run -e due -t upload        # flash: only when the user asks
 pio device monitor              # console (9600, LF, send on ENTER: set in platformio.ini)
 bash tools/golden/capture_manifold_golden.sh   # regenerate manifold goldens: only on purpose
+cd host && .venv/Scripts/python -m pytest      # host tests (must pass); ruff check . && ruff format --check .
 ```
 
 - `native` needs gcc/g++ on PATH. On the team's Windows laptop: WinLibs from winget (`BrechtSanders.WinLibs.POSIX.UCRT`, installed under `%LOCALAPPDATA%\Microsoft\WinGet\Packages\...\mingw64\bin`). `pio` itself is `%USERPROFILE%\.platformio\penv\Scripts\pio.exe`.
 - If `pio` downloads fail with `CERTIFICATE_VERIFY_FAILED` (TLS inspection on the network), point `SSL_CERT_FILE` and `REQUESTS_CA_BUNDLE` at a PEM bundle that includes the Windows root store.
 - `pio run -e uno` does not build (Due-only code; see F12). Don't use it.
-- CI (`.github/workflows/ci.yml`): `pio run -e due`, `pio test -e native`, and `pytest host/` once `host/` exists.
+- CI (`.github/workflows/ci.yml`): `pio run -e due`, `pio test -e native`, and ruff + `pytest host/` (Ubuntu and Windows).
+- Host venv: `host/.venv`, created from `%USERPROFILE%\.platformio\python3\python.exe` (no system Python on the team laptop); `pip install -e ".[dev]"` needs the same CA bundle as `pio`.
 
 ## Code layout
 
@@ -55,6 +57,7 @@ bash tools/golden/capture_manifold_golden.sh   # regenerate manifold goldens: on
 - `test/test_*/`: native Unity tests. `test/stubs/` = a fake Arduino.h/TimeLib.h so tests can read the real `include/Settings.h` constants (never used by the firmware).
 - `include/Settings.h`: all tunables and pins. `include/Manifold.h`: manifold calibration (`purge_angle`, ...).
 - Host protocol v1 (the contract for FW7 and the host track): [docs/PROTOCOL.md](docs/PROTOCOL.md) + `protocol/vectors.json` (shared C++/Python test vectors).
+- `host/`: the Python host (package `cowas`, HO1): protocol models, serial transport (Native USB by VID/PID, never 1200 baud), client, `FakeController` simulator, the `cowas` CLI (`--sim` everywhere). See host/README.md.
 - Every command, with its hardware, blocking and pressure dependence: [docs/COMMANDS.md](docs/COMMANDS.md). Tests waiting for hardware: [docs/TESTS_PENDING.md](docs/TESTS_PENDING.md).
 
 ## Rules (ROADMAP §6, verbatim)
