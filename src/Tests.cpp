@@ -30,6 +30,7 @@
 #include "Linear_actuator.h"
 #include "Flow_sensor.h"
 #include "Oring_lock.h"
+#include "Core/shield_calibration.h"
 
 extern int manifold_slot;
 extern C_output output;
@@ -343,6 +344,11 @@ void test_all_components()
             if (test_command == "calibrate_dna_volume")
             {
                 calibrate_dna_pump_volume();
+            }
+
+            if (test_command == "shield_calibrate")
+            {
+                calibrate_shield_pump();
             }
 
             if (test_command == "calibrate_all")
@@ -1549,6 +1555,243 @@ void calibrate_dna_pump_volume()
         output.println("For " + String(target_ml) + " mL, run the micro pump for approximately " + String(needed_ms) + " ms.");
         output.println("Compare against PUMP_SHIELD_TIME / FILL_STERIVEX_TIME in Settings.h and update if this differs meaningfully.");
     }
+}
+
+/**
+ * @brief Runs the micro pump for up to max_ms. Any real keypress stops it at once.
+ * @param stopped_by_key set to true if a key stopped it before max_ms.
+ * @return the on-time actually run, in ms.
+ */
+static uint32_t run_micro_pump_for(uint32_t max_ms, bool *stopped_by_key)
+{
+    *stopped_by_key = false;
+    micro_pump.start();
+    uint32_t t0 = millis();
+    while (millis() - t0 < max_ms)
+    {
+        if (real_keypress_waiting())
+        {
+            *stopped_by_key = true;
+            break;
+        }
+        delay(1);
+    }
+    micro_pump.stop();
+    return millis() - t0;
+}
+
+/**
+ * @brief Numeric prompt: 'x' aborts, 0 (or nothing parsable) takes the default.
+ * @return false if aborted.
+ */
+static bool prompt_float_or_default(const String &question, float default_value, float *value)
+{
+    output.println(question + " (0 = " + String(default_value, 3) + ", 'x' aborts):");
+    if (numeric_prompt_aborted())
+    {
+        return false;
+    }
+    float v = Serial.parseFloat();
+    while (Serial.available())
+    {
+        Serial.read();
+    }
+    *value = (v > 0) ? v : default_value;
+    return true;
+}
+
+/**
+ * @brief LA3 shield micro pump calibration (docs/LA3_PROTOCOL.md Part A). The shield
+ * tube is taken off the manifold and dispenses into a tube on a 0.01 g scale.
+ * Optionally times the filling of an empty line (for PRIME_SHIELD), primes the line,
+ * then runs SHIELD_CAL_REPEATS times each of 2-3 durations, interleaved so a drift
+ * doesn't look like a duration effect. Fits mL = rate x s + offset
+ * (core::fit_shield_rate) and prints the repeatability per duration, the fill time for
+ * the target volume, and TEST| lines. Micro pump only: no main pump, no valve, no
+ * rotation. Every pump run has a time limit; any key stops it and aborts.
+ */
+void calibrate_shield_pump()
+{
+    const int MAX_DURATIONS = 3;
+    const int MAX_RUNS = MAX_DURATIONS * SHIELD_CAL_REPEATS;
+    const int n_defaults = sizeof(SHIELD_CAL_DEFAULT_MS) / sizeof(SHIELD_CAL_DEFAULT_MS[0]);
+    bool key = false;
+
+    output.println("=== shield_calibrate (LA3) ===");
+    output.println("Setup: take the shield tube off the manifold and hold its end over a tube on the 0.01 g scale. 'x' aborts at every prompt; any key stops a running pump.");
+
+    float density = 0, target_ml = 0;
+    if (!prompt_float_or_default("Shield density in g/mL", SHIELD_DENSITY_G_PER_ML, &density) ||
+        !prompt_float_or_default("Target shield volume per filter in mL", SHIELD_TARGET_ML, &target_ml))
+    {
+        output.println("Aborted.");
+        return;
+    }
+
+    uint32_t durations[MAX_DURATIONS];
+    int n_durations = 0;
+    for (int i = 0; i < MAX_DURATIONS; i++)
+    {
+        uint32_t def = (i < n_defaults) ? SHIELD_CAL_DEFAULT_MS[i] : 0;
+        output.println("Duration " + String(i + 1) + " in ms (0 = " + (def ? String(def) : String("none")) +
+                       (i >= 2 ? ", -1 = only 2 durations" : "") + ", 'x' aborts):");
+        if (numeric_prompt_aborted())
+        {
+            output.println("Aborted.");
+            return;
+        }
+        long d = Serial.parseInt();
+        while (Serial.available())
+        {
+            Serial.read();
+        }
+        if (d < 0 && i >= 2)
+        {
+            break;
+        }
+        if (d == 0)
+        {
+            d = def;
+        }
+        if (d < 1000 || (uint32_t)d > SHIELD_CAL_MAX_RUN_MS)
+        {
+            output.println("Duration must be 1000.." + String(SHIELD_CAL_MAX_RUN_MS) + " ms. Aborted.");
+            return;
+        }
+        for (int k = 0; k < n_durations; k++)
+        {
+            if (durations[k] == (uint32_t)d)
+            {
+                output.println("Each duration must be different. Aborted.");
+                return;
+            }
+        }
+        durations[n_durations++] = (uint32_t)d;
+    }
+
+    // time to fill an empty line: the line volume, for PRIME_SHIELD (LA3_PROTOCOL A3)
+    uint32_t t_fill_line_ms = 0;
+    if (ask_yes_no("Is the shield line empty (bottle connected, no liquid in the tube)? Then the time to the first drop is measured."))
+    {
+        output.println("Any key starts the pump; press any key again at the FIRST drop at the tube end (stops by itself after " + String(SHIELD_CAL_PRIME_MAX_MS / 1000) + " s).");
+        if (wait_for_keypress_or_abort())
+        {
+            output.println("Aborted.");
+            return;
+        }
+        t_fill_line_ms = run_micro_pump_for(SHIELD_CAL_PRIME_MAX_MS, &key);
+        if (!key)
+        {
+            output.println("TEST|shield_calibrate|line_fill|FAIL|reason=no_drop_before_" + String(SHIELD_CAL_PRIME_MAX_MS) + "_ms");
+            output.println("No drop reached the end: check the bottle, the tube and the pump. Aborted.");
+            return;
+        }
+    }
+
+    output.println("Priming: any key starts the pump; press any key when the liquid drips steadily with no bubbles (stops by itself after " + String(SHIELD_CAL_PRIME_MAX_MS / 1000) + " s).");
+    if (wait_for_keypress_or_abort())
+    {
+        output.println("Aborted.");
+        return;
+    }
+    run_micro_pump_for(SHIELD_CAL_PRIME_MAX_MS, &key);
+
+    core::ShieldRun runs[MAX_RUNS];
+    int n_runs = 0;
+    const int total = n_durations * SHIELD_CAL_REPEATS;
+    for (int r = 0; r < SHIELD_CAL_REPEATS; r++)
+    {
+        for (int i = 0; i < n_durations; i++)
+        {
+            output.println("Run " + String(n_runs + 1) + "/" + String(total) + " (" + String(durations[i]) + " ms): put an empty tube on the scale, tare, hold the tube end over it, then any key starts ('x' aborts).");
+            if (wait_for_keypress_or_abort())
+            {
+                output.println("Aborted.");
+                return;
+            }
+            run_micro_pump_for(durations[i], &key);
+            if (key)
+            {
+                output.println("Stopped by a key: the run is incomplete. Aborted.");
+                return;
+            }
+
+            float mass = 0;
+            while (!(mass > 0))
+            {
+                output.println("Touch the tube end to the tube wall to collect the hanging drop, then enter the mass in g ('x' aborts):");
+                if (numeric_prompt_aborted())
+                {
+                    output.println("Aborted.");
+                    return;
+                }
+                mass = Serial.parseFloat();
+                while (Serial.available())
+                {
+                    Serial.read();
+                }
+                if (!(mass > 0))
+                {
+                    output.println("The mass must be > 0 g.");
+                }
+            }
+            runs[n_runs].duration_ms = durations[i];
+            runs[n_runs].mass_g = mass;
+            n_runs++;
+            output.println("  run " + String(n_runs) + ": " + String(durations[i]) + " ms -> " + String(mass, 2) + " g = " + String(core::shield_mass_to_ml(mass, density), 3) + " mL");
+        }
+    }
+
+    // results
+    core::ShieldDurationStats stats[MAX_DURATIONS];
+    int n_stats = core::shield_duration_stats(runs, n_runs, density, stats, MAX_DURATIONS);
+    core::ShieldFit fit = core::fit_shield_rate(runs, n_runs, density);
+    core::ShieldCalVerdict verdict = core::shield_cal_verdict(fit, stats, n_stats, SHIELD_CAL_REPEATS, SHIELD_CAL_MAX_CV_PCT, SHIELD_CAL_MIN_R2);
+    uint32_t fill_ms = core::shield_fill_ms(fit, target_ml, SHIELD_CAL_MAX_RUN_MS);
+
+    output.println("--- shield_calibrate results ---");
+    for (int i = 0; i < n_stats; i++)
+    {
+        bool ok = stats[i].n >= SHIELD_CAL_REPEATS && stats[i].cv_pct <= SHIELD_CAL_MAX_CV_PCT;
+        output.println("TEST|shield_calibrate|d" + String(stats[i].duration_ms) + "|" + (ok ? "PASS" : "FAIL") +
+                       "|n=" + String(stats[i].n) + ";mean_ml=" + String(stats[i].mean_ml, 4) + ";sd_ml=" + String(stats[i].sd_ml, 4) +
+                       ";cv_pct=" + String(stats[i].cv_pct, 2) + ";max_cv_pct=" + String(SHIELD_CAL_MAX_CV_PCT, 1));
+    }
+    output.println(String("TEST|shield_calibrate|fit|") + (verdict == core::SHIELD_CAL_PASS ? "PASS" : "FAIL") +
+                   "|verdict=" + core::shield_cal_verdict_name(verdict) + ";rate_ml_s=" + String(fit.rate_ml_per_s, 5) +
+                   ";offset_ml=" + String(fit.offset_ml, 4) + ";r2=" + String(fit.r2, 5) + ";density_g_ml=" + String(density, 3) +
+                   ";runs=" + String(fit.n_runs) + ";durations=" + String(fit.n_durations));
+    output.println(String("TEST|shield_calibrate|fill|") + (fill_ms > 0 && verdict == core::SHIELD_CAL_PASS ? "PASS" : "FAIL") +
+                   "|target_ml=" + String(target_ml, 3) + ";fill_ms=" + String(fill_ms));
+    if (t_fill_line_ms > 0 && fit.valid)
+    {
+        float line_ml = fit.rate_ml_per_s * t_fill_line_ms / 1000.0f;
+        output.println("TEST|shield_calibrate|line_fill|PASS|t_first_drop_ms=" + String(t_fill_line_ms) + ";line_ml=" + String(line_ml, 3) +
+                       ";prime_ms_suggested=" + String((uint32_t)(t_fill_line_ms * SHIELD_PRIME_MARGIN)));
+    }
+
+    if (verdict != core::SHIELD_CAL_PASS)
+    {
+        output.println("Calibration FAILED (" + String(core::shield_cal_verdict_name(verdict)) + "): don't use these numbers. See docs/LA3_PROTOCOL.md Part A for what to check.");
+        return;
+    }
+    if (fill_ms == 0)
+    {
+        output.println("No fill time: the target is below the offset, or it needs more than " + String(SHIELD_CAL_MAX_RUN_MS) + " ms.");
+        return;
+    }
+    float min_mean = stats[0].mean_ml, max_mean = stats[0].mean_ml;
+    for (int i = 1; i < n_stats; i++)
+    {
+        min_mean = min(min_mean, stats[i].mean_ml);
+        max_mean = max(max_mean, stats[i].mean_ml);
+    }
+    if (target_ml > max_mean * 1.5f || target_ml < min_mean * 0.5f)
+    {
+        output.println("WARNING: the target is outside the calibrated range; add a duration near " + String(fill_ms) + " ms and rerun.");
+    }
+    output.println("Record it in docs/LA3_PROTOCOL.md (Part A results); FW4 item 7 puts it in Settings.h:");
+    output.println("  const uint32_t DNA_SHIELD_FILL_MS = " + String(fill_ms) + "; // LA3 shield_calibrate, " + String(target_ml, 2) + " mL");
 }
 
 /**

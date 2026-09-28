@@ -1,0 +1,5 @@
+filter_id,group,stage,time,mass_g,temp_c,notes
+EXAMPLE1,A-today,dry,2026-10-12 08:00,8.00,21.0,caps C1+C2; delete these example rows
+EXAMPLE1,A-today,water,2026-10-12 09:50,8.40,21.0,full_cycle shield=n
+EXAMPLE1,A-today,shield,2026-10-12 10:00,9.90,21.0,shield stage only
+EXAMPLE1,A-today,hold,2026-10-13 10:00,9.88,21.5,day 1

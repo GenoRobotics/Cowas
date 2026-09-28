@@ -32,6 +32,18 @@ const uint32_t FILL_STERIVEX_TIME = 250000; //
 const int8_t PUMP_SHIELD_POWER = 13;        // power of big pump to push the DNA-shield into the sterivex
 const uint32_t PUMP_SHIELD_TIME = 300;      // time for big pump to push DNA-shield
 
+// shield micro pump calibration (LA3, console `shield_calibrate`, docs/LA3_PROTOCOL.md Part A).
+// The prompts offer these as defaults; nothing in production reads them.
+const float SHIELD_DENSITY_G_PER_ML = 1.00f;                    // PLACEHOLDER: measure it (LA3_PROTOCOL A1)
+const float SHIELD_TARGET_ML = 1.5f;                            // PLACEHOLDER: the lab's target (LAB_INTERFACE B1)
+const uint32_t SHIELD_CAL_DEFAULT_MS[] = {10000, 20000, 40000}; // ms. Run durations (at most 3 are used)
+const uint8_t SHIELD_CAL_REPEATS = 3;                           // runs per duration
+const uint32_t SHIELD_CAL_MAX_RUN_MS = 300000;                  // ms. Longest accepted run, and the bound on the printed fill time
+const uint32_t SHIELD_CAL_PRIME_MAX_MS = 120000;                // ms. The priming run stops by itself after this
+const float SHIELD_CAL_MAX_CV_PCT = 5.0f;                       // % repeatability limit per duration
+const float SHIELD_CAL_MIN_R2 = 0.995f;                         // linearity limit of the fit
+const float SHIELD_PRIME_MARGIN = 1.25f;                        // the suggested prime time = time to fill the empty line x this
+
 // ! not used anymore?
 // vacuum pump variables
 const float VACUUM_TO_ACHIEVE = 0.13;                   // bar from atmsophere. Vacuum to achieve

@@ -181,6 +181,8 @@ Start: ROADMAP §3.6 and the machine's sample record (docs/PROTOCOL.md §6). "So
 
 The values later steps read. Copy them from the answers above; write "open" if not decided.
 
+**After the meeting, also copy B1, B2, B3, B5 into `tools/la3_thresholds.json`** (all `null` today: `tools/analyze_la3.py` prints OPEN for them), and the D1 temperature into docs/LA3_PROTOCOL.md §3.1 (the warm hold uses 30 °C until then).
+
 | Value | Decided | From | Used by |
 |---|---|---|---|
 | Extraction kit, and "Shield in the housing" OK? | | A1, A2 | LA2, LA3 |

@@ -65,6 +65,7 @@ loop()   every 50 ms: button_control() (main.cpp:357)  +  main_program() (main.c
 | `calibrate_actuator` | `calibrate_linear_actuator()` Tests.cpp:1310 | L | interactive (`x` aborts) | no | Prints `LINEAR_ACT_LOCKED_STEPS` (today a PLACEHOLDER, 210). Does not update the lock state |
 | `calibrate_flow` | `calibrate_flow_sensor()` Tests.cpp:1384 | P, F | until target volume / 5 min / any key | cap (at start only) | **Doesn't set any valve**, and the pump loop doesn't poll the cap (only `pump.start()` checks it). Prints `calibrationFactor_small` |
 | `calibrate_dna_volume` | `calibrate_dna_pump_volume()` Tests.cpp:1484 | µP | T ms (`delay`) + prompts (`x` aborts) | no | Prints mL/s and the run time for a target volume |
+| `shield_calibrate` | `calibrate_shield_pump()` Tests.cpp:1613 (math: `src/Core/shield_calibration`) | µP | each run ≤ `SHIELD_CAL_MAX_RUN_MS` (300 s), prime ≤ 120 s; any key stops the pump and aborts; `x` aborts at every prompt | no | LA3 (docs/LA3_PROTOCOL.md Part A): 3 repeats × 2–3 durations, line fit → mL/s, offset, CV, `DNA_SHIELD_FILL_MS` for a target, optional empty-line fill time for `PRIME_SHIELD`. Prints `TEST\|shield_calibrate\|...` lines |
 | `calibrate_all` | `run_commissioning_calibration()` Tests.cpp:1638 | M, L, P, F, µP, BTN | interactive (y/n per stage) | cap (flow stage) | Chains `cal`, `calibrate_actuator`, `calibrate_flow`, `cal_DNA`, `calibrate_dna_volume` |
 | `manifold_direction` | `identify_manifold_direction()` Tests.cpp:1566 | M | 0.5 s move + key + ≤ 3 s return | no | F5 |
 

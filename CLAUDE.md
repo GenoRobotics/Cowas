@@ -38,12 +38,13 @@ pio test -e native              # host unit tests for src/Core/ (must pass)
 pio run -e due -t upload        # flash: only when the user asks
 pio device monitor              # console (9600, LF, send on ENTER: set in platformio.ini)
 bash tools/golden/capture_manifold_golden.sh   # regenerate manifold goldens: only on purpose
+pytest tools/                   # tests of the analysis scripts in tools/ (e.g. analyze_la3.py; stdlib + pytest)
 ```
 
 - `native` needs gcc/g++ on PATH. On the team's Windows laptop: WinLibs from winget (`BrechtSanders.WinLibs.POSIX.UCRT`, installed under `%LOCALAPPDATA%\Microsoft\WinGet\Packages\...\mingw64\bin`). `pio` itself is `%USERPROFILE%\.platformio\penv\Scripts\pio.exe`.
 - If `pio` downloads fail with `CERTIFICATE_VERIFY_FAILED` (TLS inspection on the network), point `SSL_CERT_FILE` and `REQUESTS_CA_BUNDLE` at a PEM bundle that includes the Windows root store.
 - `pio run -e uno` does not build (Due-only code; see F12). Don't use it.
-- CI (`.github/workflows/ci.yml`): `pio run -e due`, `pio test -e native`, and `pytest host/` once `host/` exists.
+- CI (`.github/workflows/ci.yml`): `pio run -e due`, `pio test -e native`, `pytest tools/`, and `pytest host/` once `host/` exists.
 
 ## Code layout
 
@@ -51,7 +52,7 @@ bash tools/golden/capture_manifold_golden.sh   # regenerate manifold goldens: on
 - `src/Tests.cpp`: the serial test menu `test_all_components()` and all calibrations. `setup()` ends inside it (F23).
 - `src/Step_functions.cpp`: production procedures (`step_purge`, `step_sampling`, `step_DNA_shield`, `step_empty`, `sample_process`, `load_slot*`).
 - `src/Hardware/`: thin drivers. `Oring_lock.cpp` = lock/unlock. `Pump.cpp` = pump + PID loops + the pressure cap.
-- `src/Core/`: **pure logic, no Arduino.h**, unit-tested natively. Today: `manifold_geometry` (slot-angle table, clock labels, `scale_angle`).
+- `src/Core/`: **pure logic, no Arduino.h**, unit-tested natively. Today: `manifold_geometry` (slot-angle table, clock labels, `scale_angle`), `shield_calibration` (LA3: micro pump rate fit, fill time).
 - `test/test_*/`: native Unity tests. `test/stubs/` = a fake Arduino.h/TimeLib.h so tests can read the real `include/Settings.h` constants (never used by the firmware).
 - `include/Settings.h`: all tunables and pins. `include/Manifold.h`: manifold calibration (`purge_angle`, ...).
 - Host protocol v1 (the contract for FW7 and the host track): [docs/PROTOCOL.md](docs/PROTOCOL.md) + `protocol/vectors.json` (shared C++/Python test vectors).

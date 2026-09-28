@@ -517,6 +517,6 @@ Deferred (written into the ROADMAP prompts of the step that will answer them):
 
 | Question | Answered in |
 |---|---|
-| `PRIME_SHIELD`: where the primed shield goes (the purge slot?) and how much/how long (`PRIME_SHIELD_MS`, PLACEHOLDER) | LA3 (volume), then FW7 (implementation) |
+| `PRIME_SHIELD`: where the primed shield goes (the purge slot?) and how much/how long (`PRIME_SHIELD_MS`, PLACEHOLDER) | LA3 (volume), then FW7 (implementation). **LA3 recommendation (2026-09-25, docs/LA3_PROTOCOL.md §5.4):** the purge slot; `PRIME_SHIELD_MS` = the empty-line fill time × 1.25 from `shield_calibrate` (not measured yet, stays PLACEHOLDER) |
 | Does an O-ring kept compressed for days between samples take a set and leak? | HW7 (7-day locked hold, then `leak_hold`) |
-| Do filter outlets still need caps/check valves with the O-ring locked at rest (F29)? | LA3 |
+| Do filter outlets still need caps/check valves with the O-ring locked at rest (F29)? | LA3. **Decision rule and interim recommendation in docs/LA3_PROTOCOL.md §5.3** (caps in Pilot A; order luer check valves as a hedge for Pilot B); the retention data decide |
