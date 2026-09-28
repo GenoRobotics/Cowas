@@ -43,6 +43,7 @@ void test_multi_sample_loading_full();
 void calibrate_linear_actuator();
 void calibrate_flow_sensor();
 void calibrate_dna_pump_volume();
+void calibrate_shield_pump();
 void identify_manifold_direction();
 void run_commissioning_calibration();
 

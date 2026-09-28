@@ -52,3 +52,14 @@ jobs:
       - run: ruff check host
       - run: ruff format --check host
       - run: pytest host/
+
+  tools-tests:
+    name: Tools tests (pytest tools/)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pytest
+      - run: pytest tools/

@@ -184,3 +184,47 @@ New findings get the next free ID after ROADMAP §4 (F37, F38, ...). **When step
 3. **F71** (RECOVER deadlock) needs a user decision in FW6; **F70, F72–F74** are PROTOCOL.md wording/choices for FW7. Pointers added to both ROADMAP prompts.
 4. **ROADMAP §7:** HO1 not ticked; tick it after the merge and the bench check in TESTS_PENDING (needs FW7).
 5. **CA bundle:** the PEM used for pip was built in a session scratch folder and is gone. Rebuild it (certifi + Windows root store) the next time pip/pio downloads fail with `CERTIFICATE_VERIFY_FAILED`; consider keeping one outside the repo, e.g. `%USERPROFILE%\.certs\`.
+## LA3: Shield volume, residual water, shield retention: protocol and tools (2026-09-25)
+
+**Branch:** `la3-shield-retention` (from `18db617`, the LA1 commit: it has FW1's PROTOCOL.md and LAB_INTERFACE.md; neither is merged into `cowas-v2` yet), worktree `../Cowas-la3` · **Finding IDs:** F80–F89 · **Status:** tools and protocol done; **no measurement yet**. The dependencies are not met (FW4 not done, LAB_INTERFACE §4 empty), so this step delivers everything that doesn't need them. Part A can run now.
+
+**Inputs from the user (2026-09-25):** the Shield has **its own tube straight to the manifold** (not a tee into the water line); Shield density unknown (1.00 PLACEHOLDER + a pipette check, LA3_PROTOCOL A1); the lab thresholds are unknown ("do what you can and note what's left").
+
+**Behavior changes:** one **new console command**, `shield_calibrate` (micro pump only: no main pump, no valve, no rotation). No existing command or procedure changed. Settings.h gains `SHIELD_*` constants that only this command reads (density and target are PLACEHOLDER).
+
+**Added:**
+- `src/Core/shield_calibration.{h,cpp}`: mass → mL, tube volume, least-squares line (rate, offset, R²) over the runs, per-duration mean/SD/CV, fill time for a target (bounded), pass/fail verdict.
+- `src/Tests.cpp` `calibrate_shield_pump()` (console `shield_calibrate`): optional empty-line fill time (→ `PRIME_SHIELD`), prime (≤ 120 s), 3 repeats × 2–3 durations interleaved, masses typed in; prints `TEST|shield_calibrate|...` lines and `DNA_SHIELD_FILL_MS`. Every pump run is time-limited; any key stops the pump and aborts.
+- `test/test_shield_calibration/` (14 native tests: exact line, density, noise → lower R², < 2 durations, bad inputs, stats, capacity, fill-time bounds and round trip, verdict order and boundaries, the real Settings.h values).
+- `docs/LA3_PROTOCOL.md`: Part A (density, rate, line volume, drain-back), Part C (12 filters: A-today, B-long, [B-high], F-warm, S-room, H-handling; paired weighings; holds at 1, 3, 7 days; in-machine hold at room temperature with 2 rotations a day, off-machine surrogate at 30 °C), Part D (analysis), Part E (decision rules + recommendations), results tables, open items.
+- `tools/analyze_la3.py` (stdlib only), `tools/la3_thresholds.json` (all `null` = OPEN), `tools/la3_masses_template.csv`, `tools/tests/` (22 pytest tests on a synthetic dataset).
+- CI: a `pytest tools/` job. CLAUDE.md, COMMANDS.md, TESTS_PENDING.md, PROTOCOL.md §14 (pointers to the recommendations), LAB_INTERFACE.md §4 (copy B1–B5 into the thresholds file) updated.
+
+**Recommendations (LA3_PROTOCOL §5; interim, until the data):**
+- `DNA_SHIELD_FILL_MS`: none yet (rate unknown); run Part A, then check the dose reaching the filter in Part C (±10 %).
+- Air push: keep today's unless the longer/higher push cuts the residual water by ≥ 0.1 mL and ≥ 20 %; if the ratio is still too low, raise the Shield dose instead (F28 physics).
+- Caps/check valves: caps in Pilot A (the operator is there); order ~16 luer check valves as a hedge for Pilot B; the warm-hold retention decides.
+- `PRIME_SHIELD`: to the **purge slot**; `PRIME_SHIELD_MS` = the empty-line fill time × 1.25 (from `shield_calibrate`); before each deployment and after a bottle change; if the line drains back between samples (A4), a check valve at the manifold end of the Shield tube.
+
+**Code changes proposed, not made (ask first; one small follow-up PR):** (1) a console command that runs **the Shield stage alone** (`step_DNA_shield`: micro pump + air push), needed by the paired design (FW2's `shield_only` has no air push; FW2 could instead add `sample=n` to `full_cycle`); (2) an emptying-phase setpoint parameter (`EMPTY_STX_SETPOINT_BAR`, default 0.4) for the optional B-high variant (FW4 only adds the min/max times).
+
+**Unanswered when the LA3 session closed (2026-09-28): ask the user before acting on them.**
+1. The follow-up PR above (Shield-stage-alone command; emptying setpoint parameter): not yet approved.
+2. The LA3 work was **left uncommitted** in the worktree `../Cowas-la3` (branch `la3-shield-retention`); the user will reorganise the folders and merge. When merging into `cowas-v2`, expect conflicts in CLAUDE.md, docs/COMMANDS.md, docs/FIRMWARE_LOG.md and docs/TESTS_PENDING.md (parallel steps edit them too): keep both sides.
+3. Part A (`shield_calibrate`) has not been run on the machine (needs this branch flashed).
+4. The lab thresholds (LAB_INTERFACE B1–B5, D1) are still unknown: `tools/la3_thresholds.json` stays all `null` until LA1's meeting.
+
+**Tests:**
+- `pio run -e due`: pass (flash 93,216 B; RAM 4,564 B, unchanged).
+- `pio test -e native`: 29/29 pass (15 manifold + 14 shield).
+- `pytest tools/`: 22/22 pass (Python 3.11 venv; the `python` on PATH is the Microsoft Store stub on this laptop, use PlatformIO's `penv\Scripts\python.exe` to create a venv).
+
+**Hardware checklist** (not run: flashing is the user's call). Part A of LA3_PROTOCOL, in order: `shield_calibrate` with the defaults → `TEST|shield_calibrate|fit|PASS`: every duration CV ≤ 5 %, R² ≥ 0.995, |offset| < 0.1 mL; `line_fill` line_ml within ±20 % of π(ID/2)²L of the measured tubes; drain-back after ≥ 12 h ≥ 95 % of the calibrated dose; any key during a run stops the micro pump at once (check it once). Listed in docs/TESTS_PENDING.md.
+
+**New findings:**
+
+| # | Finding | Where | Severity | Step | Status |
+|---|---|---|---|---|---|
+| F80 | The Shield's air push is `PUMP_SHIELD_POWER = 13 %` for `PUMP_SHIELD_TIME = 300 ms`. With the DAC offset (F25) and the pump's spin-up, it's unverified that this moves any air at all, so the Shield may stay in the manifold passage (and then go to the purge on the next rotation, not into the filter). | `Settings.h:32-33`, `step_DNA_shield()` | Medium (data quality) | LA3 Part C measures the dose reaching the filter; FW4 | open |
+| F81 | There is no Shield prime anywhere: the first sample of a deployment (and the first after a bottle change) loses the volume of the Shield tube, which can be as large as the whole dose (1 m of 1.6 mm ID = 2 mL). | `step_DNA_shield()`, `sample_process()` | High (data quality) | FW7 (`PRIME_SHIELD`, LA3_PROTOCOL §5.4) | open |
+| F82 | `micro_pump` (10 s) and `calibrate_dna_volume` (operator-typed duration, not bounded) run the micro pump with `delay()`: no key stops them. `shield_calibrate` doesn't have this problem. | `Tests.cpp:300`, `Tests.cpp` `calibrate_dna_pump_volume()` | Low | FW5 (`wait_ms()`) | open |
