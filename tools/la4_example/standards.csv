@@ -1,0 +1,11 @@
+# SYNTHETIC example data (plug 80 mL + mixer 40 mL, 20 g/L NaCl stock read in uS/cm). Replace with your measurements.
+# fraction = dilution of the stock (0 = blank, measure >= 3 blanks); reading = instrument value
+fraction,reading
+0,4.9
+0,5
+0,5.1
+0.0001,7
+0.001,25
+0.01,205
+0.1,2005
+1,20005
