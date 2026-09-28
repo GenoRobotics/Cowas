@@ -330,7 +330,7 @@ Conventions:
 | **HO4** | Deploy on the Pi (systemd, udev, clock, backups) | HO | P1 | HO3 | Pi + TOFU | Resume after power cut (integration) | 7–9 | ☐ |
 | **HO5** | Remote access + alerts lite (Tailscale, LTE, ntfy/Telegram, daily report) | HO | P1 | HO4 | SIM, antennas | Alert rules, dedup, repeat until ack | 9–11 | ☐ |
 | **LA1** | Lab alignment → `docs/LAB_INTERFACE.md` (template drafted 2026-09-25; done when its §4 is filled in at the meeting) | LA | P0 | — | — | — | 1 | ☐ |
-| **LA2** | SOPs: filter loading/unloading, cleaning, labels, chain of custody | LA | P0 | LA1 | — | — | 2 | ☐ |
+| **LA2** | SOPs: filter loading/unloading, cleaning, labels, chain of custody (docs/SOP_FILTERS.md drafted 2026-09-25 with the lab values as proposals; done after the LA1 answers + the dry run, see the LA2 prompt) | LA | P0 | LA1 | — | — | 2 | ☐ |
 | **LA3** | Shield volume, residual water, shield retention (weighing) | LA | P0 | FW4, LA1 | scale 0.01 g | Analysis script tests | 4–5 | ☐ |
 | **LA4** | Carry-over and slot cross-talk (dye tracer ± qPCR) | LA | P0 | FW4, HW6 | dye, spectrophotometer or phone photometry | Analysis script tests | 5–6 | ☐ |
 | **HW0** | Order everything (§11.1) | HW | P0 | — | — | — | 0–1 | ☐ |
@@ -830,6 +830,11 @@ Read CLAUDE.md, docs/ROADMAP.md §3.6, §3.7, finding F1, docs/LAB_INTERFACE.md,
    transition. At startup, IN_PROGRESS -> SUSPECT.
 4. The reload flow: the operator confirms which slots got fresh filters (and the filter lot);
    the previous deployment is archived; those slots become READY; DISABLED keeps its reason.
+   Command names used by docs/SOP_FILTERS.md (LA2): `cowas slots` (list), `cowas slots load
+   <slots> --filter-lot <lot>`, `cowas slots unload` (enter the retrieval time per filter ->
+   retrieval_time_utc, and mark unused filters), `cowas clean` (decontamination flush with no
+   filters: PURGE, then SAMPLE through each sample slot, then EMPTY, pausing for the operator
+   between the bleach / water / DNA-free water buckets).
 5. A SampleRecord per filter = the RUN_CYCLE result + event + deployment + versions + notes.
    Export ONE CSV with all selected filters (a deployment, a date range, or all): one row per
    filter, the columns of ROADMAP §3.6 in the order of docs/LAB_INTERFACE.md, a header comment
@@ -857,7 +862,10 @@ Read CLAUDE.md, docs/ROADMAP.md §3.1, §3.6, §3.7, host/ (HO1-HO2), docs/PROTO
    - system fault (STOP, ESTOP, OVER_PRESSURE, LEAK, RECOVERY_REQUIRED after a reboot): pause the
      mission, never auto-retry, wait for the operator (`cowas recover`, `cowas resume`);
    - warnings: continue, flag the record;
-   - end_reason clogged: NOT a fault, the sample is kept.
+   - end_reason clogged: NOT a fault, the sample is kept;
+   - equipment_blank events (docs/SOP_FILTERS.md §6): pause BEFORE the event (the operator moves
+     the intake hose into the DNA-free water bottle) and AFTER it (back to the lake, or retrieval
+     after the end blank); resume only on the operator's confirmation, never on a timer.
 3. Before the first event, and before each event, check the Due: HELLO (firmware hash as
    expected), STATUS IDLE, no recovery pending.
 4. Cold-boot resume (the host restarts or loses power): reload the mission from SQLite;
@@ -937,6 +945,15 @@ Also add a one-page "Sterivex handling in CoWaS" summary for the lab.
 ```
 
 #### LA2: SOPs: filter loading/unloading, cleaning, labels, chain of custody (P0)
+
+**Status (2026-09-25): drafted, not done.** docs/SOP_FILTERS.md covers items 1–6 below, with a checkbox and a "Who" field on every step (branch `la2-sops`; FIRMWARE_LOG "LA2"). It was written **before** the lab meeting, so LAB_INTERFACE.md was not filled in.
+
+Left to do:
+1. After the LA1 meeting: replace every `⟨LAB X⟩` marker in the SOP (list in its §0.2) with LAB_INTERFACE §4: bleach % and contact time (L1, L2), biosecurity drying rule (L3), transport and storage (D2–D5), unused filters and caps (D6, D7), `sample_id` and labels (E1–E3), blank volume and water (F2, F3), hose tip before the end blank (F7), the lab's own custody form (I1–I3). If the lab asks for a Shield-line rinse, add it to §4.2.9.
+2. On the hardware: check the Sterivex orientation text (inlet = female luer-lock) on the real filter model, and whether the rotor turns when a filter is screwed on with the O-ring locked.
+3. Commands the SOP names but that don't exist yet: `cowas slots load` / `slots unload` / `cowas clean` (HO2 prompt, item 4) and the pause around equipment blanks (HO3 prompt). Once they exist, drop the "until HO2/HO3" notes in the SOP. The printed labels need HO2's `tools/labels.py`.
+4. The SOP dry run in docs/TESTS_PENDING.md (loading ≤ 30 min, unloading ≤ 20 min, 0 caps left on, 0 thread drips, 0 label mismatches). Loading and unloading alone can run before FW7.
+5. Then tick LA2 in §7.
 
 ```text
 Read docs/ROADMAP.md §3.7, docs/LAB_INTERFACE.md (filled in), docs/COMMANDS.md.
@@ -1089,8 +1106,8 @@ Go/no-go rule: all tests 1-8 PASS; a FAIL on 9-10 needs a written workaround.
 **Checklist:**
 - [ ] VA1 passed; firmware hash and host version recorded.
 - [ ] Site access confirmed; weather checked (wind, thunderstorms); life jackets if on a boat.
-- [ ] Filters loaded and labelled per SOP (LA2); photo of the manifold; slots READY in the host.
-- [ ] Battery charged (voltage recorded); spare fuses; tools; spare Sterivex; DNA-free water (≥ 3 L for blanks + purge); cooler + ice packs; gloves; bleach; the paper field log.
+- [ ] Filters loaded per [SOP_FILTERS.md](SOP_FILTERS.md) §1–§2 (LA2); photo of the manifold; slots READY in the host; a printed copy of the SOP + the chain-of-custody form (§5) + the printed labels.
+- [ ] Battery charged (voltage recorded); spare fuses; tools; spare Sterivex; DNA-free water (**≈ 6 L** for 2 equipment blanks at 2 L + their purges, SOP_FILTERS §6.1, + the field blank; adjust with LAB_INTERFACE F2); cooler + ice packs; gloves; bleach; new luer caps; the paper field log.
 - [ ] Intake at `<depth>` m, strainer on, outlet downstream; hose ID and length entered in the deployment.
 - [ ] Time synced on the host; site coordinates entered.
 - [ ] Equipment blank run → OK. Then the mission starts.
@@ -1135,7 +1152,7 @@ Specs, not brands. Check each part against your fittings, tube sizes and measure
 | 12 | **Intake kit** | 1 | Strainer (200–500 µm mesh), weight, 10 m hose (same ID as today, food-grade), rope; optional foot valve (helps priming; the purge handles the retained water) | HW6 |
 | 13 | Quick-disconnect fittings | 4 | Intake, outlet, purge | HW6 |
 | 14 | Splash-proof box IP54+ + shade cover | 1 | Pilot A | HW6 |
-| 15 | **Lab consumables** | — | Sterivex ≥ 40 (tests + pilot), DNA/RNA Shield (≥ 14 × target volume + ~100 mL for calibration), DNA-free water ≥ 5 L, luer caps for both ends, cryo labels (type: LAB_INTERFACE.md E2; Sterivex model: A3), gloves, bleach, a cooler + ice packs | LA2–LA4, VA2 |
+| 15 | **Lab consumables** | — | Sterivex ≥ 40 (tests + pilot), DNA/RNA Shield (≥ 14 × target volume + ~100 mL for calibration), DNA-free water ≥ 10 L (≈ 6 L for 2 equipment blanks at 2 L + their purges, the field blank, and the DNA-free rinses before loading and after a deployment: SOP_FILTERS.md §4.2.6, §6.1; LAB_INTERFACE F2), new luer caps for both ends (loading and retrieval), cryo labels (type: LAB_INTERFACE.md E2; Sterivex model: A3), gloves, bleach, a cooler + ice packs | LA2–LA4, VA2 |
 | 16 | **Test bench** | — | Scale 0.01 g (≥ 200 g), 1 L measuring cylinder, bucket, tube clamp or needle valve, food dye (+ a conductivity meter or photometer if available) | LA3, LA4, HW3 |
 | 17 | Spare Arduino Due | 1 | A bench board + a field spare | all |
 | 18 | O-ring spare sets | 3 | | HW7 |

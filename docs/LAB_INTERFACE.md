@@ -69,6 +69,8 @@ CoWaS is an autonomous water sampler. A pump pushes lake water through Sterivex 
 | D3 | Storage at the lab until extraction: temperature, maximum time? | | | LA2 |
 | D4 | Filter orientation during transport (upright, flat)? Must the Shield stay inside, or can it drain into the bag? | | | LA2 |
 | D5 | Delivery: address, opening hours, who receives the filters, weekends? | | | LA2, VA2 |
+| D6 | Filters loaded but not used in a deployment (they sat in the machine, open at the outlet): discard them, or send them as extra handling blanks? | Proposal: discard, recorded as `unused` on the chain-of-custody form. | | LA2 |
+| D7 | Caps at retrieval: new caps from a sealed bag, or the original caps kept since loading? | Proposal: new caps (the originals sat open in the workshop). | | LA2, HW0 #15 |
 
 ### E. Labels and sample IDs
 
@@ -88,6 +90,7 @@ CoWaS is an autonomous water sampler. A pump pushes lake water through Sterivex 
 | F4 | Field blank: how many, and how (DNA-free water through a manual Sterivex on site, same Shield)? | Proposal: 1 per deployment, at any time. | | VA2, LA2 |
 | F5 | Extraction blanks and PCR negatives: your standard? Do you need anything from us for them? | We assume the lab handles these. | | — |
 | F6 | What counts as a "clean" blank (a read threshold, a Ct cut-off)? What do you do with a sample when its blank is not clean? | | | K1 |
+| F7 | End equipment blank: the intake hose tip has been in the lake. How should we treat its outside before it goes into the blank bottle (rinse with DNA-free water? bleach, which could destroy DNA and hide contamination?) | Proposal (SOP_FILTERS §6): rinse the outside of the last ~30 cm with DNA-free water away from the bottle, wipe, no bleach. | | LA2 |
 
 ### G. Positive controls
 
@@ -205,6 +208,7 @@ The values later steps read. Copy them from the answers above; write "open" if n
 | Pilot A success criteria | | K1 | VA2 |
 | Pilot A sampling plan | | K2, K3 | VA2, HO3 |
 | Bleach % and contact time | | L1 | LA2 |
+| Unused filters, caps at retrieval, hose tip for the end blank | | D6, D7, F7 | LA2 |
 
 ---
 
