@@ -329,7 +329,7 @@ Conventions:
 | **HO3** | Mission runner + scheduler + cold-boot resume | HO | P0 | HO2 | — | Simulated-time scenarios | 4–5 | ☐ |
 | **HO4** | Deploy on the Pi (systemd, udev, clock, backups) | HO | P1 | HO3 | Pi + TOFU | Resume after power cut (integration) | 7–9 | ☐ |
 | **HO5** | Remote access + alerts lite (Tailscale, LTE, ntfy/Telegram, daily report) | HO | P1 | HO4 | SIM, antennas | Alert rules, dedup, repeat until ack | 9–11 | ☐ |
-| **LA1** | Lab alignment → `docs/LAB_INTERFACE.md` | LA | P0 | — | — | — | 1 | ☐ |
+| **LA1** | Lab alignment → `docs/LAB_INTERFACE.md` (template drafted 2026-09-25; done when its §4 is filled in at the meeting) | LA | P0 | — | — | — | 1 | ☐ |
 | **LA2** | SOPs: filter loading/unloading, cleaning, labels, chain of custody | LA | P0 | LA1 | — | — | 2 | ☐ |
 | **LA3** | Shield volume, residual water, shield retention (weighing) | LA | P0 | FW4, LA1 | scale 0.01 g | Analysis script tests | 4–5 | ☐ |
 | **LA4** | Carry-over and slot cross-talk (dye tracer ± qPCR) | LA | P0 | FW4, HW6 | dye, spectrophotometer or phone photometry | Analysis script tests | 5–6 | ☐ |
@@ -583,7 +583,7 @@ SMALL, listed behavior changes. Nothing else.
    step_purge() already does, F40 becomes the intended behaviour); actuator_home ends locked.
    List every caller that assumed "unlocked at rest" and every test that unlocks at the end.
 5. Volume and timeout (F15, F6, F31):
-   a. STX_SAMPLE_MILLILITERS = 2000; SAMPLE_VOLUME_CAP_ENABLED = true.
+   a. STX_SAMPLE_MILLILITERS = 2000 (or the target volume in LAB_INTERFACE.md §4, C1); SAMPLE_VOLUME_CAP_ENABLED = true.
    b. The Flow_sensor calibration factor becomes a float (pulses per litre as float); fix the
       uint8_t/uint16_t truncation. Keep the behaviour identical for the current 77.0 factor
       (a test proves it).
@@ -821,8 +821,10 @@ Read CLAUDE.md, docs/ROADMAP.md §3.6, §3.7, finding F1, docs/LAB_INTERFACE.md,
    explicit transition table; the inventory is sized from GET_INFO (never 14). Deployment (id,
    site name, lat/lon entered by hand, intake depth m, intake hose ID/length, operator, filter lot,
    shield lot, start/end). SamplingEvent (planned time, volume or none, replicates 1-3, role:
-   sample | equipment_blank). Filter (event, role, replicate index, slot, sample_id).
-2. sample_id format: <device>-<deployment>-<slot>-<yyyymmddThhmm> (or what LA1 decided); printed
+   sample | equipment_blank; LA1 proposes also field_blank and manual_sample, recorded by hand,
+   see LAB_INTERFACE.md E1, H1). Filter (event, role, replicate index, slot, sample_id).
+2. sample_id format: <device>-<deployment>-<slot>-<yyyymmddThhmm> (or what LA1 decided: LAB_INTERFACE.md
+   §4, E1; blanks and manual samples may use EB1/FB/MANn in place of the slot); printed
    labels (tools/labels.py -> a PDF or CSV for a label printer) from the same ids.
 3. cowas.store: SQLite, a repository layer, a schema version + migrations, one transaction per
    transition. At startup, IN_PROGRESS -> SUSPECT.
@@ -958,7 +960,8 @@ Each step has a checkbox and a "who" field.
 
 ```text
 Read CLAUDE.md, docs/ROADMAP.md §3.7, findings F4, F28, F29, docs/LAB_INTERFACE.md (target shield
-volume <x> mL, max residual water <y> mL), and the FW4 emptying-phase logs.
+volume <x> mL, max residual water <y> mL, retention limit, temperatures: its §4, B1-B5, D1), and the FW4
+emptying-phase logs.
 Goal: the numbers we need to trust each filter. We have a 0.01 g scale.
 1. A console procedure `shield_calibrate`: dispense the micro pump into a tared tube for T s, 3
    repeats at 2-3 durations -> mL/s (density ~1.0; ask me the product density if known) and the
@@ -994,7 +997,7 @@ instruments for: <spectrophotometer | conductivity meter | phone camera photomet
       B with the FW4 purge -> measure the dye in slot B's outlet water and its filter.
    c. Cross-talk: fill slots A with dye-shield-like liquid, rotate through all other slots with
       clear-water cycles -> check the neighbours of A and the slots the rotor passed over.
-   d. Optional with the lab: the same with a DNA spike (e.g. a species absent from the lake)
+   d. Optional with the lab (LAB_INTERFACE.md G3): the same with a DNA spike (e.g. a species absent from the lake)
       and qPCR on the following filter.
 2. tools/analyze_la4.py: the washout curve fit (exponential), the purge factor for a target
    carry-over, the cross-talk table; pytest on synthetic data.
@@ -1073,7 +1076,7 @@ Go/no-go rule: all tests 1-8 PASS; a FAIL on 9-10 needs a written workaround.
 
 ### 9.1 Pilot A (supervised, 1–2 days): VA2
 
-**Sampling plan** (14 slots; adjust with the lab):
+**Sampling plan** (14 slots; adjust with the lab: docs/LAB_INTERFACE.md K2, F1–F4):
 
 | Slot use | Count | When |
 |---|---|---|
@@ -1096,7 +1099,7 @@ Go/no-go rule: all tests 1-8 PASS; a FAIL on 9-10 needs a written workaround.
 - [ ] Export the CSV + the logs + test_logs → `data/pilots/A_<date>/`.
 - [ ] Debrief within 48 h: what failed, what to change for Pilot B (issues in GitHub).
 
-**Success criteria:** ≥ 12 of 14 cycles completed without a fault; blanks clean (lab); machine and manual samples give comparable detections (lab); no safety event.
+**Success criteria:** ≥ 12 of 14 cycles completed without a fault; blanks clean (lab); machine and manual samples give comparable detections (lab); no safety event. "Clean" and "comparable" are defined by the lab (LAB_INTERFACE.md F6, K1).
 
 ### 9.2 Pilot B (unattended, 1–2 weeks): VA3 + VA4
 
@@ -1132,7 +1135,7 @@ Specs, not brands. Check each part against your fittings, tube sizes and measure
 | 12 | **Intake kit** | 1 | Strainer (200–500 µm mesh), weight, 10 m hose (same ID as today, food-grade), rope; optional foot valve (helps priming; the purge handles the retained water) | HW6 |
 | 13 | Quick-disconnect fittings | 4 | Intake, outlet, purge | HW6 |
 | 14 | Splash-proof box IP54+ + shade cover | 1 | Pilot A | HW6 |
-| 15 | **Lab consumables** | — | Sterivex ≥ 40 (tests + pilot), DNA/RNA Shield (≥ 14 × target volume + ~100 mL for calibration), DNA-free water ≥ 5 L, luer caps for both ends, cryo labels, gloves, bleach, a cooler + ice packs | LA2–LA4, VA2 |
+| 15 | **Lab consumables** | — | Sterivex ≥ 40 (tests + pilot), DNA/RNA Shield (≥ 14 × target volume + ~100 mL for calibration), DNA-free water ≥ 5 L, luer caps for both ends, cryo labels (type: LAB_INTERFACE.md E2; Sterivex model: A3), gloves, bleach, a cooler + ice packs | LA2–LA4, VA2 |
 | 16 | **Test bench** | — | Scale 0.01 g (≥ 200 g), 1 L measuring cylinder, bucket, tube clamp or needle valve, food dye (+ a conductivity meter or photometer if available) | LA3, LA4, HW3 |
 | 17 | Spare Arduino Due | 1 | A bench board + a field spare | all |
 | 18 | O-ring spare sets | 3 | | HW7 |
