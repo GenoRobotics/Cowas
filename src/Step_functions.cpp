@@ -71,11 +71,65 @@ extern float read_pressure2(); // main.cpp - the pressure sensor currently backi
  * is only backed off right when actually leaving that slot. Use this instead of a
  * bare rotateMotor() for any slot change in the sampling/purge/DNA-shield sequence.
  */
-void goto_slot_locked(int slot)
+bool goto_slot_locked(int slot)
 {
-    unlock_oring(); // no-op if already unlocked
-    rotateMotor(slot);
-    lock_oring();
+    // FW2: each move can be refused (lock state UNKNOWN) or fail (encoder, timeout).
+    // Stop at the first failure: never lock and pump at the wrong slot.
+    if (!unlock_oring()) // no-op if already unlocked
+    {
+        return false;
+    }
+    if (!rotateMotor(slot))
+    {
+        output.println("ERROR | goto_slot_locked: rotation to slot " + String(slot) + " failed - O-ring left unlocked");
+        return false;
+    }
+    return lock_oring();
+}
+
+/**
+ * @brief FW2: gate for every procedure that needs the pressure reading (PID loops or the
+ * pump cap). While PRESSURE_SENSOR_AVAILABLE is false (F50: no sensor installed), it
+ * refuses with a clear message and the caller must not move anything.
+ */
+bool require_pressure_sensor(const char *who)
+{
+    if (PRESSURE_SENSOR_AVAILABLE)
+    {
+        return true;
+    }
+    output.println(String("REFUSED | ") + who + ": needs the pressure sensor (PRESSURE_SENSOR_AVAILABLE = false in Settings.h, F50). "
+                   "Use the sensorless test commands (leak_hold, multi_sample, shield_only) - `help`");
+    return false;
+}
+
+/**
+ * @brief FW2: what a procedure does when a step fails: pumps off, valves closed; the
+ * O-ring is left as it is (safe state, ROADMAP §3.2).
+ */
+static void stop_procedure(const char *who)
+{
+    pump.stop();
+    micro_pump.stop();
+    valve_1.set_close_way();
+    valve_manifold.set_close_way();
+    output.println(String("ERROR | ") + who + ": stopped - pumps off, valves closed, O-ring " + oring_lock_state_name());
+}
+
+/**
+ * @brief Like goto_slot_locked(), but with no motion at all when the O-ring is already
+ * locked at `slot` (encoder within ACTUATOR_HOME_SLOT_TOLERANCE_DEG). step_DNA_shield()
+ * runs right after step_sampling() locked the same slot; the old bare rotateMotor() there
+ * would now be refused while LOCKED.
+ */
+static bool ensure_locked_at_slot(int slot)
+{
+    float error;
+    if (is_oring_locked() && manifold_slot_error(slot, &error) && fabsf(error) <= ACTUATOR_HOME_SLOT_TOLERANCE_DEG)
+    {
+        return true;
+    }
+    return goto_slot_locked(slot);
 }
 
 /**
@@ -125,6 +179,10 @@ void step_dive(int _depth)
  */
 void step_fill_container()
 {
+    if (!require_pressure_sensor("step_fill_container"))
+    {
+        return;
+    }
     if (VERBOSE_FILL_CONTAINER)
     {
         output.println("Step fill container started");
@@ -217,8 +275,12 @@ void step_fill_container()
  * Can be stopped manually with buttons
  * @param stop_pressure if true, will stop purge when pressure is low enough
  */
-void step_purge(bool stop_pressure)
+bool step_purge(bool stop_pressure)
 {
+    if (!require_pressure_sensor("step_purge"))
+    {
+        return false;
+    }
     if (VERBOSE_PURGE)
     {
         output.println("Step purge started");
@@ -226,7 +288,11 @@ void step_purge(bool stop_pressure)
 
     // set the valves and manifold - flows through an open tube (no filter), but the
     // same rotary o-ring seal still needs to be locked for this slot before pumping
-    goto_slot_locked(PURGE_SLOT);
+    if (!goto_slot_locked(PURGE_SLOT))
+    {
+        stop_procedure("step_purge");
+        return false;
+    }
     valve_1.set_close_way();
     valve_manifold.set_open_way(); // enable connection to deployment
 
@@ -256,6 +322,7 @@ void step_purge(bool stop_pressure)
     {
         output.println("Step purge ended");
     }
+    return true;
 }
 
 /**
@@ -263,8 +330,12 @@ void step_purge(bool stop_pressure)
  *
  * @param slot_manifold The filter in which the sampling is made
  */
-void step_sampling(int slot_manifold, bool stop_pressure)
+bool step_sampling(int slot_manifold, bool stop_pressure, float volume_ml)
 {
+    if (!require_pressure_sensor("step_sampling"))
+    {
+        return false;
+    }
     if (VERBOSE_SAMPLE)
     {
         output.println("Step sample through filter started");
@@ -276,7 +347,11 @@ void step_sampling(int slot_manifold, bool stop_pressure)
     }
 
     // set the valves
-    goto_slot_locked(slot_manifold);
+    if (!goto_slot_locked(slot_manifold))
+    {
+        stop_procedure("step_sampling");
+        return false;
+    }
     valve_1.set_close_way();
     // * new setup, connection to deployment
     valve_manifold.set_open_way();
@@ -286,7 +361,7 @@ void step_sampling(int slot_manifold, bool stop_pressure)
     // sample certain amount
     // todo: detect when pressure is below certain threshhold == sterivex saturated
     CtrlPumpFlow ctrl_flow;
-    ctrl_flow.begin(&pump, &pump_pid, read_pressure2, &flow_sensor_small, STX_SAMPLE_MILLILITERS, 2, true);
+    ctrl_flow.begin(&pump, &pump_pid, read_pressure2, &flow_sensor_small, volume_ml, 2, true);
     ctrl_flow.set_max_runtime(3 * 60 * 1000); // in ms
 
     flow_sensor_small.reset_values();
@@ -309,7 +384,11 @@ void step_sampling(int slot_manifold, bool stop_pressure)
     valve_1.set_open_way(); // here we want to empty the system, to take air instead of water
     // ! need to change name
     valve_manifold.set_close_way(); // * closing connection to deployment
-    goto_slot_locked(PURGE_SLOT);   // unlocks (with pressure-settle wait) before leaving the filter, re-locks at purge
+    if (!goto_slot_locked(PURGE_SLOT)) // unlocks before leaving the filter, re-locks at purge
+    {
+        stop_procedure("step_sampling");
+        return false;
+    }
     if (VERBOSE_SAMPLE)
     {
         output.println("Step sample: emptying through purge");
@@ -317,7 +396,11 @@ void step_sampling(int slot_manifold, bool stop_pressure)
     ctrl_empty.run();
 
     // emptying the sterivex filter
-    goto_slot_locked(slot_manifold); // unlocks (with pressure-settle wait) before leaving purge, re-locks back at the filter
+    if (!goto_slot_locked(slot_manifold)) // unlocks before leaving purge, re-locks back at the filter
+    {
+        stop_procedure("step_sampling");
+        return false;
+    }
     if (VERBOSE_SAMPLE)
     {
         output.println("Step sample: emptying sterivex");
@@ -336,6 +419,7 @@ void step_sampling(int slot_manifold, bool stop_pressure)
     {
         output.println("Step sample through filter ended");
     }
+    return true;
 }
 
 /**
@@ -355,12 +439,28 @@ void step_sampling(int slot_manifold, bool stop_pressure)
  */
 bool load_slot(float volume_ml)
 {
+    if (!require_pressure_sensor("load_slot"))
+    {
+        return false;
+    }
     if (!lock_oring())
     {
         return false;
     }
 
-    // --- pump water through the filter ---
+    load_slot_water(volume_ml);
+    load_slot_air();
+    unlock_oring();
+    return true;
+}
+
+/**
+ * @brief The water phase of load_slot() (split out in FW2 so leak_hold can pause between
+ * the two phases, same code as before): pumps volume_ml through the CURRENT slot with the
+ * PID loop. The caller has locked the O-ring and checked require_pressure_sensor().
+ */
+void load_slot_water(float volume_ml)
+{
     valve_1.set_close_way();
     valve_manifold.set_open_way();
     delay(DELAY_ACTIONS);
@@ -373,8 +473,14 @@ bool load_slot(float volume_ml)
         output.println("load_slot: pumping water through the filter");
     }
     ctrl_flow.run();
+}
 
-    // --- pump air through to empty the filter ---
+/**
+ * @brief The air phase of load_slot(): pumps air through the CURRENT slot to empty the
+ * filter, then closes V1. Same preconditions as load_slot_water().
+ */
+void load_slot_air()
+{
     valve_1.set_open_way();         // take ambient air instead of water
     valve_manifold.set_close_way(); // close the deployment line
     delay(DELAY_ACTIONS);
@@ -391,8 +497,6 @@ bool load_slot(float volume_ml)
     ctrl_empty.run();
 
     valve_1.set_close_way();
-    unlock_oring();
-    return true;
 }
 
 /**
@@ -410,11 +514,15 @@ bool load_slot(float volume_ml)
  * left idle/rotatable, matching load_slot()'s postcondition.
  * @param slot_manifold the slot to load (must match wherever the manifold already is).
  */
-void load_slot_full(int slot_manifold)
+bool load_slot_full(int slot_manifold)
 {
-    step_sampling(slot_manifold);
-    step_DNA_shield(slot_manifold);
+    if (!require_pressure_sensor("load_slot_full"))
+    {
+        return false;
+    }
+    bool ok = step_sampling(slot_manifold) && step_DNA_shield(slot_manifold);
     unlock_oring();
+    return ok;
 }
 
 /**
@@ -466,8 +574,12 @@ void step_rewind()
 /**
  * @brief empties the deployment module and system, call at the end of sample
  */
-void step_empty()
+bool step_empty()
 {
+    if (!require_pressure_sensor("step_empty"))
+    {
+        return false;
+    }
 
     // pump from deployment
     valve_1.set_close_way();
@@ -475,7 +587,11 @@ void step_empty()
     delay(DELAY_ACTIONS);
 
     // do it through the purge slot, not the sterivex
-    goto_slot_locked(PURGE_SLOT);
+    if (!goto_slot_locked(PURGE_SLOT))
+    {
+        stop_procedure("step_empty");
+        return false;
+    }
 
     CtrlPumpNoWater pump_ctrl;
     pump_ctrl.begin(&pump, &pump_pid, read_pressure2, 2, false);
@@ -487,6 +603,7 @@ void step_empty()
     pump_ctrl.run();
 
     valve_manifold.set_close_way();
+    return true;
 }
 
 /**
@@ -497,6 +614,18 @@ void step_empty()
  */
 void sample_process(int depth, int manifold_slot)
 {
+    // FW2 (user-approved 2026-09-25): refuse before claiming a slot if anything the cycle
+    // needs is missing, and stop at the first failed step instead of carrying on.
+    if (!require_pressure_sensor("sample_process"))
+    {
+        return;
+    }
+    if (oring_lock_state() == core::LOCK_STATE_UNKNOWN)
+    {
+        output.println("REFUSED | sample_process: O-ring lock state is UNKNOWN - run actuator_home first");
+        return;
+    }
+
     // Verify if available filter
     bool filter_available = false;
     if (manifold_slot == -1)
@@ -548,17 +677,32 @@ void sample_process(int depth, int manifold_slot)
     Serial.println("Should dive to depth " + String(depth) + "cm, but is temporarly disabled");
 
     delay(DELAY_ACTIONS);
-    step_purge(); // maybe add param to tell how many miliL
+    if (!step_purge()) // maybe add param to tell how many miliL
+    {
+        output.println("ERROR | sample_process: purge failed - cycle stopped, slot " + String(manifold_slot) + " stays marked used");
+        set_system_state(state_error);
+        return;
+    }
 
     delay(DELAY_ACTIONS);
-    step_sampling(manifold_slot); // sample place is a human number, start at 1
+    if (!step_sampling(manifold_slot)) // sample place is a human number, start at 1
+    {
+        output.println("ERROR | sample_process: sampling failed - cycle stopped, slot " + String(manifold_slot) + " is suspect");
+        set_system_state(state_error);
+        return;
+    }
 
     delay(DELAY_ACTIONS);
     step_rewind();
 
     // adding DNA-shield to sterivex
     delay(DELAY_ACTIONS);
-    step_DNA_shield(manifold_slot);
+    if (!step_DNA_shield(manifold_slot))
+    {
+        output.println("ERROR | sample_process: DNA shield failed - cycle stopped, slot " + String(manifold_slot) + " is suspect");
+        set_system_state(state_error);
+        return;
+    }
 
     // emptying system
     if (VERBOSE_SAMPLE)
@@ -566,7 +710,12 @@ void sample_process(int depth, int manifold_slot)
         output.println("Last step: emptying system from water");
     }
     delay(DELAY_ACTIONS);
-    step_empty();
+    if (!step_empty())
+    {
+        output.println("ERROR | sample_process: emptying failed - cycle stopped (the filter itself is done)");
+        set_system_state(state_error);
+        return;
+    }
 
     // rest state: don't leave the o-ring compressed once the whole cycle is done
     unlock_oring();
@@ -584,6 +733,16 @@ void sample_process(int depth, int manifold_slot)
 
 void demo_sample_process()
 {
+    if (!require_pressure_sensor("demo_sample_process"))
+    {
+        return;
+    }
+    if (oring_lock_state() == core::LOCK_STATE_UNKNOWN)
+    {
+        output.println("REFUSED | demo_sample_process: O-ring lock state is UNKNOWN - run actuator_home first");
+        return;
+    }
+
     // Verify if available filter
     bool filter_available = false;
     int manifold_slot = 0;
@@ -624,19 +783,30 @@ void demo_sample_process()
     button_start.waitPressedAndReleased();
 
     status_led.on(); // ?
-    step_purge();
+    bool ok = step_purge();
     status_led.off(); // ?
 
-    button_start.waitPressedAndReleased();
+    if (ok)
+    {
+        button_start.waitPressedAndReleased();
+        status_led.on();                   // ?
+        ok = step_sampling(manifold_slot); // sample place is a human number, start at 1
+        status_led.off();                  // ?
+    }
 
-    status_led.on();              // ?
-    step_sampling(manifold_slot); // sample place is a human number, start at 1
-    status_led.off();             // ?
+    if (ok)
+    {
+        button_start.waitPressedAndReleased();
+        status_led.on(); // ?
+        ok = step_DNA_shield(manifold_slot);
+        status_led.off(); // ?
+    }
 
-    button_start.waitPressedAndReleased();
-    status_led.on(); // ?
-    step_DNA_shield(manifold_slot);
-    status_led.off(); // ?
+    if (!ok)
+    {
+        output.println("ERROR | demo_sample_process: a step failed - demo stopped");
+        return;
+    }
 
     // empty deployment module
     // button_start.waitPressedAndReleased();
@@ -656,18 +826,24 @@ void demo_sample_process()
     valve_manifold.set_close_way();
 }
 
-void step_DNA_shield(int slot_manifold)
+bool step_DNA_shield(int slot_manifold)
 {
+    if (!require_pressure_sensor("step_DNA_shield")) // the air push uses the big pump (cap)
+    {
+        return false;
+    }
     if (VERBOSE_SHIELD)
     {
         output.println("Step DNA-shield started");
     }
 
-    // go to right slot - NOT wrapped with goto_slot_locked(): step_sampling() already
-    // leaves the o-ring locked at this exact slot, so this rotateMotor() is normally a
-    // no-op (encoder is already at the target angle). If this function is ever called
-    // standalone/out of that sequence, lock_oring() first.
-    rotateMotor(slot_manifold);
+    // go to right slot: step_sampling() normally leaves the o-ring locked at this exact
+    // slot, so this does not move anything. Called standalone, it unlocks, rotates, locks.
+    if (!ensure_locked_at_slot(slot_manifold))
+    {
+        stop_procedure("step_DNA_shield");
+        return false;
+    }
 
     micro_pump.start(FILL_STERIVEX_TIME / 10.); // ! remove /100, only to be faster for testing
 
@@ -684,7 +860,11 @@ void step_DNA_shield(int slot_manifold)
     delay(500);
 
     // avoid suction of shield when opening valves
-    goto_slot_locked(PURGE_SLOT); // unlocks (with pressure-settle wait) before leaving the filter, re-locks at purge
+    if (!goto_slot_locked(PURGE_SLOT)) // unlocks before leaving the filter, re-locks at purge
+    {
+        stop_procedure("step_DNA_shield");
+        return false;
+    }
 
     valve_1.set_close_way();
 
@@ -692,6 +872,7 @@ void step_DNA_shield(int slot_manifold)
     {
         output.println("Step DNA-shield finished");
     }
+    return true;
 }
 
 void DNA_shield_test(int slot_manifold)
@@ -704,19 +885,35 @@ void DNA_shield_test(int slot_manifold)
     }
 
     // go to right slot
-    rotateMotor(slot_manifold);
+    if (!rotateMotor(slot_manifold))
+    {
+        return;
+    }
 
     micro_pump.start(FILL_STERIVEX_TIME);
 }
 
 void abort_sample()
 {
+    if (!require_pressure_sensor("abort_sample"))
+    {
+        stop_procedure("abort_sample"); // what can be done without pumping
+        return;
+    }
     // emptying container
-    step_purge();
+    if (!step_purge())
+    {
+        output.println("ERROR | abort_sample: purge failed - abort stopped");
+        return;
+    }
     // rewinding hose
     step_rewind();
     // emptying the deplyoment module
-    step_empty();
+    if (!step_empty())
+    {
+        output.println("ERROR | abort_sample: emptying failed - abort stopped");
+        return;
+    }
 
     // rest state: make sure an abort never leaves the o-ring compressed
     unlock_oring();

@@ -45,6 +45,10 @@ public:
     // refuse to exceed, no matter which code path is calling them. Call once, in
     // setup(). Pass nullptr to disable the cap (e.g. if no sensor is trustworthy).
     void set_pressure_safety(PressureReadFn read_fn, float max_pressure_bar);
+    // FW2: what is registered, so the sensorless test helper (src/Test_openloop.cpp, the
+    // ONLY code that detaches the cap) can put back exactly what setup() registered.
+    PressureReadFn get_pressure_safety_fn() { return safety_pressure_read_fn_; }
+    float get_pressure_safety_cap() { return safety_max_pressure_; }
     // Reads the registered sensor and force-stops the pump if it's over the cap.
     // Always does the sensor read when called (used internally by set_power()/
     // start() to decide whether to (re-)energize at all, even from a stopped

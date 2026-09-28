@@ -43,8 +43,17 @@ int slot_for_clock_minutes(const int *raw_of_slot, int nb_slots, int minutes,
                            int raw_positions, bool raw_index_increases_cw);
 
 // Maps an encoder angle (may be beyond 0..360 after several turns) to [-180, 180),
-// measured from the reference and shifted by half a slot pitch.
+// measured from the reference and shifted by half a slot pitch. NaN for a non-finite input.
 float scale_angle(float angle, float reference_angle_deg, float slot_pitch_deg);
+const int SCALE_ANGLE_MAX_TURNS = 1024; // bit-exact +/- 360 steps up to here, fmod() beyond
+
+// Signed shortest difference a - b, in [-180, 180). NaN if either is NaN.
+float angle_diff_deg(float a, float b);
+
+// The slot whose angle (the table of build_slot_angle_table()) is closest to angle_deg,
+// and the signed error angle_deg - angles[slot] in *error_deg (may be 0). Returns -1 (and
+// NaN) if nb_slots < 1 or angle_deg is NaN.
+int nearest_slot(const float *angles, int nb_slots, float angle_deg, float *error_deg);
 
 } // namespace core
 

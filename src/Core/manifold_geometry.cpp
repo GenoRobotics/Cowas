@@ -94,23 +94,75 @@ float scale_angle(float angle, float reference_angle_deg, float slot_pitch_deg)
     // same double value, so the result is bit-identical.
     float new_angle = angle - reference_angle_deg + 0.5 * slot_pitch_deg;
 
-    // Unbounded, exactly like the original: its `loop_nb < 3` guard was never
-    // incremented. Terminates for any finite angle (NaN exits at once); +/-inf would
-    // loop forever. Not reachable from the encoder path. Kept as is in FW0 (no
-    // behaviour change); see the FW0 report.
-    while (new_angle < -180 || new_angle >= 180)
+    // F46 (fixed in FW2): the original loop was unbounded (its `loop_nb < 3` guard was
+    // never incremented), so +/-inf, or a finite value so large that -= 360 no longer
+    // changes it, looped forever. The same +/- 360 steps run first, so every input within
+    // SCALE_ANGLE_MAX_TURNS turns gives the same bits as before (golden tests); beyond
+    // that, fmod() finishes the job, and a non-finite input returns NaN.
+    if (!isfinite(new_angle))
+    {
+        return NAN;
+    }
+    for (int turns = 0; turns < SCALE_ANGLE_MAX_TURNS; turns++)
     {
         if (new_angle < -180)
         {
             new_angle += 360.0;
         }
-        else
+        else if (new_angle >= 180)
         {
             new_angle -= 360.0;
         }
+        else
+        {
+            return new_angle;
+        }
     }
+    double reduced = fmod((double)new_angle + 180.0, 360.0);
+    if (reduced < 0)
+    {
+        reduced += 360.0;
+    }
+    new_angle = (float)(reduced - 180.0);
+    return new_angle >= 180 ? -180.0f : new_angle; // float rounding can land exactly on 180
+}
 
-    return new_angle;
+float angle_diff_deg(float a, float b)
+{
+    double d = fmod((double)a - (double)b, 360.0); // (-360, 360), NaN stays NaN
+    if (d >= 180.0)
+    {
+        d -= 360.0;
+    }
+    else if (d < -180.0)
+    {
+        d += 360.0;
+    }
+    return (float)d;
+}
+
+int nearest_slot(const float *angles, int nb_slots, float angle_deg, float *error_deg)
+{
+    int best = -1;
+    float best_error = NAN;
+    for (int i = 0; i < nb_slots; i++)
+    {
+        float e = angle_diff_deg(angle_deg, angles[i]);
+        if (e != e)
+        {
+            continue; // NaN
+        }
+        if (best < 0 || fabsf(e) < fabsf(best_error))
+        {
+            best = i;
+            best_error = e;
+        }
+    }
+    if (error_deg)
+    {
+        *error_deg = best_error;
+    }
+    return best;
 }
 
 } // namespace core

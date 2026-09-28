@@ -205,6 +205,31 @@ const uint16_t LINEAR_ACT_CAL_STEPS_PER_SEC = 30;  // ~30 sec/revolution - delib
 const float TEST_SAMPLE_VOLUME_ML = 500.0;       // 0.5L, target volume for the single-sample pump-through test
 const float TEST_MULTI_SAMPLE_VOLUME_ML = 50.0;  // small per-slot volume for the multi-sample joint-leak/order test (test_multi_sample_loading()) - just enough to see every joint wet, not a real sample
 
+// ============ FW2: PRESSURE SENSOR GATE, TEST SUITE ============
+// Is a trusted pressure sensor backing the pump cap and the PID loops? false today: no
+// sensor is installed (F50), the cap reads a floating pin. While false, every procedure
+// that needs pressure (the step_* functions, sample_process, load_slot*, pump, the panel
+// pump mode, calibrate_flow, cal_DNA, purge_pipes) REFUSES with a message; pumping is only
+// possible through the sensorless test mode below. Set true only after FW3 + HW4, once
+// the cap trips on the bench (docs/TESTS_PENDING.md).
+const bool PRESSURE_SENSOR_AVAILABLE = false;
+
+// Sensorless pump test mode (F17; ROADMAP §6 rule 4 exception): pump_open_loop_test() in
+// src/Test_openloop.cpp, reached only from the FW2 test commands, after typing NOSENSOR.
+const uint8_t TEST_OPENLOOP_MAX_POWER = 30;         // % - PLACEHOLDER (user, 2026-09-25): every open-loop request is clamped to this
+const uint32_t TEST_OPENLOOP_MAX_MS_LIMIT = 120000; // ms - hard limit of one open-loop run, whatever is asked
+const uint32_t TEST_OPENLOOP_NO_FLOW_MS = 5000;     // ms - stop when the flowmeter gives no pulse for this long
+const uint32_t TEST_OPENLOOP_WATER_MAX_MS = 60000;  // ms - default time limit of a water phase (volume normally stops it first)
+const uint32_t TEST_OPENLOOP_AIR_PUSH_MS = 10000;   // ms - PLACEHOLDER: sensorless air push (the production one is ~5 s in practice, F28)
+
+// O-ring lock tri-state (F18) and the rotation tests
+const float ACTUATOR_HOME_SLOT_TOLERANCE_DEG = 3.0; // deg - PLACEHOLDER (user, 2026-09-25): actuator_home (and any lock at the current slot) needs the encoder this close to a slot
+const float TEST_ROTATE_MAX_ERROR_DEG = 1.0;        // deg - rotate_all / encoder_repeat PASS: |encoder error| below this
+const float TEST_ENCODER_MAX_SPREAD_DEG = 0.5;      // deg - encoder_repeat PASS: max - min of the arrival angles below this
+const uint32_t TEST_ROTATE_SETTLE_MS = 500;         // ms - wait after a rotation before reading the encoder (coast)
+const uint16_t TEST_LOCK_HOLD_S = 3;                // s - rotate_all: how long each slot stays locked (hold=N)
+const float TEST_LEAK_HOLD_DEFAULT_ML = 50.0;       // mL - leak_hold default water volume ("small volume")
+
 // O-ring lock/unlock, linear actuator (NEMA17 + A4988). The force sensor (FSR) that
 // used to detect contact was removed - readings were unreliable in practice - so
 // this is now fully open-loop/dead-reckoning: lock_oring()/unlock_oring() (Oring_lock.cpp)

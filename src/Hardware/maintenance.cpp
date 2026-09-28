@@ -52,6 +52,9 @@ void run_pump(uint32_t max_time);
 
 
 void purge_pipes_manifold(){
+    if (!require_pressure_sensor("purge_pipes_manifold")){
+        return;
+    }
     Serial.println("Ready to start purge of manifold pipes, please press start button");
 
     button_start.waitPressedAndReleased();
@@ -68,7 +71,13 @@ void purge_pipes_manifold(){
         // valve_23.set_I_way();
         // run_pump(MAINT_FILL_TIME);
 
-        rotateMotor(slot);
+        if (!rotateMotor(slot)){ // FW2: refused (lock state) or failed -> stop, never pump at the wrong slot
+            pump.stop();
+            valve_manifold.set_close_way();
+            valve_1.set_close_way();
+            output.println("ERROR | purge_pipes_manifold: rotation to slot " + String(slot) + " failed - stopped");
+            return;
+        }
         delay(500);
 
         valve_23.set_L_way();
@@ -91,7 +100,12 @@ void purge_pipes_manifold(){
 }
 
 void calibrate_DNA_pump(){
-    rotateMotor(1);
+    if (!require_pressure_sensor("cal_DNA")){ // runs the big pump (cap)
+        return;
+    }
+    if (!rotateMotor(1)){ // FW2: refused (lock state) or failed -> nothing else runs
+        return;
+    }
     DNA_state state = fill;
     uint32_t time_micro_pump = 0;
     uint32_t time_big_pump = 0;

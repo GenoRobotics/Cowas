@@ -6,6 +6,11 @@
 
 void test_all_components();
 
+// Serial keypress helpers (Tests.cpp), shared with the FW2 suite (Tests_mech.cpp)
+char real_keypress_waiting();       // non-blocking: the key, or 0 (a lone CR/LF is ignored)
+char wait_for_keypress();           // blocking; keeps the pump cap alive while waiting
+bool wait_for_keypress_or_abort();  // blocking; true for 'x'/'X'
+
 void test_valves();
 void test_motor_spool();
 void test_pump();

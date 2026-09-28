@@ -30,6 +30,7 @@
 #include "Linear_actuator.h"
 #include "Flow_sensor.h"
 #include "Oring_lock.h"
+#include "Tests_mech.h"
 
 extern int manifold_slot;
 extern C_output output;
@@ -88,13 +89,24 @@ void test_all_components()
             // test_command = Serial.readStringUntil('b');
             Serial.println(test_command);
 
+            // FW2 test suite (Tests_mech.cpp): help, actuator_home, lock_cycle, rotate_all, ...
+            // Handles its own commands (including the extended multi_sample) and skips the rest.
+            if (mech_tests_dispatch(test_command))
+            {
+                continue;
+            }
+
             if (test_command == "abort")
             {
                 Serial.println("Abort: empty container, rewind and empty deplyoment");
                 abort_sample();
             }
 
-            if (test_command == "temp")
+            if (test_command == "temp" && !core::may_rotate(oring_lock_state()))
+            {
+                output.println(String("REFUSED | temp: O-ring lock state is ") + oring_lock_state_name() + " - the manifold must not rotate");
+            }
+            else if (test_command == "temp")
             { // quick debugging, change this function
                 while (true)
                 {
@@ -276,9 +288,21 @@ void test_all_components()
             // minute label (top = 00). clocklist: print every slot's label to look one up.
             if (test_command.startsWith("clock") && test_command != "clocklist")
             {
-                int requested_minutes = test_command.substring(5).toInt();
-                int slot = slot_for_clock_minutes(requested_minutes);
-                if (slot < 0)
+                // F38 (FW2): a bare `clock` or `clockxx` used to parse as minute 0 and rotate to slot 7
+                String digits = test_command.substring(5);
+                digits.trim();
+                bool numeric = digits.length() > 0 && digits.length() <= 2;
+                for (unsigned int k = 0; k < digits.length(); k++)
+                {
+                    numeric = numeric && isDigit(digits.charAt(k));
+                }
+                int requested_minutes = numeric ? digits.toInt() : -1;
+                int slot = numeric ? slot_for_clock_minutes(requested_minutes) : -1;
+                if (!numeric)
+                {
+                    output.println("Usage: clockMM, MM = the clock minute label of a slot (e.g. clock15) - send 'clocklist' to see all labels");
+                }
+                else if (slot < 0)
                 {
                     output.println("No slot at clock " + String(requested_minutes) + " min - send 'clocklist' to see all labels");
                 }
@@ -777,9 +801,15 @@ void test_manifold()
 
     for (int j = 1; j < 15; j++)
     {
-        rotateMotor(0);
+        if (!rotateMotor(0))
+        {
+            return; // FW2: refused (lock state) or failed - stop instead of printing 14 bad lines
+        }
         delay(1000);
-        rotateMotor(j);
+        if (!rotateMotor(j))
+        {
+            return;
+        }
 
         pos = getPositionSPI(ENCODER_MANIFOLD, RES12);
         angle_deg = pos * encoder_to_deg;
@@ -806,6 +836,10 @@ const uint32_t PRESSURE_PRINT_INTERVAL_MS = 3000;
  */
 void test_pump()
 {
+    if (!require_pressure_sensor("pump"))
+    {
+        return;
+    }
     output.println("Pump power percentage (1-100)?");
     long power;
     while (true)
@@ -1053,6 +1087,7 @@ void test_linear_actuator()
             output.println(command == 'f' ? "Jogging forward, 1 turn max, send any key to abort" : "Jogging backward, 1 turn max, send any key to abort");
 
             char abort_char = 0;
+            oring_mark_unknown("linear_actuator jog"); // FW2: a manual move the lock code did not make
             bool aborted = jog_actuator_steps(LINEAR_ACT_STEPS_PER_REV, dir, &abort_char);
             if (aborted)
             {
@@ -1314,6 +1349,7 @@ void calibrate_linear_actuator()
 
     linear_actuator.enable();
     linear_actuator.set_speed(LINEAR_ACT_CAL_STEPS_PER_SEC); // deliberately slower than normal operation - see Settings.h
+    oring_mark_unknown("calibrate_actuator"); // FW2: it ends at the stall (physically locked) or wherever it was aborted
 
     // --- Stage 1: find and mark the UNLOCKED reference position ---
     output.println("Jog the actuator to the UNLOCKED (fully retracted / o-ring released) reference position:");
@@ -1383,6 +1419,10 @@ bool ask_yes_no(const char *prompt)
  */
 void calibrate_flow_sensor()
 {
+    if (!require_pressure_sensor("calibrate_flow"))
+    {
+        return;
+    }
     output.println("=== Flow sensor calibration ===");
     output.println("Enter a target volume to pump in mL (e.g. 2000), 0 for the default 2000 mL, or 'x' to abort:");
     if (numeric_prompt_aborted())
@@ -1565,6 +1605,11 @@ void calibrate_dna_pump_volume()
  */
 void identify_manifold_direction()
 {
+    if (!core::may_rotate(oring_lock_state()))
+    {
+        output.println(String("REFUSED | manifold_direction: O-ring lock state is ") + oring_lock_state_name() + " - the manifold must not rotate");
+        return;
+    }
     output.println("=== Manifold direction identification ===");
     output.println("Send any key to rotate the manifold a small amount (it will return afterward), or 'x' to abort.");
     if (wait_for_keypress_or_abort())
@@ -1805,6 +1850,11 @@ void test_encoder()
     uint16_t pos;
     float angle_deg;
 
+    if (!core::may_rotate(oring_lock_state()))
+    {
+        output.println(String("REFUSED | encoder_manifold: O-ring lock state is ") + oring_lock_state_name() + " - the manifold must not rotate");
+        return;
+    }
     manifold_motor.start(30, down);
 
     while (!Serial.available())
@@ -1840,20 +1890,47 @@ void test_encoder_spool()
 
 void go_to_zero()
 {
+    // FW2 (F43): refuses unless the O-ring is known unlocked, stops on the rotation
+    // timeout and on repeated encoder failures (it used to spin forever).
+    if (!core::may_rotate(oring_lock_state()))
+    {
+        output.println(String("REFUSED | zero: O-ring lock state is ") + oring_lock_state_name() + " - the manifold must not rotate");
+        return;
+    }
     Serial.println("Going to zero manifold");
     // SETUP//
     bool end_rotation = false;
     float angle_to_reach = 0;
+    uint32_t start = millis();
+    uint8_t consecutive_failures = 0;
 
-    // readEncoder(true);
-    // readEncoder(false);
     float current_angle;
 
     manifold_motor.start(40, down);
     // ROTATE//
     while (end_rotation == false)
     {
-        current_angle = getPositionSPI(ENCODER_MANIFOLD, RES12) * encoder_to_deg;
+        uint16_t pos = getPositionSPI(ENCODER_MANIFOLD, RES12);
+        if (pos == 0xFFFF)
+        {
+            if (++consecutive_failures >= MANIFOLD_ENCODER_MAX_CONSECUTIVE_FAILURES)
+            {
+                manifold_motor.stop();
+                output.println("ERROR | zero: aborted - lost the encoder (too many consecutive bad reads). Motor stopped.");
+                return;
+            }
+            delay(1);
+            continue;
+        }
+        consecutive_failures = 0;
+        current_angle = pos * encoder_to_deg;
+
+        if (millis() - start > MANIFOLD_ROTATE_TIMEOUT_MS)
+        {
+            manifold_motor.stop();
+            output.println("ERROR | zero: aborted - timed out before reaching 0 deg. Motor stopped.");
+            return;
+        }
 
         if (VERBOSE_MANIFOLD)
         {
