@@ -796,6 +796,8 @@ home switch; a water-temperature reading vs a reference thermometer (within 0.5 
 
 #### HO1: Host skeleton, protocol client, simulator, CLI (P0)
 
+Aldready ran before
+
 ```text
 Read CLAUDE.md, docs/ROADMAP.md §3.1, §3.4, §5, docs/PROTOCOL.md, protocol/vectors.json, and
 computer_interface/ (legacy; do not modify it, findings F9 and F24 explain why it is replaced).
@@ -917,6 +919,8 @@ These prompts produce documents, tools and analysis scripts. The lab work itself
 
 #### LA1: Lab alignment (P0, week 1)
 
+This was run before.
+
 ```text
 Read docs/ROADMAP.md §3.6, §3.7. Draft docs/LAB_INTERFACE.md as a meeting template with the lab
 <lab name, contact>, with an empty "answer" column that we fill in during the meeting:
@@ -930,7 +934,7 @@ Read docs/ROADMAP.md §3.6, §3.7. Draft docs/LAB_INTERFACE.md as a meeting temp
 - labelling: the sample_id format, label type (freezer- and ethanol-proof), who prints them;
 - blanks: equipment blanks per deployment (proposal: start + end), field blank, extraction
   blanks, PCR negatives; the DNA-free water source for equipment blanks;
-- positive control policy (later: automated; now: none, or a lab mock community?);
+- positive control policy (later: automated; now: none, or a lab mock community?HW1 );
 - the metadata columns the lab needs and their names (start from ROADMAP §3.6), units, formats;
 - chain of custody (who hands over what, a form);
 - the markers/assays planned (e.g. 12S fish, COI, 16S) -> do they change the volume target?
@@ -940,6 +944,8 @@ Also add a one-page "Sterivex handling in CoWaS" summary for the lab.
 ```
 
 #### LA2: SOPs: filter loading/unloading, cleaning, labels, chain of custody (P0)
+
+This was run before.
 
 ```text
 Read docs/ROADMAP.md §3.7, docs/LAB_INTERFACE.md (filled in), docs/COMMANDS.md.
@@ -960,6 +966,8 @@ Each step has a checkbox and a "who" field.
 ```
 
 #### LA3: Shield volume, residual water, shield retention (P0)
+
+This was run before.
 
 ```text
 Read CLAUDE.md, docs/ROADMAP.md §3.7, findings F4, F28, F29, docs/LAB_INTERFACE.md (target shield
@@ -986,6 +994,8 @@ Goal: the numbers we need to trust each filter. We have a 0.01 g scale.
 
 #### LA4: Carry-over and slot cross-talk (P0)
 
+This was run before.
+
 ```text
 Read CLAUDE.md, docs/ROADMAP.md §3.7, findings F29, F30, and HW6 (intake hose ID/length).
 Goal: prove that a sample doesn't contain the previous one, and that slots don't leak into each
@@ -1008,6 +1018,8 @@ instruments for: <spectrophotometer | conductivity meter | phone camera photomet
 ```
 
 ### 8.4 Hardware / field track (with Claude's help)
+
+Part 1 and 2 already ran before
 
 #### HW1: Electrical audit (P0, week 1) — prompt
 
