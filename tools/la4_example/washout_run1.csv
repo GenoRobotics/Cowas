@@ -1,0 +1,27 @@
+# SYNTHETIC example data (plug 80 mL + mixer 40 mL, 20 g/L NaCl stock read in uS/cm). Replace with your measurements.
+# one row per collected cup, in order; volume_ml (or mass_g) of the cup, reading of the cup
+volume_ml,reading
+25.0,20005
+25.0,20005
+25.0,20005
+25.0,16596
+25.0,9025.1
+25.0,4833.11
+25.0,2589.3
+25.0,1388.28
+25.0,745.415
+25.0,401.316
+25.0,217.132
+25.0,118.546
+25.0,65.777
+25.0,37.5316
+25.0,22.4129
+25.0,14.3205
+25.0,9.98888
+25.0,7.67035
+25.0,6.42934
+25.0,5.76507
+25.0,5.40951
+25.0,5.2192
+25.0,5.11733
+25.0,5.0628

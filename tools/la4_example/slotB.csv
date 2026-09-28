@@ -1,0 +1,8 @@
+# SYNTHETIC example data (plug 80 mL + mixer 40 mL, 20 g/L NaCl stock read in uS/cm). Replace with your measurements.
+# kind = outlet (cups in order, first ones small) or eluate (filter rinse)
+kind,volume_ml,reading
+outlet,50,9
+outlet,50,5.6
+outlet,50,5
+outlet,50,5
+eluate,10,5

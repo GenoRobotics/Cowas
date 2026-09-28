@@ -228,3 +228,36 @@ New findings get the next free ID after ROADMAP §4 (F37, F38, ...). **When step
 | F80 | The Shield's air push is `PUMP_SHIELD_POWER = 13 %` for `PUMP_SHIELD_TIME = 300 ms`. With the DAC offset (F25) and the pump's spin-up, it's unverified that this moves any air at all, so the Shield may stay in the manifold passage (and then go to the purge on the next rotation, not into the filter). | `Settings.h:32-33`, `step_DNA_shield()` | Medium (data quality) | LA3 Part C measures the dose reaching the filter; FW4 | open |
 | F81 | There is no Shield prime anywhere: the first sample of a deployment (and the first after a bottle change) loses the volume of the Shield tube, which can be as large as the whole dose (1 m of 1.6 mm ID = 2 mL). | `step_DNA_shield()`, `sample_process()` | High (data quality) | FW7 (`PRIME_SHIELD`, LA3_PROTOCOL §5.4) | open |
 | F82 | `micro_pump` (10 s) and `calibrate_dna_volume` (operator-typed duration, not bounded) run the micro pump with `delay()`: no key stops them. `shield_calibrate` doesn't have this problem. | `Tests.cpp:300`, `Tests.cpp` `calibrate_dna_pump_volume()` | Low | FW5 (`wait_ms()`) | open |
+## LA4: Carry-over and slot cross-talk (IN PROGRESS, paused 2026-09-28)
+
+**Branch:** `la4-carryover` in the worktree `../Cowas-la4`, from `18db617` (FW1 + LA1; `cowas-v2` doesn't have them yet) · **Finding IDs for this step:** F80–F89 · **Status:** analysis tool done; the protocol document is **not written yet**; nothing is committed (the files are untracked in the worktree: **commit or copy them before removing the worktree or merging folders**).
+
+**Done:**
+- `tools/analyze_la4.py` (stdlib only, Python ≥ 3.8): calibration from a dilution series (piecewise-linear, blanks → LOD 3σ / LOQ 10σ), `washout` (test a: line volume = area under the curve, exponential fit, early-vs-late tailing check, conservative purge for the target, model-free purge, `INTERNAL_DEAD_VOLUME_ML` and `PURGE_DEAD_VOLUME_FACTOR` recommendation = max needed factor × 1.2 rounded up to 0.5), `carryover` (test b: outlet cups + filter eluate, PASS/FAIL/INCONCLUSIVE with an LOD upper bound), `crosstalk` (test c: fraction of the source found per slot, neighbours from the `clocklist` minutes, no hard-coded slot count, `passed_over`, controls). Optional `dilution` columns for out-of-range cups.
+- `tools/tests/test_analyze_la4.py`: 47 pytest tests on synthetic data, all passing (run with `python -m pytest tools/tests`; used HO1's `host/.venv` interpreter because this laptop has no system Python). Ruff: only `B905` (needs 3.10) and a few long lines left.
+- `tools/la4_example/*.csv`: **synthetic** example files (the CSV formats for the team).
+
+**Still to do (the ROADMAP LA4 prompt):**
+1. `docs/LA4_PROTOCOL.md` (not started). Design decided so far:
+   - Tracer: **20 g/L NaCl + blue food dye (E133)** in demineralised water. Conductivity (a pen, ATC) gives the numbers, and the dye makes leaks and stained membranes visible. A spectrophotometer (630 nm) is optional if the lab lends one. Standards are made by mass on the 0.01 g scale (1, 0.1, 0.01, 1e-3, 1e-4 + 3 blanks) at every session. Rinse the machine with ≥ 2 L of fresh water afterwards.
+   - Test a (washout) **can run before FW4 and should**, so FW4 gets a measured `INTERNAL_DEAD_VOLUME_ML`. It pumps through the purge slot 0 with an open outlet (no filter), supervised (F50). Lock by hand (`linear_actuator`) before FW4, then `pump` at low power. Stop-and-go is allowed. Cups: 25 mL up to 500 mL, then 50, then 100 mL, until 3 cups are below the LOQ. Run 3 times, with the HW6 hose if it's ready (else a bench hose whose volume is known by weighing).
+   - Tests b and c pump through Sterivex filters: **blocked by FW3 + HW4 (the cap) and FW4** (purge formula; FW2 `full_cycle`). Test b: dyed cycle on A, then a clear cycle on B with the FW4 purge, 500 mL (smaller = conservative). B's outlet goes in cups (4 × 25 mL, 100 mL, rest pooled), plus a 10 mL syringe eluate of B's filter; 3 A/B pairs. Optional b2: tracer in the micro-pump reservoir (shield path, F81).
+   - Test c: load the source (≈ 100 g/L NaCl + dye, its own standards) into A by syringe, with the production shield volume. Hold ≥ 24 h locked at rest, then run short clear cycles (≈ 100 mL) on the other slots. **Sensitivity rule: (measured volume per slot × LOD) < target × source volume.** A 500 mL outlet with a 2 mL source can't prove 0.1 % (a pytest pins this). The first slot after A must be far from A, so that common-path carry-over is told apart from neighbour leakage. Record `passed_over`. Finish with photos of the membranes and a wipe of the manifold face.
+   - Test d (qPCR spike) only with the lab (LAB_INTERFACE G3).
+2. Recommendations (§3 of the prompt): **`PURGE_DEAD_VOLUME_FACTOR`: provisional 5, not 3 (F80)**, final value from test a. `INTERNAL_DEAD_VOLUME_ML`: the test a result (PLACEHOLDER until then). **Bleach flush:** not for Pilot A. For Pilot B, decide from the data: b/c pass, test d (if done), and a clean end-of-Pilot-A equipment blank → no flush (P2 stays P2); otherwise promote it (thiosulfate neutralisation + rinse needed, or it destroys the next sample's DNA). Consider a mid-deployment equipment blank at the day 3–4 visit.
+3. `docs/TESTS_PENDING.md`: rows for LA4 a (blocked by buying the tracer and meter; the pump may refuse to start, F17), b/c (FW3 + HW4, FW4, HW6), d (the lab).
+4. ROADMAP §11.1 #16: add a conductivity pen, NaCl, demineralised water ≈ 10 L, ≈ 40 numbered cups, 10 mL syringes.
+5. CI: `tools/tests` is not run by CI yet (only `pytest host/`). Add a job, or include it in the host job.
+
+**Open questions for the user (unanswered on 2026-09-28):**
+- Which instrument is available (conductivity pen / spectrophotometer / phone)? The user didn't know what a tracer is; it was explained (a harmless substance, salt or dye, added to the test water, not firmware). The plan above assumes buying a cheap conductivity pen.
+- Update the FW4 prompt's `PURGE_DEAD_VOLUME_FACTOR = 3` to 5 provisionally (F80)? Not edited, as it waits for the user.
+- The field hose (HW6): placeholders 6 mm ID × 5 m (ROADMAP §3.7 example) until HW6.
+- Commit LA4 locally? (Nothing is committed; see [[git-local-only]] in memory.)
+
+**Findings (proposed, F80–F89 range):**
+
+| # | Finding | Where | Severity | Step | Status |
+|---|---|---|---|---|---|
+| F80 | "Purge ≥ 3 × dead volume" (§3.7) only works for near plug flow. A well-mixed volume (pump chamber, sensor tee) needs ln(1/0.001) ≈ **6.9 volumes** for 0.1 % carry-over; 3 × leaves up to 5 %. The factor must come from the LA4 washout; provisional 5. A larger purge also outgrows `step_purge`'s fixed 3 min timeout (FW4 item 6 must size it). | `Settings.h` (FW4), ROADMAP §3.7 | High (data quality) | FW4, LA4 | open |
+| F81 | Per the `step_DNA_shield()` code, the shield is pushed with air through the common line and the rotor channel into the slot. Shield and residue stay in the common path until the next purge, which flushes only through slot 0. This carry-over path is not measured yet (LA4 test b2). | `Step_functions.cpp:659-695` | Medium | LA4 | open |

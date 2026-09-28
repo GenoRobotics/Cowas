@@ -1,0 +1,17 @@
+# SYNTHETIC example data (plug 80 mL + mixer 40 mL, 20 g/L NaCl stock read in uS/cm). Replace with your measurements.
+# one row per slot; clock_min from the console `clocklist`; role source/test/control; volumes in mL
+slot,role,clock_min,cycle_order,outlet_ml,outlet_reading,eluate_ml,eluate_reading
+1,test,34,0,100,5.0,10,5.0
+2,test,38,1,100,5.0,10,5.0
+3,test,41,2,100,5.0,10,5.0
+4,test,49,3,100,5.0,10,5.0
+5,source,53,4,100,5.0,10,5.0
+6,test,56,5,100,5.0,10,6.0
+7,test,0,6,100,5.0,10,5.0
+8,test,4,7,100,5.0,10,5.0
+9,test,8,8,100,5.0,10,5.0
+10,test,11,9,100,5.0,10,5.0
+11,test,15,10,100,5.0,10,5.0
+12,test,19,11,100,5.0,10,5.0
+13,test,23,12,100,5.0,10,5.0
+14,test,26,13,100,5.0,10,5.0
