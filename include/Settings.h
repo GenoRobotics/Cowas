@@ -287,27 +287,27 @@ const uint32_t TEST_ROTATE_SETTLE_MS = 500;         // ms - wait after a rotatio
 const uint16_t TEST_LOCK_HOLD_S = 3;                // s - rotate_all: how long each slot stays locked (hold=N)
 const float TEST_LEAK_HOLD_DEFAULT_ML = 50.0;       // mL - leak_hold default water volume ("small volume")
 
-// S1-1b Part 2 `pressure_ramp` (2026-10-XX, user): power-ramp open-loop, then stabilization PI hold
-// Removed soft cap; hard cap (STX_MAX_PRESSURE = 3.0) is the only safety limit. Power ramps 0→40%,
-// pressure rises naturally by system dynamics, no setpoint tracking during ramp. See power_ramp.h.
-const uint8_t POWER_RAMP_START_PERCENT = 15;          // % - soft start (PLACEHOLDER)
-const uint8_t POWER_RAMP_PEAK_PERCENT = 40;           // % - target power for ramp phase
-const float POWER_RAMP_DEFAULT_DURATION_S = 8.0;      // s - PLACEHOLDER: time to reach peak power (0→peak with slew limit)
-const uint8_t POWER_RAMP_MAX_STEP_PERCENT = 3;        // % per 100ms - slew limit (same as before)
-const float POWER_RAMP_RISE_RATE_LIMIT_BAR_S = 0.5;   // bar/s - PLACEHOLDER: if dP/dt exceeds this, reduce power ramp slope
-const float POWER_RAMP_CLOG_THRESHOLD_BAR = 1.0;      // bar - PLACEHOLDER: pressure below this at peak power = clog flag
-const uint8_t POWER_RAMP_CLOG_TIME_S = 15;            // s - PLACEHOLDER: timeout to detect clog (must hit peak power)
-const uint16_t PRESSURE_RAMP_DEFAULT_HOLD_S = 20;     // s - PI stabilizes pressure in hold phase
-const uint16_t PRESSURE_RAMP_DEFAULT_DECAY_S = 30;    // s - pump off, measure leak rate
-const float PRESSURE_RAMP_MAX_START_BAR = 0.3;        // bar - pressure_ramp refuses to start above this
-const float PUMP_PID_KP = 200.0;                      // % per bar - production PID (deprecated, use POWER_HOLD_* for Part 2)
-const float PUMP_PID_KI = 100.0;
+// S1-1b `pressure_ramp` (2026-10-15, user): setpoint-tracking PID (Part 1 restored)
+// Removed soft cap logic; hard cap (STX_MAX_PRESSURE = 3.0) is the only safety limit.
+const float PRESSURE_RAMP_DEFAULT_TARGET_BAR = 2.8;   // bar - 0.2 below the 3.0 cap
+const float PRESSURE_RAMP_DEFAULT_RATE_BAR_S = 0.05;  // bar/s - 0 to 2.8 bar in about 56 s
+const float PRESSURE_RAMP_MIN_RATE_BAR_S = 0.01;      // bar/s
+const float PRESSURE_RAMP_MAX_RATE_BAR_S = 0.5;       // bar/s
+const float PRESSURE_RAMP_CAP_MARGIN_BAR = 0.2;       // bar - the target may not come closer than this to STX_MAX_PRESSURE
+const float PRESSURE_RAMP_OVERSHOOT_STOP_BAR = 0.40;  // bar - NO LONGER USED (soft cap removed)
+const float PRESSURE_RAMP_SOFT_CAP_MARGIN_BAR = 0.1;  // bar - NO LONGER USED (soft cap removed)
+const uint16_t PRESSURE_RAMP_DEFAULT_HOLD_S = 20;     // s - PID holds the target
+const uint16_t PRESSURE_RAMP_DEFAULT_DECAY_S = 30;    // s - pump off, pressure read
+const uint8_t PRESSURE_RAMP_START_POWER = 15;         // % - the soft start ends here, then the PID takes over
+const uint8_t PRESSURE_RAMP_MAX_POWER = 60;           // % - the PID output never goes above this (maxpower= can lower it)
+const uint8_t PUMP_MINIMUM_POWER_PERCENT = 10;        // % - below this, the pump stalls (deadband); PID commands below this become this value to avoid pulsing (F137)
+const uint8_t PRESSURE_RAMP_MAX_STEP_PERCENT = 3;     // % per PID update: below PUMP_RAMP_MIN_STEP_PERCENT, so Pump::set_power never blocks in a 4 s ramp (F132)
+const uint32_t PRESSURE_RAMP_UPDATE_MS = 100;         // ms - PID update; the cap is checked on every pass (about every 2 ms)
+const float PUMP_PID_KP = 200.0;                      // % per bar - the production PID, tuned by hand (user, 2026-10-15: "works"). main.cpp setup() and the defaults of pressure_ramp (kp= overrides)
+const float PUMP_PID_KI = 100.0;                      // per (bar x 100 ms update), MiniPID has no time base
 const float PUMP_PID_KD = 100.0;
-const float POWER_HOLD_PID_KP = 100.0;                // % per bar - stabilization-only PI (Part 2, reduced gains)
-const float POWER_HOLD_PID_KI = 50.0;                 // per (bar x 100ms), no D term
-const uint8_t PUMP_MINIMUM_POWER_PERCENT = 10;        // % - pump deadband: below this, pump stalls
-const uint32_t PRESSURE_RAMP_UPDATE_MS = 100;         // ms - control update interval (PID/ramp step rate)
-const float PRESSURE_RAMP_REVERSAL_PERCENT = 5.0;     // % - power chatter metric (only used in HOLD)
+const float PRESSURE_RAMP_MAX_START_BAR = 0.3;        // bar - pressure_ramp refuses to start above this (a comparable run starts from an empty line)
+const float PRESSURE_RAMP_REVERSAL_PERCENT = 5.0;     // % - a power swing this big, then back, counts as one reversal (chatter metric)
 
 // O-ring lock/unlock, linear actuator (NEMA17 + A4988). The force sensor (FSR) that
 // used to detect contact was removed - readings were unreliable in practice - so
