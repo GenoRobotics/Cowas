@@ -28,6 +28,8 @@
 #include "Core/test_args.h"
 #include "Core/slot_iteration.h"
 #include "Core/manifold_geometry.h"
+#include "Core/pressure_ramp.h"
+#include "Core/pid_metrics.h"
 
 extern Valve_2_2 valve_1;
 extern Valve_2_2 valve_manifold;
@@ -35,6 +37,7 @@ extern Micro_Pump micro_pump;
 extern Pump pump;
 extern Flow_sensor flow_sensor_small;
 extern Manifold manifold;
+extern float read_p_in(); // main.cpp - the ABP, backs the cap and the PID loops
 
 static const int FILL_ORDER_LEN = sizeof FILL_ORDER / sizeof FILL_ORDER[0];
 static const int MAX_LIST = NB_SLOT + 1;
@@ -97,14 +100,15 @@ static String f2(float v)
     return (v != v) ? String("nan") : String(v, 2);
 }
 
+// The test needs the O-ring UNLOCKED: it unlocks it itself when it is locked (target model, see
+// oring_go_to). Refuses only when the state is UNKNOWN (run actuator_home).
 static bool require_unlocked(const char *name)
 {
-    if (oring_lock_state() == core::LOCK_STATE_UNLOCKED)
+    if (oring_go_to(core::LOCK_STATE_UNLOCKED))
     {
         return true;
     }
-    Serial.println(String("REFUSED | ") + name + ": needs the O-ring UNLOCKED (state: " + oring_lock_state_name() + ")" +
-                   (oring_lock_state() == core::LOCK_STATE_UNKNOWN ? " - run actuator_home" : " - run oring_unlock"));
+    Serial.println(String("REFUSED | ") + name + ": O-ring not unlocked - see the message above");
     return false;
 }
 
@@ -320,8 +324,14 @@ static void cmd_help()
     Serial.println("  rotate_all [dry] [hold=s] [auto] [from= count= order=]  purge + FILL_ORDER: rotate, error, lock, hold, unlock");
     Serial.println("  encoder_repeat [slot] [n] [auto]  leave and come back n times (default 10), angle spread");
     Serial.println("  valve_check                   V1 and Vman on/off with y/n confirmation (V23 removed, F51)");
+    Serial.println("-- pressure sensor (S1-1: ABP on SPI, backs the cap and the PID loops) --");
+    Serial.println("  pressure                      one reading (calibrated + datasheet conversion)");
+    Serial.println("  abp_raw                       20 raw SPI frames: status bits and counts");
+    Serial.println("  pressure_zero                 pump off, open to air: prints PRESSURE_ZERO_OFFSET_BAR");
+    Serial.println("  calibrate_pressure            syringe + manometer on a tee, no pump: prints PRESSURE_GAIN and the zero offset");
     Serial.println("-- pumping (sensorless while PRESSURE_SENSOR_AVAILABLE = false: type NOSENSOR) --");
     Serial.println("  leak_hold [mL|Ns] [power=%]   lock, water, 'leak?', air push, unlock (default " + String(TEST_LEAK_HOLD_DEFAULT_ML, 0) + " mL)");
+    Serial.println("  pressure_ramp [target=bar] [rate=bar/s, 0=step] [hold=s] [decay=s] [maxpower=%] [start=%] [slew=%] [kp= ki= kd=] [label=] [quick]  PID by pressure: seal check and PID tuning");
     Serial.println("  multi_sample [volume=mL] [power=%] [auto] [from= count= order=]  load_slot per available slot");
     Serial.println("  shield_only [slot] [ms] [auto]  micro pump only (time-based), sensorless OK");
     Serial.println("  full_cycle [slot] purge=y/n shield=y/n empty=y/n volume=mL   real step functions (needs the sensor)");
@@ -330,7 +340,7 @@ static void cmd_help()
     Serial.println("  slotN, slot0, clockMM, clocklist, manifold, cal, zero, manifold_direction, encoder_manifold, enc_rot");
     Serial.println("  linear_actuator, calibrate_actuator (both make the lock state UNKNOWN), calibrate_all");
     Serial.println("  pump, sample_cycle, sample_cycle_full, multi_sample_full, calibrate_flow, cal_DNA (need the pressure sensor)");
-    Serial.println("  valves, micro_pump, calibrate_dna_volume, shield_calibrate (LA3), pressure, pressure_sensors, calibrate_pressure2");
+    Serial.println("  valves, micro_pump, calibrate_dna_volume, shield_calibrate (LA3)");
     Serial.println("  sample1m, demo, abort (need the pressure sensor), micro_switch, buttons_command, temp");
     Serial.println("  stop = leave the menu (panel + legacy Pi link)");
 }
@@ -665,7 +675,7 @@ static void cmd_leak_hold(const Cmd &c)
     if (!arg_long(c, "power", &power, 1, 100))
         return;
     int slot;
-    if (!require_unlocked("leak_hold") || (slot = aligned_slot("leak_hold", nullptr)) < 0)
+    if ((slot = aligned_slot("leak_hold", nullptr)) < 0) // the O-ring is locked below by target (no refusal)
         return;
     if (PRESSURE_SENSOR_AVAILABLE && seconds > 0)
     {
@@ -735,6 +745,271 @@ static void cmd_leak_hold(const Cmd &c)
     bool unlocked = unlock_oring();
     kv += String(";unlock=") + (unlocked ? "ok" : "failed");
     test_result(String(slot).c_str(), (water_ok && leak == 'n' && unlocked) ? core::TEST_PASS : core::TEST_FAIL, kv);
+    test_end();
+}
+
+// S1-1b: the pump regulated BY PRESSURE, not by a fixed power. The PID (the production gains, with
+// kp= ki= kd= to try others) follows a setpoint, holds it, then (optionally) the pump stops and the decay
+// is read. Two uses: a slow rise to about 3 bar as a seal check (defaults), and the fine tuning of the
+// PID: the same run on the same slot with other gains, compared by the numbers it prints (ovs, rise,
+// rip, rev, pw..., tools/compare_tune.py).
+//
+// Water only: the valves are set as in load_slot_water (V1 closed, Vman open).
+// Safety: the cap is checked on every pass (about 2 ms). The test stops the pump itself a little above
+// the target (a controlled stop, before the hard cap). It refuses to start if the line is not empty
+// (P > PRESSURE_RAMP_MAX_START_BAR), so two runs are comparable.
+// `slew=0 rate=0 start=50 maxpower=100` reproduces what CtrlPump::run() does today (a step setpoint, 50 %
+// first, the raw PID output into Pump::set_power, with its blocking 4 s ramp on big steps, F132).
+static void cmd_pressure_ramp(const Cmd &c)
+{
+    static const char *const keys[] = {"target", "rate", "hold", "decay", "maxpower", "start", "slew", "kp", "ki", "kd", "label"};
+    static const char *const flags[] = {"quick"};
+    const char *usage = "pressure_ramp [target=bar] [rate=bar/s, 0=step] [hold=s] [decay=s] [maxpower=%] [start=%] [slew=%/update, 0=off] "
+                        "[kp= ki= kd=] [label=text] [quick]";
+    if (!check_args(c, usage, keys, 11, flags, 1, 0))
+        return;
+    if (!require_pressure_sensor("pressure_ramp"))
+        return;
+    float cap = pump.get_pressure_safety_cap();
+    if (pump.get_pressure_safety_fn() == nullptr || !(cap > 0))
+    {
+        Serial.println("REFUSED | pressure_ramp: no pressure cap is registered on the pump");
+        return;
+    }
+    float target = PRESSURE_RAMP_DEFAULT_TARGET_BAR;
+    float rate = PRESSURE_RAMP_DEFAULT_RATE_BAR_S;
+    float kp = PUMP_PID_KP, ki = PUMP_PID_KI, kd = PUMP_PID_KD;
+    long hold_s = PRESSURE_RAMP_DEFAULT_HOLD_S;
+    long decay_s = PRESSURE_RAMP_DEFAULT_DECAY_S;
+    long max_power = PRESSURE_RAMP_MAX_POWER;
+    long start_power = PRESSURE_RAMP_START_POWER;
+    long slew = PRESSURE_RAMP_MAX_STEP_PERCENT;
+    if (!arg_float(c, "target", &target, 0, 10) || !arg_float(c, "rate", &rate, 0, 10) ||
+        !arg_float(c, "kp", &kp, 0, 2000) || !arg_float(c, "ki", &ki, 0, 2000) || !arg_float(c, "kd", &kd, 0, 2000) ||
+        !arg_long(c, "hold", &hold_s, 0, 600) || !arg_long(c, "decay", &decay_s, 0, 600) ||
+        !arg_long(c, "maxpower", &max_power, 10, 100) || !arg_long(c, "start", &start_power, 0, 100) ||
+        !arg_long(c, "slew", &slew, 0, 100))
+        return;
+    if (start_power > max_power)
+    {
+        Serial.println("Bad value start=" + String(start_power) + ": it must not be above maxpower=" + String(max_power));
+        return;
+    }
+    const bool step = (rate == 0.0f); // production-like: the setpoint is the target from the first update
+    const bool quick = core::args_has_flag(c.args, "quick");
+    char label[16] = "";
+    const char *label_arg = core::args_value(c.args, "label");
+    if (label_arg)
+    {
+        strncpy(label, label_arg, sizeof label - 1);
+        label[sizeof label - 1] = 0;
+        core::sanitize_kv_value(label);
+    }
+    core::RampPlanError plan = core::ramp_plan_check(target, cap, PRESSURE_RAMP_CAP_MARGIN_BAR, step ? PRESSURE_RAMP_MIN_RATE_BAR_S : rate,
+                                                     PRESSURE_RAMP_MIN_RATE_BAR_S, PRESSURE_RAMP_MAX_RATE_BAR_S);
+    if (plan != core::RAMP_PLAN_OK)
+    {
+        Serial.println(String("REFUSED | pressure_ramp: ") + core::ramp_plan_error_name(plan) + " (target " + String(target, 2) +
+                       " bar must be at most " + String(cap - PRESSURE_RAMP_CAP_MARGIN_BAR, 2) + " (cap " + String(cap, 2) +
+                       " minus " + String(PRESSURE_RAMP_CAP_MARGIN_BAR, 2) + "), rate 0 (step) or " + String(PRESSURE_RAMP_MIN_RATE_BAR_S, 2) +
+                       ".." + String(PRESSURE_RAMP_MAX_RATE_BAR_S, 2) + " bar/s)");
+        return;
+    }
+    float p_before = read_p_in();
+    if (p_before > PRESSURE_RAMP_MAX_START_BAR || p_before < PRESSURE_SENSOR_MIN_PLAUSIBLE_BAR)
+    {
+        Serial.println("REFUSED | pressure_ramp: the line is not empty or the sensor is not trusted (P = " + String(p_before, 2) +
+                       " bar, allowed up to " + String(PRESSURE_RAMP_MAX_START_BAR, 2) + "). Let the pressure out first");
+        return;
+    }
+    int slot;
+    if ((slot = aligned_slot("pressure_ramp", nullptr)) < 0)
+        return;
+
+    float soft = core::ramp_soft_limit(target, PRESSURE_RAMP_OVERSHOOT_STOP_BAR, cap, PRESSURE_RAMP_SOFT_CAP_MARGIN_BAR);
+    uint32_t ramp_ms = step ? 0 : core::ramp_duration_ms(0.0f, target, rate);
+    uint32_t hold_ms = (uint32_t)hold_s * 1000UL;
+    Serial.println("=== pressure_ramp: slot " + String(slot) + (label[0] ? String(", label ") + label : String("")) + " ===");
+    Serial.println("PID " + String(kp, 0) + " / " + String(ki, 0) + " / " + String(kd, 0) + ", output 0.." + String(max_power) + " %, start " +
+                   String(start_power) + " %, steps " + (slew ? String(slew) + " % per update" : String("not limited (as production)")));
+    Serial.println("Setpoint " + (step ? String("STEP to ") : String("0 -> ")) + String(target, 2) + " bar" +
+                   (step ? String("") : String(" at ") + String(rate, 3) + " bar/s (" + String(ramp_ms / 1000.0, 0) + " s)") + ", hold " +
+                   String(hold_s) + " s" + (decay_s ? ", then pump off and decay " + String(decay_s) + " s" : String("")) + ".");
+    Serial.println("The pump stops by itself at " + String(soft, 2) + " bar; the hard cap is " + String(cap, 2) + " bar. Someone at the 24 V switch.");
+    Serial.println("Any key stops the pump. Send any key to start, or 'x' to abort now.");
+    if (wait_for_keypress_or_abort())
+    {
+        Serial.println("Aborted before start");
+        return;
+    }
+
+    test_begin("pressure_ramp");
+    String kv = "slot=" + String(slot) + ";label=" + label;
+    if (!lock_oring())
+    {
+        test_result(String(slot).c_str(), core::TEST_FAIL, kv + ";lock=failed");
+        test_end();
+        return;
+    }
+    valve_1.set_close_way();
+    valve_manifold.set_open_way();
+    delay(DELAY_VALVES_MS);
+
+    MiniPID pid(kp, ki, kd);
+    pid.setOutputLimits(0, max_power);
+    float power_cmd = (float)start_power;
+    pump.set_power((int8_t)start_power);
+    pump.start(); // the normal soft start (4 s) to the start power; the cap is checked during it
+
+    const char *reason = pump.is_running() ? nullptr : "start_refused";
+    float start_bar = read_p_in();
+    if (start_bar < 0.0f)
+    {
+        start_bar = 0.0f;
+    }
+    core::PidRunStats st;
+    core::pid_stats_begin(&st, target, 0.9f, PRESSURE_RAMP_REVERSAL_PERCENT, (float)max_power);
+    float p_max = start_bar;
+    uint32_t t_pmax = 0, hold_start = 0, last_update = 0, last_print = 0;
+    bool in_hold = false;
+    uint32_t t0 = millis();
+    Serial.println("  t(s)  phase  setpoint  P(bar)  power(%)");
+    while (reason == nullptr)
+    {
+        uint32_t now = millis();
+        if (pump.enforce_pressure_safety()) // reads the sensor on every pass; stops the pump itself
+        {
+            reason = "cap";
+            break;
+        }
+        float p = read_p_in();
+        if (p > p_max)
+        {
+            p_max = p;
+            t_pmax = now - t0;
+        }
+        if (p >= soft)
+        {
+            pump.stop();
+            reason = "soft_limit";
+            break;
+        }
+        if (abort_pending())
+        {
+            pump.stop();
+            reason = "aborted";
+            break;
+        }
+        uint32_t t = now - t0;
+        if (!in_hold && t >= ramp_ms)
+        {
+            in_hold = true;
+            hold_start = now;
+        }
+        if (in_hold && now - hold_start >= hold_ms)
+        {
+            break; // completed: the pump is stopped below
+        }
+        float sp = step ? target : core::ramp_setpoint(start_bar, target, rate, t);
+        if (now - last_update >= PRESSURE_RAMP_UPDATE_MS)
+        {
+            last_update = now;
+            pid.setSetpoint(sp);
+            float wanted = (float)pid.getOutput(p);
+            power_cmd = slew ? core::slew_limit(power_cmd, wanted, (float)slew) : wanted;
+            pump.set_power((int8_t)(power_cmd + 0.5f)); // with slew=0 this can block 4 s on a big step, as in production (F132)
+            core::pid_stats_add(&st, t, p, power_cmd, in_hold && (now - hold_start) >= hold_ms / 2);
+        }
+        if (now - last_print >= 1000)
+        {
+            last_print = now;
+            Serial.println("  " + String(t / 1000.0, 0) + "  " + (in_hold ? "HOLD" : "RAMP") + "  " + String(sp, 2) + "  " +
+                           String(p, 3) + "  " + String(power_cmd, 0));
+        }
+        delay(2);
+    }
+
+    float p_stop = read_p_in();
+    bool completed = (reason == nullptr);
+    if (completed)
+    {
+        pump.stop();
+        reason = "completed";
+    }
+    float p_end = p_stop;
+    if (completed && decay_s > 0)
+    {
+        Serial.println("Pump off. Pressure decay for " + String(decay_s) + " s (any key stops the wait):");
+        uint32_t d0 = millis();
+        uint32_t last = 0;
+        while (millis() - d0 < (uint32_t)decay_s * 1000UL)
+        {
+            if (abort_pending())
+            {
+                break;
+            }
+            if (millis() - last >= 1000)
+            {
+                last = millis();
+                p_end = read_p_in();
+                Serial.println("  decay " + String((millis() - d0) / 1000.0, 0) + " s  P=" + String(p_end, 3) + " bar");
+            }
+            delay(20);
+        }
+    }
+    valve_1.set_close_way();
+    valve_manifold.set_close_way();
+
+    bool has_late = core::pid_stats_has_late(&st);
+    float err = core::pid_stats_mean_error(&st);
+    bool reached = completed && has_late && err >= -0.1f;
+    // The numbers to compare between runs (tools/compare_tune.py): ovs = overshoot over the target (bar),
+    // rise = s to 90 % of the target, err = mean P - target and rip = max - min of P in the second half of
+    // the hold, pw / pwp2p = mean and swing of the power there, rev = power reversals (chatter),
+    // sat = % of the time at max power
+    kv += ";end=" + String(reason) + ";tgt=" + String(target, 2) + ";kp=" + String(kp, 0) + ";ki=" + String(ki, 0) + ";kd=" + String(kd, 0) +
+          ";slew=" + String(slew) + ";st=" + String(start_power) + ";mp=" + String(max_power) + ";pmax=" + String(p_max, 2) +
+          ";tpmax=" + String(t_pmax / 1000.0, 1) + ";ovs=" + String(core::pid_stats_overshoot(&st), 2) + ";rise=" + String(st.rise_s, 1) +
+          ";err=" + String(err, 2) + ";rip=" + String(core::pid_stats_ripple(&st), 2) + ";pw=" + String(core::pid_stats_power_mean(&st), 0) +
+          ";pwp2p=" + String(core::pid_stats_power_p2p(&st), 0) + ";rev=" + String(st.reversals) + ";sat=" + String(core::pid_stats_saturated_pct(&st), 0) +
+          ";reached=" + (reached ? "yes" : "no");
+    if (decay_s > 0 && completed)
+    {
+        kv += ";pstop=" + String(p_stop, 2) + ";decay=" + String(p_stop - p_end, 3) + ";decay_s=" + String(decay_s);
+    }
+    Serial.println(String("pressure_ramp ended: ") + reason + ", P max " + String(p_max, 3) + " bar at " + String(t_pmax / 1000.0, 1) + " s");
+
+    if (!completed)
+    {
+        test_result(String(slot).c_str(), core::TEST_FAIL, kv);
+        Serial.println("The O-ring is left LOCKED (oring_unlock when the pressure is gone).");
+        test_end();
+        return;
+    }
+    char leak = 'n';
+    if (!quick)
+    {
+        leak = ask_ynx("Any leak at the manifold, the O-ring or a joint (during the ramp, the hold or the decay)?");
+        if (leak == 'x')
+        {
+            test_result(String(slot).c_str(), core::TEST_SKIP, kv + ";leak=aborted");
+            Serial.println("Aborted: O-ring left LOCKED (oring_unlock when safe).");
+            test_end();
+            return;
+        }
+        kv += String(";leak=") + (leak == 'y' ? "yes" : "no");
+        if (leak == 'y')
+        {
+            Serial.println("Where? (type a short description, then ENTER)");
+            String where = read_console_line();
+            char buf[24];
+            where.toCharArray(buf, sizeof buf);
+            core::sanitize_kv_value(buf);
+            kv += ";where=" + String(buf);
+        }
+    }
+    test_result(String(slot).c_str(), (reached && leak == 'n') ? core::TEST_PASS : core::TEST_FAIL, kv);
+    Serial.println("O-ring left LOCKED (oring_unlock when the pressure is gone).");
     test_end();
 }
 
@@ -1003,7 +1278,7 @@ bool mech_tests_dispatch(const String &line)
     core::ArgsError e = core::parse_args(line.c_str(), c.name, sizeof c.name, &c.args);
     const char *known[] = {"help", "oring_state", "actuator_home", "oring_lock", "oring_unlock", "lock_cycle",
                            "lock_endurance", "rotate_all", "encoder_repeat", "valve_check", "leak_hold",
-                           "multi_sample", "full_cycle", "full_all", "shield_only"};
+                           "multi_sample", "full_cycle", "full_all", "shield_only", "pressure_ramp"};
     bool mine = false;
     for (unsigned i = 0; i < sizeof known / sizeof known[0]; i++)
     {
@@ -1041,6 +1316,8 @@ bool mech_tests_dispatch(const String &line)
         cmd_valve_check(c);
     else if (!strcmp(c.name, "leak_hold"))
         cmd_leak_hold(c);
+    else if (!strcmp(c.name, "pressure_ramp"))
+        cmd_pressure_ramp(c);
     else if (!strcmp(c.name, "multi_sample"))
         cmd_multi_sample(c);
     else if (!strcmp(c.name, "full_cycle"))

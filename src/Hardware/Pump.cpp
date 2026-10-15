@@ -4,6 +4,8 @@
 #include "C_output.h"
 #include "Settings.h"
 #include "Flow_sensor.h"
+#include "Oring_lock.h"
+#include "../Core/pump_ramp.h"
 
 MiniPID pump_pid = MiniPID(200, 100, 0);    // at 10Hz
 
@@ -62,6 +64,11 @@ void Pump::set_power(int8_t _power)
     if (_power < 0)
         _power = 0;
 
+    // pump deadband: below PUMP_MINIMUM_POWER_PERCENT the pump stalls and doesn't move smoothly.
+    // clamp to minimum to prevent pulsing (on/off/on pattern) when PID tries low power to reduce overshoot
+    if (_power > 0 && _power < PUMP_MINIMUM_POWER_PERCENT)
+        _power = PUMP_MINIMUM_POWER_PERCENT;
+
     // hard pressure cap - refuse to (re-)energize if we're over the limit, regardless
     // of what the caller asked for
     if (enforce_pressure_safety())
@@ -73,7 +80,7 @@ void Pump::set_power(int8_t _power)
     power_percent = _power;
     // if pump already ON, then update the power live
     if (running)
-        pump.start();
+        move_output_to(power_percent, false); // a live change: ramps when big, trims at once
 }
 
 /**
@@ -98,20 +105,30 @@ void Pump::start()
         return;
     }
 
+    // target: the O-ring LOCKED before any pumping (an open O-ring leaks under pressure).
+    // If it is open, oring_go_to() locks it first (a few seconds, the pump is still off).
+    if (!oring_go_to(core::LOCK_STATE_LOCKED))
+    {
+        output.println("REFUSED | pump: O-ring not locked, pump not started");
+        return;
+    }
+
     // activating 24V Relay for power supply
     if (enable_pin != -1)
     {
         digitalWrite(enable_pin, HIGH);
     }
 
-    if (pwm)
-        analogWrite(control_pin, power);    // is actually DAC not PWM
-    else
-        digitalWrite(control_pin, HIGH);
-
-    // display starting info only if previous state was OFF
+    // soft start: a start always ramps from 0 (move_output_to), so a surge is seen before it overshoots
     if (!running)
     {
+        ramping_ = true;
+        bool reached = move_output_to(power_percent, true);
+        ramping_ = false;
+        if (!reached)
+        {
+            return; // the cap stopped it during the ramp (SAFETY line printed by enforce_pressure_safety)
+        }
         if(VERBOSE_PUMP){output.println("Pump " + ID + " started with power " + power_percent);}
         running = true;
     }
@@ -143,10 +160,7 @@ void Pump::start(uint32_t _time_ms)
  */
 void Pump::stop()
 {
-    if (pwm)
-        analogWrite(control_pin, 0);
-    else
-        digitalWrite(control_pin, LOW);
+    write_output(0);
 
     // deactivating 24V Relay for power supply
     if (enable_pin != -1)
@@ -158,6 +172,43 @@ void Pump::stop()
 
     running = false;
     if(VERBOSE_PUMP){output.println("Pump " + ID + " stopped");}
+}
+
+void Pump::write_output(uint8_t percent)
+{
+    applied_percent = percent;
+    if (pwm)
+        analogWrite(control_pin, map(percent, 0, 100, 0, 255)); // is actually DAC not PWM
+    else
+        digitalWrite(control_pin, percent > 0 ? HIGH : LOW);
+}
+
+// Moves the output to target. A start (always_ramp) and any big change ramp over PUMP_RAMP_MS in
+// steps of PUMP_RAMP_STEP_MS; the cap is checked at every step. Returns false if the cap stopped the pump.
+bool Pump::move_output_to(uint8_t target, bool always_ramp)
+{
+    if (!pwm)
+    {
+        write_output(target); // a digital pump can't be ramped
+        return true;
+    }
+    const int from = applied_percent;
+    if (!core::pump_ramp_needed(from, target, always_ramp, PUMP_RAMP_MIN_STEP_PERCENT))
+    {
+        write_output(target);
+        return true;
+    }
+    const int steps = (int)(PUMP_RAMP_MS / PUMP_RAMP_STEP_MS);
+    for (int i = 1; i <= steps; i++)
+    {
+        if (enforce_pressure_safety())
+        {
+            return false;
+        }
+        write_output((uint8_t)core::pump_ramp_percent(from, target, i, steps));
+        delay(PUMP_RAMP_STEP_MS);
+    }
+    return true;
 }
 
 void Pump::set_pressure_safety(PressureReadFn read_fn, float max_pressure_bar)
@@ -184,7 +235,7 @@ bool Pump::enforce_pressure_safety()
 
     if (over_cap || implausible)
     {
-        if (running)
+        if (running || ramping_)
         {
             output.println(String("SAFETY | ") + (implausible ? "implausible pressure reading (" : "pressure exceeded cap (") + String(reading) + " bar) - pump " + ID + " force-stopped");
             stop();
