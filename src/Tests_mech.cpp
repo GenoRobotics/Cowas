@@ -29,6 +29,7 @@
 #include "Core/slot_iteration.h"
 #include "Core/manifold_geometry.h"
 #include "Core/pressure_ramp.h"
+#include "Core/power_ramp.h"
 #include "Core/pid_metrics.h"
 
 extern Valve_2_2 valve_1;
@@ -757,16 +758,16 @@ static void cmd_leak_hold(const Cmd &c)
 // Water only: the valves are set as in load_slot_water (V1 closed, Vman open).
 // Safety: the cap is checked on every pass (about 2 ms). The test stops the pump itself a little above
 // the target (a controlled stop, before the hard cap). It refuses to start if the line is not empty
-// (P > PRESSURE_RAMP_MAX_START_BAR), so two runs are comparable.
-// `slew=0 rate=0 start=50 maxpower=100` reproduces what CtrlPump::run() does today (a step setpoint, 50 %
-// first, the raw PID output into Pump::set_power, with its blocking 4 s ramp on big steps, F132).
+// Part 2 (2026-10-XX): Power-ramp open-loop + stabilization PI.
+// Pump power ramps 0→40% over ramp_time (default 8s), pressure rises naturally by system dynamics.
+// No setpoint-tracking. Hard cap (3.0 bar) is only safety limit. Clog detection flags high resistance.
 static void cmd_pressure_ramp(const Cmd &c)
 {
-    static const char *const keys[] = {"target", "rate", "hold", "decay", "maxpower", "start", "slew", "kp", "ki", "kd", "label"};
-    static const char *const flags[] = {"quick"};
-    const char *usage = "pressure_ramp [target=bar] [rate=bar/s, 0=step] [hold=s] [decay=s] [maxpower=%] [start=%] [slew=%/update, 0=off] "
-                        "[kp= ki= kd=] [label=text] [quick]";
-    if (!check_args(c, usage, keys, 11, flags, 1, 0))
+    static const char *const keys[] = {"ramp_time", "hold", "decay", "peak_power", "start", "slew", "kp", "ki", "label"};
+    static const char *const flags[] = {"quick", "seal_verify"};
+    const char *usage = "pressure_ramp [ramp_time=s] [hold=s] [decay=s] [peak_power=%] [start=%] [slew=%/update, 0=off] "
+                        "[kp= ki=] [label=text] [quick] [seal_verify]";
+    if (!check_args(c, usage, keys, 9, flags, 2, 0))
         return;
     if (!require_pressure_sensor("pressure_ramp"))
         return;
@@ -776,27 +777,29 @@ static void cmd_pressure_ramp(const Cmd &c)
         Serial.println("REFUSED | pressure_ramp: no pressure cap is registered on the pump");
         return;
     }
-    float target = PRESSURE_RAMP_DEFAULT_TARGET_BAR;
-    float rate = PRESSURE_RAMP_DEFAULT_RATE_BAR_S;
-    float kp = PUMP_PID_KP, ki = PUMP_PID_KI, kd = PUMP_PID_KD;
+
+    float ramp_time = POWER_RAMP_DEFAULT_DURATION_S;
+    float kp = POWER_HOLD_PID_KP, ki = POWER_HOLD_PID_KI;
     long hold_s = PRESSURE_RAMP_DEFAULT_HOLD_S;
     long decay_s = PRESSURE_RAMP_DEFAULT_DECAY_S;
-    long max_power = PRESSURE_RAMP_MAX_POWER;
-    long start_power = PRESSURE_RAMP_START_POWER;
-    long slew = PRESSURE_RAMP_MAX_STEP_PERCENT;
-    if (!arg_float(c, "target", &target, 0, 10) || !arg_float(c, "rate", &rate, 0, 10) ||
-        !arg_float(c, "kp", &kp, 0, 2000) || !arg_float(c, "ki", &ki, 0, 2000) || !arg_float(c, "kd", &kd, 0, 2000) ||
+    long peak_power = POWER_RAMP_PEAK_PERCENT;
+    long start_power = POWER_RAMP_START_PERCENT;
+    long slew = POWER_RAMP_MAX_STEP_PERCENT;
+
+    if (!arg_float(c, "ramp_time", &ramp_time, 0, 60) || !arg_float(c, "kp", &kp, 0, 2000) || !arg_float(c, "ki", &ki, 0, 2000) ||
         !arg_long(c, "hold", &hold_s, 0, 600) || !arg_long(c, "decay", &decay_s, 0, 600) ||
-        !arg_long(c, "maxpower", &max_power, 10, 100) || !arg_long(c, "start", &start_power, 0, 100) ||
+        !arg_long(c, "peak_power", &peak_power, 10, 100) || !arg_long(c, "start", &start_power, 0, 100) ||
         !arg_long(c, "slew", &slew, 0, 100))
         return;
-    if (start_power > max_power)
+
+    if (start_power > peak_power)
     {
-        Serial.println("Bad value start=" + String(start_power) + ": it must not be above maxpower=" + String(max_power));
+        Serial.println("Bad value start=" + String(start_power) + ": it must not be above peak_power=" + String(peak_power));
         return;
     }
-    const bool step = (rate == 0.0f); // production-like: the setpoint is the target from the first update
+
     const bool quick = core::args_has_flag(c.args, "quick");
+    const bool seal_verify = core::args_has_flag(c.args, "seal_verify");
     char label[16] = "";
     const char *label_arg = core::args_value(c.args, "label");
     if (label_arg)
@@ -805,16 +808,7 @@ static void cmd_pressure_ramp(const Cmd &c)
         label[sizeof label - 1] = 0;
         core::sanitize_kv_value(label);
     }
-    core::RampPlanError plan = core::ramp_plan_check(target, cap, PRESSURE_RAMP_CAP_MARGIN_BAR, step ? PRESSURE_RAMP_MIN_RATE_BAR_S : rate,
-                                                     PRESSURE_RAMP_MIN_RATE_BAR_S, PRESSURE_RAMP_MAX_RATE_BAR_S);
-    if (plan != core::RAMP_PLAN_OK)
-    {
-        Serial.println(String("REFUSED | pressure_ramp: ") + core::ramp_plan_error_name(plan) + " (target " + String(target, 2) +
-                       " bar must be at most " + String(cap - PRESSURE_RAMP_CAP_MARGIN_BAR, 2) + " (cap " + String(cap, 2) +
-                       " minus " + String(PRESSURE_RAMP_CAP_MARGIN_BAR, 2) + "), rate 0 (step) or " + String(PRESSURE_RAMP_MIN_RATE_BAR_S, 2) +
-                       ".." + String(PRESSURE_RAMP_MAX_RATE_BAR_S, 2) + " bar/s)");
-        return;
-    }
+
     float p_before = read_p_in();
     if (p_before > PRESSURE_RAMP_MAX_START_BAR || p_before < PRESSURE_SENSOR_MIN_PLAUSIBLE_BAR)
     {
@@ -826,16 +820,13 @@ static void cmd_pressure_ramp(const Cmd &c)
     if ((slot = aligned_slot("pressure_ramp", nullptr)) < 0)
         return;
 
-    float soft = core::ramp_soft_limit(target, PRESSURE_RAMP_OVERSHOOT_STOP_BAR, cap, PRESSURE_RAMP_SOFT_CAP_MARGIN_BAR);
-    uint32_t ramp_ms = step ? 0 : core::ramp_duration_ms(0.0f, target, rate);
+    uint32_t ramp_ms = (uint32_t)(ramp_time * 1000.0f);
     uint32_t hold_ms = (uint32_t)hold_s * 1000UL;
     Serial.println("=== pressure_ramp: slot " + String(slot) + (label[0] ? String(", label ") + label : String("")) + " ===");
-    Serial.println("PID " + String(kp, 0) + " / " + String(ki, 0) + " / " + String(kd, 0) + ", output 0.." + String(max_power) + " %, start " +
-                   String(start_power) + " %, steps " + (slew ? String(slew) + " % per update" : String("not limited (as production)")));
-    Serial.println("Setpoint " + (step ? String("STEP to ") : String("0 -> ")) + String(target, 2) + " bar" +
-                   (step ? String("") : String(" at ") + String(rate, 3) + " bar/s (" + String(ramp_ms / 1000.0, 0) + " s)") + ", hold " +
-                   String(hold_s) + " s" + (decay_s ? ", then pump off and decay " + String(decay_s) + " s" : String("")) + ".");
-    Serial.println("The pump stops by itself at " + String(soft, 2) + " bar; the hard cap is " + String(cap, 2) + " bar. Someone at the 24 V switch.");
+    Serial.println("Power-ramp " + String(ramp_time, 1) + " s from " + String(start_power) + " % to " + String(peak_power) + " %, hold " +
+                   String(hold_s) + " s" + (decay_s ? ", then decay " + String(decay_s) + " s" : String("")) + ".");
+    Serial.println("PI stabilizer kp=" + String(kp, 0) + " ki=" + String(ki, 0) + " (only during hold phase).");
+    Serial.println("Hard cap " + String(cap, 2) + " bar (safety). Clog detected if power peaks but pressure <1.0 bar.");
     Serial.println("Any key stops the pump. Send any key to start, or 'x' to abort now.");
     if (wait_for_keypress_or_abort())
     {
@@ -855,75 +846,110 @@ static void cmd_pressure_ramp(const Cmd &c)
     valve_manifold.set_open_way();
     delay(DELAY_VALVES_MS);
 
-    MiniPID pid(kp, ki, kd);
-    pid.setOutputLimits(0, max_power);
+    // Stabilization PI (no D, no setpoint tracking)
+    MiniPID pi_hold(kp, ki, 0.0f);
+    pi_hold.setOutputLimits(0, peak_power);
+
     float power_cmd = (float)start_power;
+    float p_prev = read_p_in();
+
     pump.set_power((int8_t)start_power);
-    pump.start(); // the normal soft start (4 s) to the start power; the cap is checked during it
+    pump.start();  // soft start to start_power; cap checked during it
 
     const char *reason = pump.is_running() ? nullptr : "start_refused";
     float start_bar = read_p_in();
-    if (start_bar < 0.0f)
-    {
-        start_bar = 0.0f;
-    }
+    if (start_bar < 0.0f) start_bar = 0.0f;
+
     core::PidRunStats st;
-    core::pid_stats_begin(&st, target, 0.9f, PRESSURE_RAMP_REVERSAL_PERCENT, (float)max_power);
+    core::pid_stats_begin(&st, 0.0f, 0.9f, PRESSURE_RAMP_REVERSAL_PERCENT, (float)peak_power);
     float p_max = start_bar;
     uint32_t t_pmax = 0, hold_start = 0, last_update = 0, last_print = 0;
-    bool in_hold = false;
+    bool in_hold = false, clog_detected = false;
     uint32_t t0 = millis();
-    Serial.println("  t(s)  phase  setpoint  P(bar)  power(%)");
+    Serial.println("  t(s)  phase    P(bar)  power(%)");
+
     while (reason == nullptr)
     {
         uint32_t now = millis();
-        if (pump.enforce_pressure_safety()) // reads the sensor on every pass; stops the pump itself
+        if (pump.enforce_pressure_safety())  // hard cap checked every pass
         {
             reason = "cap";
             break;
         }
+
         float p = read_p_in();
         if (p > p_max)
         {
             p_max = p;
             t_pmax = now - t0;
         }
-        if (p >= soft)
-        {
-            pump.stop();
-            reason = "soft_limit";
-            break;
-        }
+
         if (abort_pending())
         {
             pump.stop();
             reason = "aborted";
             break;
         }
+
         uint32_t t = now - t0;
+
+        // Phase transition: RAMP -> HOLD when ramp duration elapsed
         if (!in_hold && t >= ramp_ms)
         {
             in_hold = true;
             hold_start = now;
+            pi_hold.reset();  // start PI fresh in HOLD phase
+            Serial.println("Entering HOLD phase at P=" + String(p, 2) + " bar");
         }
+
+        // Exit HOLD if duration elapsed
         if (in_hold && now - hold_start >= hold_ms)
         {
-            break; // completed: the pump is stopped below
+            break;  // completed
         }
-        float sp = step ? target : core::ramp_setpoint(start_bar, target, rate, t);
+
+        // Update control every PRESSURE_RAMP_UPDATE_MS
         if (now - last_update >= PRESSURE_RAMP_UPDATE_MS)
         {
             last_update = now;
-            pid.setSetpoint(sp);
-            float wanted = (float)pid.getOutput(p);
-            power_cmd = slew ? core::slew_limit(power_cmd, wanted, (float)slew) : wanted;
-            pump.set_power((int8_t)(power_cmd + 0.5f)); // with slew=0 this can block 4 s on a big step, as in production (F132)
+            float p_delta = p - p_prev;
+            uint32_t dt_ms = now - t0;  // approximate dt for rise-rate calc
+
+            if (!in_hold)
+            {
+                // RAMP phase: power increases open-loop with slew limit
+                float target_for_ramp = core::power_ramp_value(t, ramp_ms, start_power, peak_power, slew);
+
+                // Rise-rate limiter: if dP/dt too high, slow power ramp
+                float rise_limited_power = core::rise_rate_limit(p, p_prev, PRESSURE_RAMP_UPDATE_MS,
+                                                                   POWER_RAMP_RISE_RATE_LIMIT_BAR_S, target_for_ramp);
+
+                // Slew limit on power command
+                power_cmd = slew ? core::slew_limit(power_cmd, rise_limited_power, (float)slew) : rise_limited_power;
+
+                // Check for clog: peak power reached but pressure too low
+                if (core::is_clogged(power_cmd, peak_power, p, POWER_RAMP_CLOG_THRESHOLD_BAR))
+                {
+                    clog_detected = true;
+                }
+            }
+            else
+            {
+                // HOLD phase: stabilization PI only (no setpoint tracking)
+                // PI output modulates around current power to dampen oscillations
+                float pi_output = (float)pi_hold.getOutput(p);
+                power_cmd = slew ? core::slew_limit(power_cmd, pi_output, (float)slew) : pi_output;
+            }
+
+            pump.set_power((int8_t)(power_cmd + 0.5f));
             core::pid_stats_add(&st, t, p, power_cmd, in_hold && (now - hold_start) >= hold_ms / 2);
+            p_prev = p;
         }
+
         if (now - last_print >= 1000)
         {
             last_print = now;
-            Serial.println("  " + String(t / 1000.0, 0) + "  " + (in_hold ? "HOLD" : "RAMP") + "  " + String(sp, 2) + "  " +
+            Serial.println("  " + String(t / 1000.0, 0) + "  " + (in_hold ? "HOLD  " : "RAMP  ") + "  " +
                            String(p, 3) + "  " + String(power_cmd, 0));
         }
         delay(2);
@@ -937,6 +963,7 @@ static void cmd_pressure_ramp(const Cmd &c)
         reason = "completed";
     }
     float p_end = p_stop;
+
     if (completed && decay_s > 0)
     {
         Serial.println("Pump off. Pressure decay for " + String(decay_s) + " s (any key stops the wait):");
@@ -944,10 +971,7 @@ static void cmd_pressure_ramp(const Cmd &c)
         uint32_t last = 0;
         while (millis() - d0 < (uint32_t)decay_s * 1000UL)
         {
-            if (abort_pending())
-            {
-                break;
-            }
+            if (abort_pending()) break;
             if (millis() - last >= 1000)
             {
                 last = millis();
@@ -961,23 +985,26 @@ static void cmd_pressure_ramp(const Cmd &c)
     valve_manifold.set_close_way();
 
     bool has_late = core::pid_stats_has_late(&st);
-    float err = core::pid_stats_mean_error(&st);
-    bool reached = completed && has_late && err >= -0.1f;
-    // The numbers to compare between runs (tools/compare_tune.py): ovs = overshoot over the target (bar),
-    // rise = s to 90 % of the target, err = mean P - target and rip = max - min of P in the second half of
-    // the hold, pw / pwp2p = mean and swing of the power there, rev = power reversals (chatter),
-    // sat = % of the time at max power
-    kv += ";end=" + String(reason) + ";tgt=" + String(target, 2) + ";kp=" + String(kp, 0) + ";ki=" + String(ki, 0) + ";kd=" + String(kd, 0) +
-          ";slew=" + String(slew) + ";st=" + String(start_power) + ";mp=" + String(max_power) + ";pmax=" + String(p_max, 2) +
-          ";tpmax=" + String(t_pmax / 1000.0, 1) + ";ovs=" + String(core::pid_stats_overshoot(&st), 2) + ";rise=" + String(st.rise_s, 1) +
-          ";err=" + String(err, 2) + ";rip=" + String(core::pid_stats_ripple(&st), 2) + ";pw=" + String(core::pid_stats_power_mean(&st), 0) +
-          ";pwp2p=" + String(core::pid_stats_power_p2p(&st), 0) + ";rev=" + String(st.reversals) + ";sat=" + String(core::pid_stats_saturated_pct(&st), 0) +
-          ";reached=" + (reached ? "yes" : "no");
+    float rip = core::pid_stats_ripple(&st);
+    bool success = completed && !clog_detected && p_max < cap;
+
+    // Metrics for analysis
+    kv += ";end=" + String(reason) + ";ramp_time=" + String(ramp_time, 1) + ";peak_pw=" + String(peak_power) +
+          ";kp=" + String(kp, 0) + ";ki=" + String(ki, 0) + ";slew=" + String(slew) + ";st=" + String(start_power) +
+          ";pmax=" + String(p_max, 2) + ";tpmax=" + String(t_pmax / 1000.0, 1) +
+          ";rise=" + String(st.rise_s, 1) + ";rip=" + String(rip, 2) +
+          ";pw=" + String(core::pid_stats_power_mean(&st), 0) + ";pwp2p=" + String(core::pid_stats_power_p2p(&st), 0) +
+          ";rev=" + String(st.reversals) + ";sat=" + String(core::pid_stats_saturated_pct(&st), 0) +
+          ";clog_detected=" + (clog_detected ? "yes" : "no");
+
     if (decay_s > 0 && completed)
     {
-        kv += ";pstop=" + String(p_stop, 2) + ";decay=" + String(p_stop - p_end, 3) + ";decay_s=" + String(decay_s);
+        float decay_per_30s = (p_stop - p_end) / 30.0f * decay_s;  // normalize to 30s
+        kv += ";pstop=" + String(p_stop, 2) + ";decay=" + String(p_stop - p_end, 3) + ";decay_30s=" + String(decay_per_30s, 2);
     }
-    Serial.println(String("pressure_ramp ended: ") + reason + ", P max " + String(p_max, 3) + " bar at " + String(t_pmax / 1000.0, 1) + " s");
+
+    Serial.println(String("pressure_ramp ended: ") + reason + ", P_max " + String(p_max, 3) + " bar at " +
+                   String(t_pmax / 1000.0, 1) + " s, clog=" + (clog_detected ? "yes" : "no"));
 
     if (!completed)
     {
@@ -986,10 +1013,11 @@ static void cmd_pressure_ramp(const Cmd &c)
         test_end();
         return;
     }
+
     char leak = 'n';
     if (!quick)
     {
-        leak = ask_ynx("Any leak at the manifold, the O-ring or a joint (during the ramp, the hold or the decay)?");
+        leak = ask_ynx("Any leak at the manifold, the O-ring or a joint (during ramp/hold/decay)?");
         if (leak == 'x')
         {
             test_result(String(slot).c_str(), core::TEST_SKIP, kv + ";leak=aborted");
@@ -1008,7 +1036,8 @@ static void cmd_pressure_ramp(const Cmd &c)
             kv += ";where=" + String(buf);
         }
     }
-    test_result(String(slot).c_str(), (reached && leak == 'n') ? core::TEST_PASS : core::TEST_FAIL, kv);
+
+    test_result(String(slot).c_str(), (success && leak == 'n') ? core::TEST_PASS : core::TEST_FAIL, kv);
     Serial.println("O-ring left LOCKED (oring_unlock when the pressure is gone).");
     test_end();
 }
