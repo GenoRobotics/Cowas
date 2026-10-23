@@ -17,7 +17,4 @@ void calibrate_DNA_pump();
 void system_checkup();
 
 
-void system_checkup();
-
-
 #endif
