@@ -1,4 +1,4 @@
-"""The protocol v1 client (docs/PROTOCOL.md §3, §7, §9, §10).
+"""The protocol v1 client (docs/software/protocol.md §3, §7, §9, §10).
 
 Single-threaded by design: the client "pumps" its transport while it waits, measuring every
 timeout on the transport's clock. The same code therefore runs in real time on the serial

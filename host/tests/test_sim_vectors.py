@@ -1,5 +1,5 @@
 """The simulator answers every request vector exactly as protocol/vectors.json says, and
-replays the three sequences (PROTOCOL.md §13).
+replays the three sequences (docs/software/protocol.md §13).
 
 Log copies ({"t":"log"}) are left out of the comparison: the vectors list the protocol
 messages only (finding F72).

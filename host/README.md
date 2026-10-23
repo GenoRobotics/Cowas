@@ -1,6 +1,6 @@
 # cowas: the CoWaS host (HO1)
 
-Python 3.11+, cross-platform (Windows laptop for Pilot A, Raspberry Pi later). It talks to the Arduino Due with protocol v1: the contract is [docs/PROTOCOL.md](../docs/PROTOCOL.md), and the shared test vectors are in [protocol/vectors.json](../protocol/vectors.json).
+Python 3.11+, cross-platform (Windows laptop for Pilot A, Raspberry Pi later). It talks to the Arduino Due with protocol v1: the contract is [software/protocol.md](../docs/software/protocol.md), and the shared test vectors are in [protocol/vectors.json](../protocol/vectors.json).
 
 **Status:** the firmware side of the protocol comes with FW7. Until then, use `--sim` (a simulated Due). A Due running today's firmware speaks the legacy text protocol and will not answer.
 
@@ -12,7 +12,7 @@ python -m venv .venv
 .venv/Scripts/pip install -e ".[dev]"      # Windows  (Linux/Pi: .venv/bin/pip)
 ```
 
-On the team laptop the PlatformIO Python works as the base: `%USERPROFILE%\.platformio\python3\python.exe -m venv .venv`. If pip fails with `CERTIFICATE_VERIFY_FAILED`, set `SSL_CERT_FILE` / `PIP_CERT` to a PEM bundle that includes the Windows root store (see CLAUDE.md).
+On the laptop the PlatformIO Python works as the base: `%USERPROFILE%\.platformio\python3\python.exe -m venv .venv`. If pip fails with `CERTIFICATE_VERIFY_FAILED`, set `SSL_CERT_FILE` / `PIP_CERT` to a PEM bundle that includes the Windows root store (see CLAUDE.md).
 
 ## Use
 

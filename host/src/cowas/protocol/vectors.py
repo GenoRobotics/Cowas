@@ -1,4 +1,4 @@
-"""Loading protocol/vectors.json and its matching rule (PROTOCOL.md §13).
+"""Loading protocol/vectors.json and its matching rule (docs/software/protocol.md §13).
 
 Used by the tests (and usable by bench tools): every key of an expected object must be in the
 actual one with an equal value; "$num", "$str", "$bool", "$any" match any value of that

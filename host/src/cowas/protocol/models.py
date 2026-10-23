@@ -1,4 +1,4 @@
-"""Pydantic models for protocol v1 messages and results (docs/PROTOCOL.md §3, §5, §6).
+"""Pydantic models for protocol v1 messages and results (docs/software/protocol.md §3, §5, §6).
 
 Due -> host models are strict about types (a string is never a number, a bool is never an
 int) but accept unknown fields (§1.6 forward compatibility); unknown fields stay readable
@@ -316,7 +316,8 @@ class Position(_Model):
 
 
 class Limits(_Model):
-    """§5.7 `limits`. Defaults = the PROTOCOL.md example (the real ones come from GET_INFO)."""
+    """§5.7 `limits`. Defaults = the docs/software/protocol.md example
+    (the real ones come from GET_INFO)."""
 
     volume_ml_min: float = 10
     volume_ml_max: float = 5000

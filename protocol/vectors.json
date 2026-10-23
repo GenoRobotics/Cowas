@@ -1,6 +1,6 @@
 {
  "protocol": "1.0",
- "spec": "docs/PROTOCOL.md",
+ "spec": "docs/reference/protocol.md",
  "matching": "Expected objects match when every listed key is present with an equal value; unlisted keys are not checked. \"$num\", \"$str\", \"$bool\" match any value of that type, \"$any\" matches anything including null. Arrays must have the same length and match element by element. expect [] = the Due sends nothing. line_gen: prefix + fill repeated up to length bytes (+ suffix, counted in length), no newline.",
  "defaults": {
   "state": {

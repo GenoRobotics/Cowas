@@ -1,13 +1,15 @@
 """FakeController: protocol v1 as the Due should speak it, in virtual time (ROADMAP HO1 item 5).
 
-It follows docs/PROTOCOL.md: the §7 check order, the §5.2 mode table, dedupe of the last 16
+It follows docs/software/protocol.md: the §7 check order, the §5.2 mode table,
+dedupe of the last 16
 ids with the full results of the last 4 procedures, long commands (events, ~1 Hz telemetry,
 ack then result), STOP -> FAULT(USER_STOP) -> CLEAR_FAULT -> RECOVER, link loss (the running
 command finishes, nothing new starts), `boot_id` per boot, and a copy of every human log line.
 It answers every request vector of protocol/vectors.json (tests/test_sim_vectors.py).
 
 The physics is deliberately crude (constant clean flow, a quadratic clog, fixed move times):
-enough to exercise the host, not a model of the machine. Timings are the PROTOCOL.md §10
+enough to exercise the host, not a model of the machine. Timings are the docs/software/protocol.md
+§10
 budgets; the real values come from the Due's `ack.max_s`.
 
 Time only moves in `advance()`: one generator per running command is stepped every TICK.
@@ -49,7 +51,7 @@ from cowas.sim.geometry import cowas_v1
 
 TICK = 0.25  # s of virtual time per simulation step
 
-# Move and stage budgets (PROTOCOL.md §10, FW0 values).
+# Move and stage budgets (docs/software/protocol.md §10, FW0 values).
 UNLOCK_S = 6.4
 LOCK_S = 7.0
 HOME_S = 7.5
@@ -270,7 +272,7 @@ class FakeController:
 
     @classmethod
     def from_state(cls, state: dict[str, Any], **kwargs: Any) -> FakeController:
-        """Build the controller described by a vector's `state` (PROTOCOL.md §13)."""
+        """Build the controller described by a vector's `state` (docs/software/protocol.md §13)."""
         caps = Caps(**state.get("caps", {}))
         limits = Limits(**state.get("limits", {}))
         sim = cls(info=cowas_v1(limits), caps=caps, **kwargs)

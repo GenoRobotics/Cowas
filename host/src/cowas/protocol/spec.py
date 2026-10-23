@@ -1,6 +1,6 @@
-"""Protocol v1 constants and tables, copied from docs/PROTOCOL.md.
+"""Protocol v1 constants and tables, copied from docs/software/protocol.md.
 
-Section numbers (§) refer to docs/PROTOCOL.md. Nothing here hard-codes a slot count:
+Section numbers (§) refer to docs/software/protocol.md. Nothing here hard-codes a slot count:
 the geometry always comes from GET_INFO (§5.7).
 """
 
