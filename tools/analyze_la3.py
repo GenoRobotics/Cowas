@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """LA3 analysis: residual water, shield volume, shield/water ratio and retention.
 
-Reads the weighing log of docs/LA3_PROTOCOL.md (one CSV row per weighing) and prints,
+Reads the weighing log of docs/lab/shield-protocol.md (one CSV row per weighing) and prints,
 per filter and per group, the computed volumes with PASS / FAIL / OPEN against the
-lab's thresholds. OPEN = the lab hasn't set that threshold yet (LAB_INTERFACE.md §4).
+lab's thresholds. OPEN = the lab hasn't set that threshold yet (docs/lab/shield-protocol.md §7).
 
     python tools/analyze_la3.py masses.csv
     python tools/analyze_la3.py masses.csv --thresholds tools/la3_thresholds.json \
@@ -17,7 +17,7 @@ CSV columns (header required, extra columns ignored):
     mass_g     scale reading of the capped filter, g
     temp_c, notes   optional, copied through
 
-Stages (LA3_PROTOCOL.md Part C):
+Stages (docs/lab/shield-protocol.md Part C):
     dry       the dry filter with its two caps, before anything
     water     after a cycle WITHOUT the shield (water + air push) -> residual water
     shield    after the shield stage on the same filter -> shield volume
@@ -44,14 +44,14 @@ from pathlib import Path
 STAGES = ("dry", "water", "shield", "full", "hold", "handling")
 SINGLE_STAGES = ("dry", "water", "shield", "full")
 
-# Threshold keys. None = not decided (OPEN). Source = LAB_INTERFACE.md question.
+# Threshold keys. None = not decided (OPEN). Source = docs/lab/shield-protocol.md §7.
 THRESHOLD_KEYS = {
     "shield_target_ml": "B1",  # info: deviation of the delivered dose
     "shield_min_ml": "B2",
     "residual_max_ml": "B3",
     "ratio_min": "B3",  # shield / residual water
     "retention_loss_max_pct_per_day": "B5",
-    "shield_density_g_ml": "LA3_PROTOCOL A1",
+    "shield_density_g_ml": "LA3 protocol A1",
     "water_density_g_ml": "-",
 }
 DEFAULT_DENSITY = 1.0
@@ -312,9 +312,9 @@ def mean_sd(values: list[float]) -> str:
 
 def report(results: list[FilterResult], th: dict[str, float | None], h_loss: float | None) -> str:
     out: list[str] = []
-    out.append("LA3 analysis (docs/LA3_PROTOCOL.md)")
+    out.append("LA3 analysis (docs/lab/shield-protocol.md)")
     if th["shield_density_g_ml"] is None:
-        out.append(f"  shield_density_g_ml = {DEFAULT_DENSITY} (default, PLACEHOLDER: measure it, LA3_PROTOCOL A1)")
+        out.append(f"  shield_density_g_ml = {DEFAULT_DENSITY} (default, PLACEHOLDER: measure it, LA3 protocol A1)")
     else:
         out.append(f"  shield_density_g_ml = {th['shield_density_g_ml']}")
     out.append(f"  water_density_g_ml = {th['water_density_g_ml'] or DEFAULT_DENSITY}")
@@ -322,7 +322,7 @@ def report(results: list[FilterResult], th: dict[str, float | None], h_loss: flo
         if key.endswith("density_g_ml"):
             continue
         val = th[key]
-        out.append(f"  {key} = {val if val is not None else 'OPEN (not decided: LAB_INTERFACE ' + src + ')'}")
+        out.append(f"  {key} = {val if val is not None else 'OPEN (not decided: decision ' + src + ')'}")
     if h_loss is not None:
         out.append(f"  handling loss = {h_loss:.3f} g per remove/reinstall (added back to hold weighings)")
     else:

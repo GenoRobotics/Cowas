@@ -56,9 +56,9 @@ def test_rejects_invalid_lines():
 
 def test_log_paths_sanitize_the_tag():
     c, l = h.log_paths("fw2 bench/1", root="logs", today=dt.date(2026, 9, 28))
-    assert c == os.path.join("logs", "2026-09-28_fw2_bench_1.csv")
-    assert l == os.path.join("logs", "2026-09-28_fw2_bench_1.log")
-    assert h.log_paths("", root="r", today=dt.date(2026, 1, 2))[0] == os.path.join("r", "2026-01-02_untagged.csv")
+    assert c == os.path.join("logs", "2026-09-28", "01_fw2_bench_1", "tests.csv")
+    assert l == os.path.join("logs", "2026-09-28", "01_fw2_bench_1", "session.log")
+    assert h.log_paths("", root="r", today=dt.date(2026, 1, 2))[0] == os.path.join("r", "2026-01-02", "01_untagged", "tests.csv")
 
 
 def test_append_csv_writes_header_once(tmp_path):

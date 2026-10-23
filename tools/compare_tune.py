@@ -8,7 +8,7 @@ of them. A difference smaller than the run-to-run spread (or a floor) counts as 
 read as an improvement.
 
 Usage:
-    python tools/compare_tune.py test_logs/2026-10-16_tune.csv --base base --cand kp150
+    python tools/compare_tune.py docs/logs/test-logs/2026-10-15_tune.csv --base base --cand kp150
     python tools/compare_tune.py a.log b.log --base base --cand kp150     (transcripts work too)
 
 Exit code 0 = the candidate is not worse on any slot, 1 = it is worse somewhere (or unsafe), 2 = no data.

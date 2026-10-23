@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """LA4 analysis: washout curve, carry-over into a filter, slot cross-talk.
 
-Protocol and CSV formats: docs/LA4_PROTOCOL.md. Standard library only, so it runs on
+Protocol and CSV formats: not written yet (LA4 protocol). Standard library only, so it runs on
 any laptop with Python >= 3.8 (no numpy).
 
 Every reading (conductivity, absorbance, photometry value...) is first turned into a
