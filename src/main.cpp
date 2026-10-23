@@ -106,6 +106,7 @@ float read_p_in()
     return pressure1.getPressure();
 }
 
+// PressureSensor pressureDFRobot;
 
 void setup()
 {
@@ -202,6 +203,20 @@ void setup()
     // rotateMotor(1);
     // spool.start_origin();
 
+    // ! Flow sensor test
+    // flow_setup();
+    // pressure2.readPressure();
+    // delay(500);
+    // pressure2.readPressure();
+
+    pump_pid.setOutputLimits(0, 100); // always do in setup/ or in pump.begin()
+
+    pump_pid.setPID(200, 100, 100);
+
+    test_all_components();
+    // testing dna shield
+    // rotateMotor(1);
+    // spool.start_origin();
 
     // all_on();
 }
