@@ -1,0 +1,2859 @@
+2026-10-23T19:55:19.489+02:00 ! open COM6 9600 baud, DTR/RTS low
+2026-10-23T19:55:25.143+02:00 > actuator_home
+2026-10-23T19:55:25.290+02:00 < > actuator_home
+2026-10-23T19:55:25.290+02:00 < === actuator_home ===
+2026-10-23T19:55:25.291+02:00 < actuator_home: slot 7 aligned (error 0.52 deg)
+2026-10-23T19:55:25.500+02:00 < actuator_home: overdrive lock to the physical stop, then unlock (x = abort)
+2026-10-23T19:55:40.357+02:00 < actuator_home: done, O-ring UNLOCKED (known)
+2026-10-23T19:55:40.357+02:00 < TEST|actuator_home|home|PASS|slot=7;err_deg=0.52;tol_deg=3.0;state=UNLOCKED
+2026-10-23T19:55:40.377+02:00 < --- actuator_home summary ---
+2026-10-23T19:55:40.377+02:00 < id          | result | data
+2026-10-23T19:55:40.586+02:00 < home        | PASS   | slot=7;err_deg=0.52;tol_deg=3.0;state=UNLOCKED
+2026-10-23T19:55:40.587+02:00 < TOTAL: 1 PASS, 0 FAIL, 0 SKIP -> PASS
+2026-10-23T19:55:40.587+02:00 < TEST|actuator_home|summary|PASS|pass=1;fail=0;skip=0
+2026-10-23T19:55:46.572+02:00 > slot8
+2026-10-23T19:55:46.780+02:00 < > slot8
+2026-10-23T19:55:46.781+02:00 < Rotating to slot 8
+2026-10-23T19:55:55.035+02:00 < O-ring locked
+2026-10-23T19:55:56.426+02:00 > session
+2026-10-23T19:55:56.472+02:00 < > session
+2026-10-23T19:55:56.684+02:00 < ASK | site  (type the answer + ENTER, x = cancel)
+2026-10-23T19:55:59.871+02:00 > test
+2026-10-23T19:55:59.979+02:00 < ASK | date (YYYY-MM-DD)  (type the answer + ENTER, x = cancel)
+2026-10-23T19:56:04.289+02:00 > 2026-10-23
+2026-10-23T19:56:04.514+02:00 < ASK | experiment name  (type the answer + ENTER, x = cancel)
+2026-10-23T19:56:08.548+02:00 > airEau
+2026-10-23T19:56:08.820+02:00 < ASK | operator (optional)  (type the answer + ENTER, x = cancel)
+2026-10-23T19:56:11.965+02:00 > Quentin
+2026-10-23T19:56:12.167+02:00 < META|session;site=test;date=2026-10-23;experiment=airEau;operator=Quentin
+2026-10-23T19:56:17.484+02:00 > run_sample 11
+2026-10-23T19:56:17.525+02:00 < > run_sample 11
+2026-10-23T19:56:17.730+02:00 < ASK | sample name  (type the answer + ENTER, x = cancel)
+2026-10-23T19:56:22.523+02:00 > newFilter
+2026-10-23T19:56:22.678+02:00 < ASK | condition (e.g. control, blank, filter A)  (type the answer + ENTER, x = cancel)
+2026-10-23T19:56:26.046+02:00 > filter 1
+2026-10-23T19:56:26.191+02:00 < ASK | notes (optional)  (type the answer + ENTER, x = cancel)
+2026-10-23T19:56:29.070+02:00 > test
+2026-10-23T19:56:29.285+02:00 < META|sample;slot=11;name=newFilter;condition=filter 1;notes=test;site=test;date=2026-10-23;experiment=airEau
+2026-10-23T19:56:29.285+02:00 < === run_sample ===
+2026-10-23T19:56:29.287+02:00 < Step purge started
+2026-10-23T19:56:29.287+02:00 < Step purge: 100 mL, spool absent
+2026-10-23T19:56:36.482+02:00 < O-ring unlocked
+2026-10-23T19:56:46.810+02:00 < O-ring locked
+2026-10-23T19:56:46.810+02:00 < Valve V1 closed
+2026-10-23T19:56:46.812+02:00 < Valve V_manifold opened
+2026-10-23T19:56:47.847+02:00 < Flow sensor reset, CtrlPumpFlow
+2026-10-23T19:56:47.849+02:00 < Millil after reset: 0
+2026-10-23T19:56:47.849+02:00 < ctrl flow started
+2026-10-23T19:56:48.049+02:00 < Flow sensor reset, CtrlPumpFlow
+2026-10-23T19:56:48.049+02:00 < Millil after reset: 0
+2026-10-23T19:56:48.050+02:00 < Pump P1 started at once with power 0
+2026-10-23T19:56:48.050+02:00 < Pressure bar : 0.03
+2026-10-23T19:56:48.050+02:00 < Flow measured : 0
+2026-10-23T19:56:50.935+02:00 < Pressure bar : 0.06
+2026-10-23T19:56:50.937+02:00 < Flow measured : 0
+2026-10-23T19:56:54.002+02:00 < Pressure bar : 0.05
+2026-10-23T19:56:54.002+02:00 < Flow measured : 0
+2026-10-23T19:56:56.872+02:00 < Pressure bar : 0.33
+2026-10-23T19:56:56.872+02:00 < Flow measured : 12
+2026-10-23T19:56:59.957+02:00 < Pressure bar : 0.57
+2026-10-23T19:56:59.957+02:00 < Flow measured : 39
+2026-10-23T19:57:03.040+02:00 < Pressure bar : 0.59
+2026-10-23T19:57:03.040+02:00 < Flow measured : 73
+2026-10-23T19:57:05.535+02:00 < End cond first met
+2026-10-23T19:57:05.535+02:00 < Pump control loop should stop now
+2026-10-23T19:57:05.949+02:00 < Pump P1 stopped
+2026-10-23T19:57:06.567+02:00 < {"t":"sample","fw":"S1-1b-dev","id":"auto-1","purpose":"purge","site":"test","date":"2026-10-23","condition":"filter 1","slot":0,"start_ms":232002,"end_ms":250077,"target_ml":100.000,"vol_ml":101.000,"vol_trusted_ml":101.000,"purge_ml":101.000,"end_reason":"volume","p_mean_bar":0.286,"p_max_bar":0.593,"p_cap_bar":3.600,"lock_before":"LOCKED","lock_after":"LOCKED","shield_ml":null,"calib":{"flow_factor":77.000,"p_gain":1.041,"p_offset_bar":-0.031,"abp_full_scale_psi":60.000,"linear_act_locked_steps":210},"flags":["placeholder:ABP_FULL_SCALE_PSI","placeholder:STX_MAX_PRESSURE"]}
+2026-10-23T19:57:06.570+02:00 < Valve V1 closed
+2026-10-23T19:57:06.570+02:00 < Valve V_manifold closed
+2026-10-23T19:57:06.570+02:00 < Time to purge : 18610 ms (end=cond)
+2026-10-23T19:57:06.570+02:00 < Step purge ended
+2026-10-23T19:57:06.771+02:00 < Step sample through filter started
+2026-10-23T19:57:13.589+02:00 < O-ring unlocked
+2026-10-23T19:57:23.272+02:00 < O-ring locked
+2026-10-23T19:57:23.272+02:00 < Valve V1 closed
+2026-10-23T19:57:23.272+02:00 < Valve V_manifold opened
+2026-10-23T19:57:24.099+02:00 < Flow sensor reset, CtrlPumpFlow
+2026-10-23T19:57:24.304+02:00 < Millil after reset: 0
+2026-10-23T19:57:24.306+02:00 < Step sample: pumping water through sterivex
+2026-10-23T19:57:24.306+02:00 < Flow sensor reset, CtrlPumpFlow
+2026-10-23T19:57:24.306+02:00 < Millil after reset: 0
+2026-10-23T19:57:24.306+02:00 < Pump P1 started at once with power 0
+2026-10-23T19:57:24.306+02:00 < Pressure bar : -0.05
+2026-10-23T19:57:24.306+02:00 < Flow measured : 0
+2026-10-23T19:57:27.375+02:00 < Pressure bar : 0.10
+2026-10-23T19:57:27.378+02:00 < Flow measured : 0
+2026-10-23T19:57:30.265+02:00 < Pressure bar : 2.40
+2026-10-23T19:57:30.268+02:00 < Flow measured : 7
+2026-10-23T19:57:33.774+02:00 < Pump P1 stopped
+2026-10-23T19:57:33.775+02:00 < PAUSE at 3.35 bar (1): waiting for 3.15 bar
+2026-10-23T19:57:33.775+02:00 < Pressure bar : 3.35
+2026-10-23T19:57:33.775+02:00 < Flow measured : 20
+2026-10-23T19:57:33.777+02:00 < Pump P1 started at once with power 0
+2026-10-23T19:57:33.993+02:00 < RESUME at 0.90 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T19:57:36.677+02:00 < Pressure bar : 0.31
+2026-10-23T19:57:36.677+02:00 < Flow measured : 22
+2026-10-23T19:57:39.776+02:00 < Pressure bar : 2.45
+2026-10-23T19:57:39.776+02:00 < Flow measured : 29
+2026-10-23T19:57:42.025+02:00 < Pump P1 stopped
+2026-10-23T19:57:42.027+02:00 < PAUSE at 3.37 bar (2): waiting for 3.15 bar
+2026-10-23T19:57:42.027+02:00 < Pump P1 started at once with power 0
+2026-10-23T19:57:42.230+02:00 < RESUME at 0.91 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T19:57:42.647+02:00 < Pressure bar : 0.44
+2026-10-23T19:57:42.647+02:00 < Flow measured : 38
+2026-10-23T19:57:45.753+02:00 < Pressure bar : 1.03
+2026-10-23T19:57:45.755+02:00 < Flow measured : 39
+2026-10-23T19:57:48.661+02:00 < Pressure bar : 3.03
+2026-10-23T19:57:48.661+02:00 < Flow measured : 48
+2026-10-23T19:57:51.750+02:00 < Pressure bar : 2.77
+2026-10-23T19:57:51.750+02:00 < Flow measured : 60
+2026-10-23T19:57:52.577+02:00 < Pump P1 stopped
+2026-10-23T19:57:52.577+02:00 < PAUSE at 3.35 bar (3): waiting for 3.15 bar
+2026-10-23T19:57:52.577+02:00 < Pump P1 started at once with power 0
+2026-10-23T19:57:52.577+02:00 < RESUME at 0.95 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T19:57:54.824+02:00 < Pressure bar : 0.15
+2026-10-23T19:57:54.826+02:00 < Flow measured : 63
+2026-10-23T19:57:57.743+02:00 < Pressure bar : 2.24
+2026-10-23T19:57:57.743+02:00 < Flow measured : 67
+2026-10-23T19:58:00.838+02:00 < Pressure bar : 3.19
+2026-10-23T19:58:00.838+02:00 < Flow measured : 78
+2026-10-23T19:58:04.147+02:00 < Pump P1 stopped
+2026-10-23T19:58:04.147+02:00 < PAUSE at 3.37 bar (4): waiting for 3.15 bar
+2026-10-23T19:58:04.362+02:00 < Pressure bar : 3.37
+2026-10-23T19:58:04.362+02:00 < Flow measured : 90
+2026-10-23T19:58:04.362+02:00 < Pump P1 started at once with power 0
+2026-10-23T19:58:04.362+02:00 < RESUME at 0.98 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T19:58:07.242+02:00 < Pressure bar : 0.35
+2026-10-23T19:58:07.242+02:00 < Flow measured : 92
+2026-10-23T19:58:10.116+02:00 < Pressure bar : 2.81
+2026-10-23T19:58:10.339+02:00 < Flow measured : 98
+2026-10-23T19:58:13.236+02:00 < Pressure bar : 3.21
+2026-10-23T19:58:13.243+02:00 < Flow measured : 109
+2026-10-23T19:58:16.127+02:00 < Pressure bar : 3.14
+2026-10-23T19:58:16.338+02:00 < Flow measured : 120
+2026-10-23T19:58:17.386+02:00 < Pump P1 stopped
+2026-10-23T19:58:17.386+02:00 < PAUSE at 3.36 bar (5): waiting for 3.15 bar
+2026-10-23T19:58:17.386+02:00 < Pump P1 started at once with power 0
+2026-10-23T19:58:17.386+02:00 < RESUME at 1.03 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T19:58:19.242+02:00 < Pressure bar : 0.22
+2026-10-23T19:58:19.242+02:00 < Flow measured : 124
+2026-10-23T19:58:22.131+02:00 < Pressure bar : 2.30
+2026-10-23T19:58:22.338+02:00 < Flow measured : 127
+2026-10-23T19:58:25.216+02:00 < Pressure bar : 2.94
+2026-10-23T19:58:25.216+02:00 < Flow measured : 137
+2026-10-23T19:58:27.492+02:00 <   window 60 s pumping: 146 mL (first 146 mL)
+2026-10-23T19:58:28.311+02:00 < Pressure bar : 2.88
+2026-10-23T19:58:28.311+02:00 < Flow measured : 148
+2026-10-23T19:58:31.217+02:00 < Pressure bar : 2.89
+2026-10-23T19:58:31.217+02:00 < Flow measured : 158
+2026-10-23T19:58:34.314+02:00 < Pressure bar : 3.17
+2026-10-23T19:58:34.314+02:00 < Flow measured : 168
+2026-10-23T19:58:34.732+02:00 < Pump P1 stopped
+2026-10-23T19:58:34.732+02:00 < PAUSE at 3.35 bar (6): waiting for 3.15 bar
+2026-10-23T19:58:34.942+02:00 < Pump P1 started at once with power 0
+2026-10-23T19:58:34.942+02:00 < RESUME at 1.09 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T19:58:37.208+02:00 < Pressure bar : 0.19
+2026-10-23T19:58:37.208+02:00 < Flow measured : 170
+2026-10-23T19:58:40.120+02:00 < Pressure bar : 2.82
+2026-10-23T19:58:40.325+02:00 < Flow measured : 174
+2026-10-23T19:58:43.213+02:00 < Pressure bar : 2.88
+2026-10-23T19:58:43.213+02:00 < Flow measured : 184
+2026-10-23T19:58:45.053+02:00 < Pump P1 stopped
+2026-10-23T19:58:45.055+02:00 < PAUSE at 3.37 bar (7): waiting for 3.15 bar
+2026-10-23T19:58:45.055+02:00 < Pump P1 started at once with power 0
+2026-10-23T19:58:45.266+02:00 < RESUME at 1.13 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T19:58:46.304+02:00 < Pressure bar : 0.42
+2026-10-23T19:58:46.304+02:00 < Flow measured : 190
+2026-10-23T19:58:49.180+02:00 < Pressure bar : 1.91
+2026-10-23T19:58:49.180+02:00 < Flow measured : 191
+2026-10-23T19:58:52.302+02:00 < Pressure bar : 3.10
+2026-10-23T19:58:52.306+02:00 < Flow measured : 200
+2026-10-23T19:58:55.185+02:00 < Pressure bar : 3.19
+2026-10-23T19:58:55.186+02:00 < Flow measured : 209
+2026-10-23T19:58:58.307+02:00 < Pressure bar : 3.07
+2026-10-23T19:58:58.307+02:00 < Flow measured : 217
+2026-10-23T19:59:01.211+02:00 < Pressure bar : 3.06
+2026-10-23T19:59:01.213+02:00 < Flow measured : 226
+2026-10-23T19:59:03.684+02:00 < Pump P1 stopped
+2026-10-23T19:59:03.684+02:00 < PAUSE at 3.36 bar (8): waiting for 3.15 bar
+2026-10-23T19:59:03.684+02:00 < Pump P1 started at once with power 0
+2026-10-23T19:59:03.888+02:00 < RESUME at 1.23 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T19:59:04.289+02:00 < Pressure bar : 0.78
+2026-10-23T19:59:04.289+02:00 < Flow measured : 232
+2026-10-23T19:59:07.190+02:00 < Pressure bar : 1.28
+2026-10-23T19:59:07.190+02:00 < Flow measured : 233
+2026-10-23T19:59:10.278+02:00 < Pressure bar : 2.95
+2026-10-23T19:59:10.278+02:00 < Flow measured : 240
+2026-10-23T19:59:13.555+02:00 < Pump P1 stopped
+2026-10-23T19:59:13.555+02:00 < PAUSE at 3.36 bar (9): waiting for 3.15 bar
+2026-10-23T19:59:13.557+02:00 < Pressure bar : 3.36
+2026-10-23T19:59:13.557+02:00 < Flow measured : 247
+2026-10-23T19:59:13.557+02:00 < Pump P1 started at once with power 0
+2026-10-23T19:59:13.763+02:00 < RESUME at 1.25 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T19:59:16.437+02:00 < Pressure bar : 0.56
+2026-10-23T19:59:16.437+02:00 < Flow measured : 249
+2026-10-23T19:59:19.546+02:00 < Pressure bar : 2.96
+2026-10-23T19:59:19.547+02:00 < Flow measured : 254
+2026-10-23T19:59:22.456+02:00 < Pressure bar : 2.96
+2026-10-23T19:59:22.458+02:00 < Flow measured : 261
+2026-10-23T19:59:25.567+02:00 < Pressure bar : 3.03
+2026-10-23T19:59:25.567+02:00 < Flow measured : 269
+2026-10-23T19:59:28.851+02:00 < Pump P1 stopped
+2026-10-23T19:59:29.053+02:00 < PAUSE at 3.37 bar (10): waiting for 3.15 bar
+2026-10-23T19:59:29.053+02:00 < Pressure bar : 3.37
+2026-10-23T19:59:29.053+02:00 < Flow measured : 275
+2026-10-23T19:59:29.053+02:00 < Pump P1 started at once with power 0
+2026-10-23T19:59:29.053+02:00 < RESUME at 1.35 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T19:59:30.909+02:00 <   window 60 s pumping: 131 mL (first 146 mL)
+2026-10-23T19:59:31.952+02:00 < Pressure bar : 0.64
+2026-10-23T19:59:31.954+02:00 < Flow measured : 277
+2026-10-23T19:59:34.439+02:00 < Pump P1 stopped
+2026-10-23T19:59:34.441+02:00 < PAUSE at 3.36 bar (11): waiting for 3.15 bar
+2026-10-23T19:59:34.647+02:00 < Pump P1 started at once with power 0
+2026-10-23T19:59:34.647+02:00 < RESUME at 1.34 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T19:59:34.854+02:00 < Pressure bar : 0.99
+2026-10-23T19:59:34.858+02:00 < Flow measured : 281
+2026-10-23T19:59:37.966+02:00 < Pressure bar : 1.29
+2026-10-23T19:59:37.968+02:00 < Flow measured : 281
+2026-10-23T19:59:40.849+02:00 < Pressure bar : 3.01
+2026-10-23T19:59:40.849+02:00 < Flow measured : 287
+2026-10-23T19:59:43.927+02:00 < Pressure bar : 3.11
+2026-10-23T19:59:43.927+02:00 < Flow measured : 294
+2026-10-23T19:59:47.021+02:00 < Pressure bar : 2.93
+2026-10-23T19:59:47.021+02:00 < Flow measured : 300
+2026-10-23T19:59:48.456+02:00 < Pump P1 stopped
+2026-10-23T19:59:48.456+02:00 < PAUSE at 3.37 bar (12): waiting for 3.15 bar
+2026-10-23T19:59:48.672+02:00 < Pump P1 started at once with power 0
+2026-10-23T19:59:48.672+02:00 < RESUME at 1.47 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T19:59:49.907+02:00 < Pressure bar : 0.62
+2026-10-23T19:59:49.909+02:00 < Flow measured : 303
+2026-10-23T19:59:53.012+02:00 < Pressure bar : 3.04
+2026-10-23T19:59:53.012+02:00 < Flow measured : 305
+2026-10-23T19:59:55.906+02:00 < Pressure bar : 3.18
+2026-10-23T19:59:55.906+02:00 < Flow measured : 311
+2026-10-23T19:59:58.997+02:00 < Pressure bar : 3.10
+2026-10-23T19:59:58.997+02:00 < Flow measured : 316
+2026-10-23T20:00:01.891+02:00 < Pressure bar : 3.02
+2026-10-23T20:00:01.891+02:00 < Flow measured : 322
+2026-10-23T20:00:04.980+02:00 < Pressure bar : 3.18
+2026-10-23T20:00:04.980+02:00 < Flow measured : 327
+2026-10-23T20:00:07.458+02:00 < Pump P1 stopped
+2026-10-23T20:00:07.669+02:00 < PAUSE at 3.39 bar (13): waiting for 3.15 bar
+2026-10-23T20:00:07.669+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:00:07.675+02:00 < RESUME at 1.58 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:00:07.883+02:00 < Pressure bar : 1.24
+2026-10-23T20:00:07.883+02:00 < Flow measured : 332
+2026-10-23T20:00:11.000+02:00 < Pressure bar : 1.55
+2026-10-23T20:00:11.002+02:00 < Flow measured : 332
+2026-10-23T20:00:12.645+02:00 < Pump P1 stopped
+2026-10-23T20:00:12.645+02:00 < PAUSE at 3.36 bar (14): waiting for 3.15 bar
+2026-10-23T20:00:12.860+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:00:12.860+02:00 < RESUME at 1.58 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:00:13.885+02:00 < Pressure bar : 0.77
+2026-10-23T20:00:13.885+02:00 < Flow measured : 334
+2026-10-23T20:00:16.979+02:00 < Pressure bar : 3.10
+2026-10-23T20:00:16.979+02:00 < Flow measured : 335
+2026-10-23T20:00:17.609+02:00 < Pump P1 stopped
+2026-10-23T20:00:17.609+02:00 < PAUSE at 3.35 bar (15): waiting for 3.15 bar
+2026-10-23T20:00:17.609+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:00:17.817+02:00 < RESUME at 1.60 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:00:19.898+02:00 < Pressure bar : 0.52
+2026-10-23T20:00:19.900+02:00 < Flow measured : 337
+2026-10-23T20:00:23.007+02:00 < Pressure bar : 2.96
+2026-10-23T20:00:23.007+02:00 < Flow measured : 340
+2026-10-23T20:00:24.055+02:00 < Pump P1 stopped
+2026-10-23T20:00:24.055+02:00 < PAUSE at 3.35 bar (16): waiting for 3.15 bar
+2026-10-23T20:00:24.261+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:00:24.261+02:00 < RESUME at 1.63 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:00:25.902+02:00 < Pressure bar : 0.65
+2026-10-23T20:00:25.902+02:00 < Flow measured : 342
+2026-10-23T20:00:28.994+02:00 < Pump P1 stopped
+2026-10-23T20:00:28.994+02:00 < PAUSE at 3.36 bar (17): waiting for 3.15 bar
+2026-10-23T20:00:28.994+02:00 < Pressure bar : 1.77
+2026-10-23T20:00:28.994+02:00 < Flow measured : 343
+2026-10-23T20:00:28.994+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:00:29.205+02:00 < RESUME at 1.63 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:00:31.897+02:00 < Pressure bar : 0.89
+2026-10-23T20:00:31.897+02:00 < Flow measured : 344
+2026-10-23T20:00:33.757+02:00 < Pump P1 stopped
+2026-10-23T20:00:33.757+02:00 < PAUSE at 3.35 bar (18): waiting for 3.15 bar
+2026-10-23T20:00:33.960+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:00:33.960+02:00 < RESUME at 1.66 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:00:34.992+02:00 < Pressure bar : 0.89
+2026-10-23T20:00:34.992+02:00 < Flow measured : 346
+2026-10-23T20:00:36.228+02:00 <   window 60 s pumping: 69 mL (first 146 mL)
+2026-10-23T20:00:37.889+02:00 < Pressure bar : 3.08
+2026-10-23T20:00:37.889+02:00 < Flow measured : 347
+2026-10-23T20:00:40.784+02:00 < Pump P1 stopped
+2026-10-23T20:00:40.991+02:00 < PAUSE at 3.36 bar (19): waiting for 3.15 bar
+2026-10-23T20:00:40.991+02:00 < Pressure bar : 1.74
+2026-10-23T20:00:40.991+02:00 < Flow measured : 351
+2026-10-23T20:00:40.991+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:00:40.993+02:00 < RESUME at 1.70 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:00:43.861+02:00 < Pressure bar : 1.10
+2026-10-23T20:00:44.063+02:00 < Flow measured : 351
+2026-10-23T20:00:45.715+02:00 < Pump P1 stopped
+2026-10-23T20:00:45.715+02:00 < PAUSE at 3.37 bar (20): waiting for 3.15 bar
+2026-10-23T20:00:45.715+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:00:45.717+02:00 < RESUME at 1.70 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:00:46.984+02:00 < Pressure bar : 0.87
+2026-10-23T20:00:46.984+02:00 < Flow measured : 353
+2026-10-23T20:00:49.900+02:00 < Pressure bar : 3.21
+2026-10-23T20:00:49.903+02:00 < Flow measured : 354
+2026-10-23T20:00:52.995+02:00 < Pressure bar : 3.11
+2026-10-23T20:00:52.995+02:00 < Flow measured : 358
+2026-10-23T20:00:55.889+02:00 < Pressure bar : 2.98
+2026-10-23T20:00:55.889+02:00 < Flow measured : 362
+2026-10-23T20:00:58.987+02:00 < Pressure bar : 3.20
+2026-10-23T20:00:58.987+02:00 < Flow measured : 366
+2026-10-23T20:01:00.251+02:00 < Pump P1 stopped
+2026-10-23T20:01:00.251+02:00 < PAUSE at 3.41 bar (21): waiting for 3.15 bar
+2026-10-23T20:01:00.465+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:01:00.465+02:00 < RESUME at 1.81 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:01:01.919+02:00 < Pressure bar : 0.85
+2026-10-23T20:01:01.919+02:00 < Flow measured : 368
+2026-10-23T20:01:04.812+02:00 < Pump P1 stopped
+2026-10-23T20:01:05.018+02:00 < PAUSE at 3.36 bar (22): waiting for 3.15 bar
+2026-10-23T20:01:05.018+02:00 < Pressure bar : 1.86
+2026-10-23T20:01:05.020+02:00 < Flow measured : 369
+2026-10-23T20:01:05.020+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:01:05.020+02:00 < RESUME at 1.81 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:01:07.910+02:00 < Pressure bar : 1.16
+2026-10-23T20:01:07.910+02:00 < Flow measured : 369
+2026-10-23T20:01:09.565+02:00 < Pump P1 stopped
+2026-10-23T20:01:09.565+02:00 < PAUSE at 3.37 bar (23): waiting for 3.15 bar
+2026-10-23T20:01:09.771+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:01:09.771+02:00 < RESUME at 1.84 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:01:11.011+02:00 < Pressure bar : 0.97
+2026-10-23T20:01:11.011+02:00 < Flow measured : 371
+2026-10-23T20:01:14.114+02:00 < Pump P1 stopped
+2026-10-23T20:01:14.114+02:00 < PAUSE at 3.35 bar (24): waiting for 3.15 bar
+2026-10-23T20:01:14.114+02:00 < Pressure bar : 3.35
+2026-10-23T20:01:14.315+02:00 < Flow measured : 371
+2026-10-23T20:01:14.315+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:01:14.315+02:00 < RESUME at 1.84 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:01:17.222+02:00 < Pressure bar : 1.13
+2026-10-23T20:01:17.222+02:00 < Flow measured : 372
+2026-10-23T20:01:18.662+02:00 < Pump P1 stopped
+2026-10-23T20:01:18.663+02:00 < PAUSE at 3.37 bar (25): waiting for 3.15 bar
+2026-10-23T20:01:18.877+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:01:18.877+02:00 < RESUME at 1.86 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:01:20.118+02:00 < Pressure bar : 0.96
+2026-10-23T20:01:20.118+02:00 < Flow measured : 373
+2026-10-23T20:01:23.241+02:00 < Pump P1 stopped
+2026-10-23T20:01:23.243+02:00 < PAUSE at 3.35 bar (26): waiting for 3.15 bar
+2026-10-23T20:01:23.243+02:00 < Pressure bar : 3.35
+2026-10-23T20:01:23.243+02:00 < Flow measured : 374
+2026-10-23T20:01:23.449+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:01:23.449+02:00 < RESUME at 1.88 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:01:26.144+02:00 < Pressure bar : 1.22
+2026-10-23T20:01:26.355+02:00 < Flow measured : 375
+2026-10-23T20:01:29.640+02:00 < Pump P1 stopped
+2026-10-23T20:01:29.640+02:00 < PAUSE at 3.36 bar (27): waiting for 3.15 bar
+2026-10-23T20:01:29.642+02:00 < Pressure bar : 3.36
+2026-10-23T20:01:29.642+02:00 < Flow measured : 377
+2026-10-23T20:01:29.642+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:01:29.854+02:00 < RESUME at 1.93 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:01:32.520+02:00 < Pressure bar : 1.21
+2026-10-23T20:01:32.521+02:00 < Flow measured : 378
+2026-10-23T20:01:35.406+02:00 < Pump P1 stopped
+2026-10-23T20:01:35.617+02:00 < PAUSE at 3.36 bar (28): waiting for 3.15 bar
+2026-10-23T20:01:35.617+02:00 < Pressure bar : 1.94
+2026-10-23T20:01:35.617+02:00 < Flow measured : 380
+2026-10-23T20:01:35.618+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:01:35.618+02:00 < RESUME at 1.93 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:01:38.513+02:00 < Pressure bar : 1.38
+2026-10-23T20:01:38.727+02:00 < Flow measured : 380
+2026-10-23T20:01:39.966+02:00 < Pump P1 stopped
+2026-10-23T20:01:39.966+02:00 < PAUSE at 3.35 bar (29): waiting for 3.15 bar
+2026-10-23T20:01:40.172+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:01:40.172+02:00 < RESUME at 1.92 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:01:41.627+02:00 < Pressure bar : 0.96
+2026-10-23T20:01:41.627+02:00 < Flow measured : 382
+2026-10-23T20:01:43.490+02:00 <   window 60 s pumping: 36 mL (first 146 mL)  CLOG? below 30 % of the first window
+2026-10-23T20:01:43.490+02:00 < STOP | filter clogged - stopping pump
+2026-10-23T20:01:43.910+02:00 < Pump P1 stopped
+2026-10-23T20:01:43.910+02:00 < pauses=29 paused_s=17
+2026-10-23T20:01:43.913+02:00 < Step sample ended: clogged, pauses 29
+2026-10-23T20:01:44.517+02:00 < {"t":"sample","fw":"S1-1b-dev","id":"newFilter","purpose":"sample","site":"test","date":"2026-10-23","condition":"filter 1","slot":11,"start_ms":268314,"end_ms":528013,"target_ml":1000.000,"vol_ml":382.000,"vol_trusted_ml":323.000,"purge_ml":null,"end_reason":"clogged","p_mean_bar":1.946,"p_max_bar":3.412,"p_cap_bar":3.600,"lock_before":"LOCKED","lock_after":"LOCKED","shield_ml":null,"calib":{"flow_factor":77.000,"p_gain":1.041,"p_offset_bar":-0.031,"abp_full_scale_psi":60.000,"linear_act_locked_steps":210},"flags":["placeholder:ABP_FULL_SCALE_PSI","placeholder:STX_MAX_PRESSURE"]}
+2026-10-23T20:01:44.963+02:00 < Pump P1 stopped
+2026-10-23T20:01:44.965+02:00 < Valve V1 closed
+2026-10-23T20:01:44.969+02:00 < Valve V_manifold closed
+2026-10-23T20:01:45.182+02:00 < Vent: pump off, V1 and Vman closed for 20 s, then air vent V1 open for 5 s
+2026-10-23T20:02:05.030+02:00 < Valve V1 opened
+2026-10-23T20:02:09.982+02:00 < Valve V1 closed
+2026-10-23T20:02:09.982+02:00 < Vent: 1.03 bar before, 0.04 bar after the wait, 0.03 bar after the air vent (released)
+2026-10-23T20:02:09.982+02:00 < Valve V1 opened
+2026-10-23T20:02:10.191+02:00 < Valve V_manifold closed
+2026-10-23T20:02:17.213+02:00 < O-ring unlocked
+2026-10-23T20:02:26.494+02:00 < O-ring locked
+2026-10-23T20:02:26.695+02:00 < Step sample: emptying through purge
+2026-10-23T20:02:26.695+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:02:26.695+02:00 < End cond first met
+2026-10-23T20:02:26.697+02:00 < Pressure bar : 0.02
+2026-10-23T20:02:26.697+02:00 < Flow measured : 382
+2026-10-23T20:02:29.597+02:00 < Pressure bar : 0.10
+2026-10-23T20:02:29.597+02:00 < Flow measured : 382
+2026-10-23T20:02:32.678+02:00 < Pressure bar : 0.09
+2026-10-23T20:02:32.678+02:00 < Flow measured : 382
+2026-10-23T20:02:35.564+02:00 < Pressure bar : 0.06
+2026-10-23T20:02:35.564+02:00 < Flow measured : 382
+2026-10-23T20:02:38.690+02:00 < Pressure bar : 0.07
+2026-10-23T20:02:38.690+02:00 < Flow measured : 382
+2026-10-23T20:02:41.566+02:00 < Pressure bar : 0.07
+2026-10-23T20:02:41.566+02:00 < Flow measured : 382
+2026-10-23T20:02:44.680+02:00 < Pressure bar : 0.06
+2026-10-23T20:02:44.682+02:00 < Flow measured : 382
+2026-10-23T20:02:46.556+02:00 < Pump control loop should stop now
+2026-10-23T20:02:46.978+02:00 < Pump P1 stopped
+2026-10-23T20:02:54.217+02:00 < O-ring unlocked
+2026-10-23T20:03:03.783+02:00 < O-ring locked
+2026-10-23T20:03:03.783+02:00 < Step sample: emptying sterivex
+2026-10-23T20:03:03.785+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:03:03.785+02:00 < End cond first met
+2026-10-23T20:03:03.785+02:00 < Pressure bar : 0.04
+2026-10-23T20:03:03.785+02:00 < Flow measured : 382
+2026-10-23T20:03:06.655+02:00 < Pressure bar : 0.09
+2026-10-23T20:03:06.655+02:00 < Flow measured : 382
+2026-10-23T20:03:09.762+02:00 < Pressure bar : 0.44
+2026-10-23T20:03:09.762+02:00 < Flow measured : 382
+2026-10-23T20:03:12.640+02:00 < Pressure bar : 0.65
+2026-10-23T20:03:12.850+02:00 < Flow measured : 382
+2026-10-23T20:03:15.751+02:00 < Pressure bar : 0.67
+2026-10-23T20:03:15.751+02:00 < Flow measured : 382
+2026-10-23T20:03:18.651+02:00 < Pressure bar : 0.65
+2026-10-23T20:03:18.856+02:00 < Flow measured : 382
+2026-10-23T20:03:21.733+02:00 < Pressure bar : 0.62
+2026-10-23T20:03:21.733+02:00 < Flow measured : 382
+2026-10-23T20:03:24.646+02:00 < Pressure bar : 0.60
+2026-10-23T20:03:24.858+02:00 < Flow measured : 382
+2026-10-23T20:03:27.779+02:00 < Pressure bar : 0.59
+2026-10-23T20:03:27.779+02:00 < Flow measured : 382
+2026-10-23T20:03:30.665+02:00 < Pressure bar : 0.59
+2026-10-23T20:03:30.666+02:00 < Flow measured : 382
+2026-10-23T20:03:33.746+02:00 < Pressure bar : 0.59
+2026-10-23T20:03:33.746+02:00 < Flow measured : 382
+2026-10-23T20:03:36.822+02:00 < Pressure bar : 0.59
+2026-10-23T20:03:36.822+02:00 < Flow measured : 382
+2026-10-23T20:03:39.721+02:00 < Pressure bar : 0.59
+2026-10-23T20:03:39.723+02:00 < Flow measured : 382
+2026-10-23T20:03:42.830+02:00 < Pressure bar : 0.59
+2026-10-23T20:03:42.830+02:00 < Flow measured : 382
+2026-10-23T20:03:43.662+02:00 < Pump control loop should stop now
+2026-10-23T20:03:44.277+02:00 < Pump P1 stopped
+2026-10-23T20:03:44.277+02:00 < Valve V1 closed
+2026-10-23T20:03:44.277+02:00 < Time to sample water : 380009 ms
+2026-10-23T20:03:44.277+02:00 < Step sample through filter ended
+2026-10-23T20:03:44.277+02:00 < Step DNA-shield started
+2026-10-23T20:03:44.277+02:00 < Micro Pump DNA Shield pump started 
+2026-10-23T20:04:09.289+02:00 < Micro Pump DNA Shield pump stopped
+2026-10-23T20:04:09.289+02:00 < Step DNA-shield: micro pump ran 25036 ms (time-based, volume not measured)
+2026-10-23T20:04:09.691+02:00 < Valve V_manifold closed
+2026-10-23T20:04:09.691+02:00 < Valve V1 opened
+2026-10-23T20:04:14.234+02:00 < Pump P1 started with power 13
+2026-10-23T20:04:15.061+02:00 < Pump P1 stopped
+2026-10-23T20:04:15.061+02:00 < Step DNA-shield: air push ran 4800 ms at 13 %
+2026-10-23T20:04:22.710+02:00 < O-ring unlocked
+2026-10-23T20:04:32.221+02:00 < O-ring locked
+2026-10-23T20:04:32.221+02:00 < Valve V1 closed
+2026-10-23T20:04:32.221+02:00 < Step DNA-shield finished
+2026-10-23T20:04:39.229+02:00 < O-ring unlocked
+2026-10-23T20:04:39.655+02:00 < TEST|run_sample|11|PASS|slot=11;purge=y;shield=y;empty=y;volume_ml=1000;placeholders=purge_ml,shield_time,flow_factor;purge_ml=100;spool=absent;name=newFilter;condition=filter 1;site=test;experiment=airEau;sampled_ml=382;trusted_ml=323;sample_end=clogged;rule=clogged;empty_step=removed
+2026-10-23T20:04:39.700+02:00 < --- run_sample summary ---
+2026-10-23T20:04:39.702+02:00 < id          | result | data
+2026-10-23T20:04:39.702+02:00 < 11          | PASS   | slot=11;purge=y;shield=y;empty=y;volume_ml=1000;placeholders=purge_ml,shield_ti
+2026-10-23T20:04:39.919+02:00 < TOTAL: 1 PASS, 0 FAIL, 0 SKIP -> PASS
+2026-10-23T20:04:39.921+02:00 < TEST|run_sample|summary|PASS|pass=1;fail=0;skip=0
+2026-10-23T20:05:05.464+02:00 > run_sample 12
+2026-10-23T20:05:05.526+02:00 < > run_sample 12
+2026-10-23T20:05:05.740+02:00 < ASK | sample name  (type the answer + ENTER, x = cancel)
+2026-10-23T20:05:10.707+02:00 > clogged
+2026-10-23T20:05:10.880+02:00 < ASK | condition (e.g. control, blank, filter A)  (type the answer + ENTER, x = cancel)
+2026-10-23T20:05:18.105+02:00 > filter 2
+2026-10-23T20:05:18.297+02:00 < ASK | notes (optional)  (type the answer + ENTER, x = cancel)
+2026-10-23T20:05:21.704+02:00 > test
+2026-10-23T20:05:22.035+02:00 < META|sample;slot=12;name=clogged;condition=filter 2;notes=test;site=test;date=2026-10-23;experiment=airEau
+2026-10-23T20:05:22.035+02:00 < === run_sample ===
+2026-10-23T20:05:22.035+02:00 < Step purge started
+2026-10-23T20:05:22.035+02:00 < Step purge: 100 mL, spool absent
+2026-10-23T20:05:29.658+02:00 < O-ring locked
+2026-10-23T20:05:29.658+02:00 < Valve V1 closed
+2026-10-23T20:05:29.866+02:00 < Valve V_manifold opened
+2026-10-23T20:05:30.688+02:00 < Flow sensor reset, CtrlPumpFlow
+2026-10-23T20:05:30.688+02:00 < Millil after reset: 0
+2026-10-23T20:05:30.892+02:00 < ctrl flow started
+2026-10-23T20:05:30.892+02:00 < Flow sensor reset, CtrlPumpFlow
+2026-10-23T20:05:30.892+02:00 < Millil after reset: 0
+2026-10-23T20:05:30.892+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:05:30.892+02:00 < Pressure bar : 0.04
+2026-10-23T20:05:30.892+02:00 < Flow measured : 0
+2026-10-23T20:05:33.777+02:00 < Pressure bar : 0.06
+2026-10-23T20:05:33.778+02:00 < Flow measured : 0
+2026-10-23T20:05:36.857+02:00 < Pressure bar : 0.02
+2026-10-23T20:05:36.857+02:00 < Flow measured : 0
+2026-10-23T20:05:39.764+02:00 < Pressure bar : 0.35
+2026-10-23T20:05:39.765+02:00 < Flow measured : 10
+2026-10-23T20:05:42.866+02:00 < Pressure bar : 0.55
+2026-10-23T20:05:42.866+02:00 < Flow measured : 38
+2026-10-23T20:05:45.760+02:00 < Pressure bar : 0.59
+2026-10-23T20:05:45.760+02:00 < Flow measured : 72
+2026-10-23T20:05:48.228+02:00 < End cond first met
+2026-10-23T20:05:48.434+02:00 < Pump control loop should stop now
+2026-10-23T20:05:48.852+02:00 < Pump P1 stopped
+2026-10-23T20:05:49.467+02:00 < {"t":"sample","fw":"S1-1b-dev","id":"auto-2","purpose":"purge","site":"test","date":"2026-10-23","condition":"filter 2","slot":0,"start_ms":754841,"end_ms":772904,"target_ml":100.000,"vol_ml":101.000,"vol_trusted_ml":101.000,"purge_ml":101.000,"end_reason":"volume","p_mean_bar":0.290,"p_max_bar":0.612,"p_cap_bar":3.600,"lock_before":"UNLOCKED","lock_after":"LOCKED","shield_ml":null,"calib":{"flow_factor":77.000,"p_gain":1.041,"p_offset_bar":-0.031,"abp_full_scale_psi":60.000,"linear_act_locked_steps":210},"flags":["placeholder:ABP_FULL_SCALE_PSI","placeholder:STX_MAX_PRESSURE"]}
+2026-10-23T20:05:49.467+02:00 < Valve V1 closed
+2026-10-23T20:05:49.467+02:00 < Valve V_manifold closed
+2026-10-23T20:05:49.467+02:00 < Time to purge : 18600 ms (end=cond)
+2026-10-23T20:05:49.467+02:00 < Step purge ended
+2026-10-23T20:05:49.467+02:00 < Step sample through filter started
+2026-10-23T20:05:56.466+02:00 < O-ring unlocked
+2026-10-23T20:06:05.753+02:00 < O-ring locked
+2026-10-23T20:06:05.753+02:00 < Valve V1 closed
+2026-10-23T20:06:05.753+02:00 < Valve V_manifold opened
+2026-10-23T20:06:06.773+02:00 < Flow sensor reset, CtrlPumpFlow
+2026-10-23T20:06:06.773+02:00 < Millil after reset: 0
+2026-10-23T20:06:06.773+02:00 < Step sample: pumping water through sterivex
+2026-10-23T20:06:06.775+02:00 < Flow sensor reset, CtrlPumpFlow
+2026-10-23T20:06:06.775+02:00 < Millil after reset: 0
+2026-10-23T20:06:06.775+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:06:06.981+02:00 < Pressure bar : -0.06
+2026-10-23T20:06:06.981+02:00 < Flow measured : 0
+2026-10-23T20:06:09.868+02:00 < Pressure bar : 0.20
+2026-10-23T20:06:09.868+02:00 < Flow measured : 0
+2026-10-23T20:06:11.714+02:00 < Pump P1 stopped
+2026-10-23T20:06:11.918+02:00 < PAUSE at 3.35 bar (1): waiting for 3.15 bar
+2026-10-23T20:06:11.920+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:06:11.920+02:00 < RESUME at 2.94 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:06:12.747+02:00 < Pressure bar : 2.53
+2026-10-23T20:06:12.747+02:00 < Flow measured : 1
+2026-10-23T20:06:15.625+02:00 < Pump P1 stopped
+2026-10-23T20:06:15.625+02:00 < PAUSE at 3.37 bar (2): waiting for 3.15 bar
+2026-10-23T20:06:15.625+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:06:15.625+02:00 < RESUME at 2.96 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:06:15.831+02:00 < Pressure bar : 2.87
+2026-10-23T20:06:15.831+02:00 < Flow measured : 1
+2026-10-23T20:06:19.346+02:00 < Pump P1 stopped
+2026-10-23T20:06:19.350+02:00 < PAUSE at 3.35 bar (3): waiting for 3.15 bar
+2026-10-23T20:06:19.352+02:00 < Pressure bar : 3.35
+2026-10-23T20:06:19.352+02:00 < Flow measured : 1
+2026-10-23T20:06:19.352+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:06:19.352+02:00 < RESUME at 2.96 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:06:22.233+02:00 < Pressure bar : 2.85
+2026-10-23T20:06:22.233+02:00 < Flow measured : 1
+2026-10-23T20:06:23.053+02:00 < Pump P1 stopped
+2026-10-23T20:06:23.053+02:00 < PAUSE at 3.38 bar (4): waiting for 3.15 bar
+2026-10-23T20:06:23.053+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:06:23.053+02:00 < RESUME at 2.97 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:06:25.318+02:00 < Pressure bar : 2.21
+2026-10-23T20:06:25.318+02:00 < Flow measured : 2
+2026-10-23T20:06:26.767+02:00 < Pump P1 stopped
+2026-10-23T20:06:26.767+02:00 < PAUSE at 3.36 bar (5): waiting for 3.15 bar
+2026-10-23T20:06:26.767+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:06:26.975+02:00 < RESUME at 2.94 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:06:28.221+02:00 < Pressure bar : 2.39
+2026-10-23T20:06:28.223+02:00 < Flow measured : 2
+2026-10-23T20:06:30.495+02:00 < Pump P1 stopped
+2026-10-23T20:06:30.495+02:00 < PAUSE at 3.36 bar (6): waiting for 3.15 bar
+2026-10-23T20:06:30.497+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:06:30.706+02:00 < RESUME at 2.98 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:06:31.335+02:00 < Pressure bar : 2.65
+2026-10-23T20:06:31.335+02:00 < Flow measured : 2
+2026-10-23T20:06:34.036+02:00 < Pump P1 stopped
+2026-10-23T20:06:34.242+02:00 < PAUSE at 3.36 bar (7): waiting for 3.15 bar
+2026-10-23T20:06:34.242+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:06:34.244+02:00 < RESUME at 2.98 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:06:34.245+02:00 < Pressure bar : 2.95
+2026-10-23T20:06:34.245+02:00 < Flow measured : 2
+2026-10-23T20:06:37.348+02:00 < Pressure bar : 3.23
+2026-10-23T20:06:37.348+02:00 < Flow measured : 2
+2026-10-23T20:06:37.759+02:00 < Pump P1 stopped
+2026-10-23T20:06:37.759+02:00 < PAUSE at 3.36 bar (8): waiting for 3.15 bar
+2026-10-23T20:06:37.966+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:06:37.968+02:00 < RESUME at 2.98 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:06:40.221+02:00 < Pressure bar : 2.20
+2026-10-23T20:06:40.221+02:00 < Flow measured : 2
+2026-10-23T20:06:41.448+02:00 < Pump P1 stopped
+2026-10-23T20:06:41.448+02:00 < PAUSE at 3.36 bar (9): waiting for 3.15 bar
+2026-10-23T20:06:41.656+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:06:41.656+02:00 < RESUME at 2.99 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:06:43.309+02:00 < Pressure bar : 2.37
+2026-10-23T20:06:43.313+02:00 < Flow measured : 2
+2026-10-23T20:06:45.169+02:00 < Pump P1 stopped
+2026-10-23T20:06:45.171+02:00 < PAUSE at 3.35 bar (10): waiting for 3.15 bar
+2026-10-23T20:06:45.382+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:06:45.382+02:00 < RESUME at 2.99 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:06:46.199+02:00 < Pressure bar : 2.58
+2026-10-23T20:06:46.200+02:00 < Flow measured : 2
+2026-10-23T20:06:48.877+02:00 < Pump P1 stopped
+2026-10-23T20:06:48.877+02:00 < PAUSE at 3.36 bar (11): waiting for 3.15 bar
+2026-10-23T20:06:49.083+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:06:49.085+02:00 < RESUME at 2.97 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:06:49.288+02:00 < Pressure bar : 2.83
+2026-10-23T20:06:49.288+02:00 < Flow measured : 2
+2026-10-23T20:06:52.591+02:00 < Pump P1 stopped
+2026-10-23T20:06:52.591+02:00 < PAUSE at 3.36 bar (12): waiting for 3.15 bar
+2026-10-23T20:06:52.591+02:00 < Pressure bar : 3.36
+2026-10-23T20:06:52.597+02:00 < Flow measured : 2
+2026-10-23T20:06:52.597+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:06:52.803+02:00 < RESUME at 3.02 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:06:55.491+02:00 < Pressure bar : 2.93
+2026-10-23T20:06:55.491+02:00 < Flow measured : 2
+2026-10-23T20:06:56.316+02:00 < Pump P1 stopped
+2026-10-23T20:06:56.316+02:00 < PAUSE at 3.36 bar (13): waiting for 3.15 bar
+2026-10-23T20:06:56.316+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:06:56.316+02:00 < RESUME at 2.99 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:06:58.592+02:00 < Pressure bar : 2.27
+2026-10-23T20:06:58.595+02:00 < Flow measured : 2
+2026-10-23T20:06:59.841+02:00 < Pump P1 stopped
+2026-10-23T20:07:00.050+02:00 < PAUSE at 3.35 bar (14): waiting for 3.15 bar
+2026-10-23T20:07:00.050+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:07:00.050+02:00 < RESUME at 2.99 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:07:01.506+02:00 < Pressure bar : 2.43
+2026-10-23T20:07:01.506+02:00 < Flow measured : 2
+2026-10-23T20:07:03.573+02:00 < Pump P1 stopped
+2026-10-23T20:07:03.573+02:00 < PAUSE at 3.35 bar (15): waiting for 3.15 bar
+2026-10-23T20:07:03.775+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:07:03.777+02:00 < RESUME at 2.99 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:07:04.609+02:00 < Pressure bar : 2.64
+2026-10-23T20:07:04.609+02:00 < Flow measured : 3
+2026-10-23T20:07:07.296+02:00 < Pump P1 stopped
+2026-10-23T20:07:07.296+02:00 < PAUSE at 3.37 bar (16): waiting for 3.15 bar
+2026-10-23T20:07:07.500+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:07:07.500+02:00 < RESUME at 3.01 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:07:07.500+02:00 < Pressure bar : 2.92
+2026-10-23T20:07:07.500+02:00 < Flow measured : 3
+2026-10-23T20:07:10.997+02:00 < Pump P1 stopped
+2026-10-23T20:07:10.997+02:00 < PAUSE at 3.35 bar (17): waiting for 3.15 bar
+2026-10-23T20:07:10.997+02:00 < Pressure bar : 3.35
+2026-10-23T20:07:10.997+02:00 < Flow measured : 3
+2026-10-23T20:07:10.997+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:07:11.207+02:00 < RESUME at 3.01 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:07:13.924+02:00 < Pressure bar : 2.97
+2026-10-23T20:07:13.924+02:00 < Flow measured : 3
+2026-10-23T20:07:14.559+02:00 < Pump P1 stopped
+2026-10-23T20:07:14.561+02:00 < PAUSE at 3.35 bar (18): waiting for 3.15 bar
+2026-10-23T20:07:14.775+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:07:14.775+02:00 < RESUME at 3.00 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:07:17.046+02:00 < Pressure bar : 2.29
+2026-10-23T20:07:17.046+02:00 < Flow measured : 3
+2026-10-23T20:07:18.282+02:00 < Pump P1 stopped
+2026-10-23T20:07:18.283+02:00 < PAUSE at 3.35 bar (19): waiting for 3.15 bar
+2026-10-23T20:07:18.283+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:07:18.488+02:00 < RESUME at 3.00 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T20:07:19.122+02:00 <   window 60 s pumping:  3 mL (first  3 mL)
+2026-10-23T20:07:19.122+02:00 < STOP | filter clogged - stopping pump
+2026-10-23T20:07:19.537+02:00 < Pump P1 stopped
+2026-10-23T20:07:19.539+02:00 < pauses=19 paused_s=11
+2026-10-23T20:07:19.539+02:00 < Step sample ended: clogged, pauses 19
+2026-10-23T20:07:20.154+02:00 < {"t":"sample","fw":"S1-1b-dev","id":"clogged","purpose":"sample","site":"test","date":"2026-10-23","condition":"filter 2","slot":12,"start_ms":790788,"end_ms":863657,"target_ml":1000.000,"vol_ml":3.000,"vol_trusted_ml":0.000,"purge_ml":null,"end_reason":"clogged","p_mean_bar":2.410,"p_max_bar":3.376,"p_cap_bar":3.600,"lock_before":"LOCKED","lock_after":"LOCKED","shield_ml":null,"calib":{"flow_factor":77.000,"p_gain":1.041,"p_offset_bar":-0.031,"abp_full_scale_psi":60.000,"linear_act_locked_steps":210},"flags":["placeholder:ABP_FULL_SCALE_PSI","placeholder:STX_MAX_PRESSURE"]}
+2026-10-23T20:07:20.568+02:00 < Pump P1 stopped
+2026-10-23T20:07:20.568+02:00 < Valve V1 closed
+2026-10-23T20:07:20.568+02:00 < Valve V_manifold closed
+2026-10-23T20:07:20.784+02:00 < Vent: pump off, V1 and Vman closed for 20 s, then air vent V1 open for 5 s
+2026-10-23T20:07:40.649+02:00 < Valve V1 opened
+2026-10-23T20:07:45.614+02:00 < Valve V1 closed
+2026-10-23T20:07:45.830+02:00 < Vent: 2.29 bar before, 0.86 bar after the wait, 0.75 bar after the air vent (NOT released below 0.3 bar: going on, the sample is not stopped for this)
+2026-10-23T20:07:45.830+02:00 < Valve V1 opened
+2026-10-23T20:07:45.830+02:00 < Valve V_manifold closed
+2026-10-23T20:07:52.856+02:00 < O-ring unlocked
+2026-10-23T20:08:01.909+02:00 < O-ring locked
+2026-10-23T20:08:01.909+02:00 < Step sample: emptying through purge
+2026-10-23T20:08:01.911+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:08:02.120+02:00 < End cond first met
+2026-10-23T20:08:02.120+02:00 < Pressure bar : 0.02
+2026-10-23T20:08:02.120+02:00 < Flow measured : 3
+2026-10-23T20:08:04.997+02:00 < Pressure bar : 0.10
+2026-10-23T20:08:04.999+02:00 < Flow measured : 3
+2026-10-23T20:08:07.886+02:00 < Pressure bar : 0.10
+2026-10-23T20:08:07.888+02:00 < Flow measured : 3
+2026-10-23T20:08:10.984+02:00 < Pressure bar : 0.07
+2026-10-23T20:08:10.984+02:00 < Flow measured : 3
+2026-10-23T20:08:13.861+02:00 < Pressure bar : 0.07
+2026-10-23T20:08:14.072+02:00 < Flow measured : 3
+2026-10-23T20:08:16.955+02:00 < Pressure bar : 0.07
+2026-10-23T20:08:16.955+02:00 < Flow measured : 3
+2026-10-23T20:08:20.047+02:00 < Pressure bar : 0.07
+2026-10-23T20:08:20.049+02:00 < Flow measured : 3
+2026-10-23T20:08:21.909+02:00 < Pump control loop should stop now
+2026-10-23T20:08:22.531+02:00 < Pump P1 stopped
+2026-10-23T20:08:29.587+02:00 < O-ring unlocked
+2026-10-23T20:08:38.683+02:00 < O-ring locked
+2026-10-23T20:08:38.683+02:00 < Step sample: emptying sterivex
+2026-10-23T20:08:38.683+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:08:38.683+02:00 < End cond first met
+2026-10-23T20:08:38.887+02:00 < Pressure bar : 0.04
+2026-10-23T20:08:38.887+02:00 < Flow measured : 3
+2026-10-23T20:08:41.762+02:00 < Pressure bar : 0.08
+2026-10-23T20:08:41.762+02:00 < Flow measured : 3
+2026-10-23T20:08:44.660+02:00 < Pressure bar : 0.43
+2026-10-23T20:08:44.664+02:00 < Flow measured : 3
+2026-10-23T20:08:47.779+02:00 < Pressure bar : 0.68
+2026-10-23T20:08:47.781+02:00 < Flow measured : 3
+2026-10-23T20:08:50.059+02:00 < Update end cond reset
+2026-10-23T20:08:50.059+02:00 < End cond first met
+2026-10-23T20:08:50.059+02:00 < Update end cond reset
+2026-10-23T20:08:50.059+02:00 < End cond first met
+2026-10-23T20:08:50.060+02:00 < Update end cond reset
+2026-10-23T20:08:50.060+02:00 < End cond first met
+2026-10-23T20:08:50.269+02:00 < Update end cond reset
+2026-10-23T20:08:50.269+02:00 < End cond first met
+2026-10-23T20:08:50.269+02:00 < Update end cond reset
+2026-10-23T20:08:50.673+02:00 < Pressure bar : 0.81
+2026-10-23T20:08:50.673+02:00 < Flow measured : 3
+2026-10-23T20:08:53.773+02:00 < Pressure bar : 0.81
+2026-10-23T20:08:53.773+02:00 < Flow measured : 3
+2026-10-23T20:08:56.686+02:00 < Pressure bar : 0.81
+2026-10-23T20:08:56.686+02:00 < Flow measured : 3
+2026-10-23T20:08:58.754+02:00 < End cond first met
+2026-10-23T20:08:58.754+02:00 < Update end cond reset
+2026-10-23T20:08:58.754+02:00 < End cond first met
+2026-10-23T20:08:58.754+02:00 < Update end cond reset
+2026-10-23T20:08:58.754+02:00 < End cond first met
+2026-10-23T20:08:58.754+02:00 < Update end cond reset
+2026-10-23T20:08:58.754+02:00 < End cond first met
+2026-10-23T20:08:58.754+02:00 < Update end cond reset
+2026-10-23T20:08:58.754+02:00 < End cond first met
+2026-10-23T20:08:58.754+02:00 < Update end cond reset
+2026-10-23T20:08:58.967+02:00 < End cond first met
+2026-10-23T20:08:58.967+02:00 < Update end cond reset
+2026-10-23T20:08:58.967+02:00 < End cond first met
+2026-10-23T20:08:58.967+02:00 < Update end cond reset
+2026-10-23T20:08:58.967+02:00 < End cond first met
+2026-10-23T20:08:58.967+02:00 < Update end cond reset
+2026-10-23T20:08:58.967+02:00 < End cond first met
+2026-10-23T20:08:58.967+02:00 < Update end cond reset
+2026-10-23T20:08:58.967+02:00 < End cond first met
+2026-10-23T20:08:59.182+02:00 < Update end cond reset
+2026-10-23T20:08:59.182+02:00 < End cond first met
+2026-10-23T20:08:59.182+02:00 < Update end cond reset
+2026-10-23T20:08:59.182+02:00 < End cond first met
+2026-10-23T20:08:59.182+02:00 < Update end cond reset
+2026-10-23T20:08:59.182+02:00 < End cond first met
+2026-10-23T20:08:59.182+02:00 < Update end cond reset
+2026-10-23T20:08:59.182+02:00 < End cond first met
+2026-10-23T20:08:59.182+02:00 < Update end cond reset
+2026-10-23T20:08:59.182+02:00 < End cond first met
+2026-10-23T20:08:59.394+02:00 < Update end cond reset
+2026-10-23T20:08:59.394+02:00 < End cond first met
+2026-10-23T20:08:59.394+02:00 < Update end cond reset
+2026-10-23T20:08:59.394+02:00 < End cond first met
+2026-10-23T20:08:59.394+02:00 < Update end cond reset
+2026-10-23T20:08:59.394+02:00 < End cond first met
+2026-10-23T20:08:59.394+02:00 < Update end cond reset
+2026-10-23T20:08:59.394+02:00 < End cond first met
+2026-10-23T20:08:59.396+02:00 < Update end cond reset
+2026-10-23T20:08:59.602+02:00 < End cond first met
+2026-10-23T20:08:59.602+02:00 < Update end cond reset
+2026-10-23T20:08:59.602+02:00 < End cond first met
+2026-10-23T20:08:59.602+02:00 < Update end cond reset
+2026-10-23T20:08:59.602+02:00 < End cond first met
+2026-10-23T20:08:59.602+02:00 < Update end cond reset
+2026-10-23T20:08:59.602+02:00 < End cond first met
+2026-10-23T20:08:59.602+02:00 < Update end cond reset
+2026-10-23T20:08:59.602+02:00 < End cond first met
+2026-10-23T20:08:59.802+02:00 < Update end cond reset
+2026-10-23T20:08:59.802+02:00 < End cond first met
+2026-10-23T20:08:59.802+02:00 < Update end cond reset
+2026-10-23T20:08:59.802+02:00 < End cond first met
+2026-10-23T20:08:59.802+02:00 < Update end cond reset
+2026-10-23T20:08:59.802+02:00 < End cond first met
+2026-10-23T20:08:59.802+02:00 < Pressure bar : 0.80
+2026-10-23T20:08:59.802+02:00 < Flow measured : 3
+2026-10-23T20:08:59.802+02:00 < Update end cond reset
+2026-10-23T20:09:00.006+02:00 < End cond first met
+2026-10-23T20:09:00.008+02:00 < Update end cond reset
+2026-10-23T20:09:00.008+02:00 < End cond first met
+2026-10-23T20:09:00.008+02:00 < Update end cond reset
+2026-10-23T20:09:00.010+02:00 < End cond first met
+2026-10-23T20:09:00.010+02:00 < Update end cond reset
+2026-10-23T20:09:00.010+02:00 < End cond first met
+2026-10-23T20:09:00.010+02:00 < Update end cond reset
+2026-10-23T20:09:00.010+02:00 < End cond first met
+2026-10-23T20:09:00.012+02:00 < Update end cond reset
+2026-10-23T20:09:00.217+02:00 < End cond first met
+2026-10-23T20:09:00.217+02:00 < Update end cond reset
+2026-10-23T20:09:00.217+02:00 < End cond first met
+2026-10-23T20:09:00.219+02:00 < Update end cond reset
+2026-10-23T20:09:00.219+02:00 < End cond first met
+2026-10-23T20:09:00.219+02:00 < Update end cond reset
+2026-10-23T20:09:00.219+02:00 < End cond first met
+2026-10-23T20:09:00.221+02:00 < Update end cond reset
+2026-10-23T20:09:00.437+02:00 < End cond first met
+2026-10-23T20:09:00.437+02:00 < Update end cond reset
+2026-10-23T20:09:00.439+02:00 < End cond first met
+2026-10-23T20:09:00.439+02:00 < Update end cond reset
+2026-10-23T20:09:00.439+02:00 < End cond first met
+2026-10-23T20:09:00.439+02:00 < Update end cond reset
+2026-10-23T20:09:00.445+02:00 < End cond first met
+2026-10-23T20:09:00.447+02:00 < Update end cond reset
+2026-10-23T20:09:00.447+02:00 < End cond first met
+2026-10-23T20:09:00.447+02:00 < Update end cond reset
+2026-10-23T20:09:00.648+02:00 < End cond first met
+2026-10-23T20:09:00.648+02:00 < Update end cond reset
+2026-10-23T20:09:00.648+02:00 < End cond first met
+2026-10-23T20:09:00.648+02:00 < Update end cond reset
+2026-10-23T20:09:00.648+02:00 < End cond first met
+2026-10-23T20:09:00.648+02:00 < Update end cond reset
+2026-10-23T20:09:00.648+02:00 < End cond first met
+2026-10-23T20:09:00.648+02:00 < Update end cond reset
+2026-10-23T20:09:00.648+02:00 < End cond first met
+2026-10-23T20:09:00.648+02:00 < Update end cond reset
+2026-10-23T20:09:00.860+02:00 < End cond first met
+2026-10-23T20:09:00.860+02:00 < Update end cond reset
+2026-10-23T20:09:00.860+02:00 < End cond first met
+2026-10-23T20:09:00.860+02:00 < Update end cond reset
+2026-10-23T20:09:00.860+02:00 < End cond first met
+2026-10-23T20:09:00.860+02:00 < Update end cond reset
+2026-10-23T20:09:00.860+02:00 < End cond first met
+2026-10-23T20:09:00.860+02:00 < Update end cond reset
+2026-10-23T20:09:00.860+02:00 < End cond first met
+2026-10-23T20:09:01.073+02:00 < Update end cond reset
+2026-10-23T20:09:01.073+02:00 < End cond first met
+2026-10-23T20:09:01.073+02:00 < Update end cond reset
+2026-10-23T20:09:01.073+02:00 < End cond first met
+2026-10-23T20:09:01.075+02:00 < Update end cond reset
+2026-10-23T20:09:01.075+02:00 < End cond first met
+2026-10-23T20:09:01.075+02:00 < Update end cond reset
+2026-10-23T20:09:01.075+02:00 < End cond first met
+2026-10-23T20:09:01.076+02:00 < Update end cond reset
+2026-10-23T20:09:01.076+02:00 < End cond first met
+2026-10-23T20:09:01.286+02:00 < Update end cond reset
+2026-10-23T20:09:01.286+02:00 < End cond first met
+2026-10-23T20:09:01.286+02:00 < Update end cond reset
+2026-10-23T20:09:01.286+02:00 < End cond first met
+2026-10-23T20:09:01.286+02:00 < Update end cond reset
+2026-10-23T20:09:01.286+02:00 < End cond first met
+2026-10-23T20:09:01.286+02:00 < Update end cond reset
+2026-10-23T20:09:01.286+02:00 < End cond first met
+2026-10-23T20:09:01.286+02:00 < Update end cond reset
+2026-10-23T20:09:01.503+02:00 < End cond first met
+2026-10-23T20:09:01.506+02:00 < Update end cond reset
+2026-10-23T20:09:01.506+02:00 < End cond first met
+2026-10-23T20:09:01.506+02:00 < Update end cond reset
+2026-10-23T20:09:01.506+02:00 < End cond first met
+2026-10-23T20:09:01.508+02:00 < Update end cond reset
+2026-10-23T20:09:01.508+02:00 < End cond first met
+2026-10-23T20:09:01.508+02:00 < Update end cond reset
+2026-10-23T20:09:01.510+02:00 < End cond first met
+2026-10-23T20:09:01.715+02:00 < Update end cond reset
+2026-10-23T20:09:01.715+02:00 < End cond first met
+2026-10-23T20:09:01.715+02:00 < Update end cond reset
+2026-10-23T20:09:01.718+02:00 < End cond first met
+2026-10-23T20:09:01.718+02:00 < Update end cond reset
+2026-10-23T20:09:01.718+02:00 < End cond first met
+2026-10-23T20:09:01.718+02:00 < Update end cond reset
+2026-10-23T20:09:01.718+02:00 < End cond first met
+2026-10-23T20:09:01.718+02:00 < Update end cond reset
+2026-10-23T20:09:01.718+02:00 < End cond first met
+2026-10-23T20:09:01.927+02:00 < Update end cond reset
+2026-10-23T20:09:01.927+02:00 < End cond first met
+2026-10-23T20:09:01.927+02:00 < Update end cond reset
+2026-10-23T20:09:01.927+02:00 < End cond first met
+2026-10-23T20:09:01.927+02:00 < Update end cond reset
+2026-10-23T20:09:01.929+02:00 < End cond first met
+2026-10-23T20:09:01.929+02:00 < Update end cond reset
+2026-10-23T20:09:01.929+02:00 < End cond first met
+2026-10-23T20:09:01.929+02:00 < Update end cond reset
+2026-10-23T20:09:02.143+02:00 < End cond first met
+2026-10-23T20:09:02.143+02:00 < Update end cond reset
+2026-10-23T20:09:02.145+02:00 < End cond first met
+2026-10-23T20:09:02.145+02:00 < Update end cond reset
+2026-10-23T20:09:02.145+02:00 < End cond first met
+2026-10-23T20:09:02.145+02:00 < Update end cond reset
+2026-10-23T20:09:02.145+02:00 < End cond first met
+2026-10-23T20:09:02.145+02:00 < Update end cond reset
+2026-10-23T20:09:02.145+02:00 < End cond first met
+2026-10-23T20:09:02.147+02:00 < Update end cond reset
+2026-10-23T20:09:02.354+02:00 < End cond first met
+2026-10-23T20:09:02.354+02:00 < Update end cond reset
+2026-10-23T20:09:02.354+02:00 < End cond first met
+2026-10-23T20:09:02.354+02:00 < Update end cond reset
+2026-10-23T20:09:02.354+02:00 < End cond first met
+2026-10-23T20:09:02.354+02:00 < Update end cond reset
+2026-10-23T20:09:02.354+02:00 < End cond first met
+2026-10-23T20:09:02.354+02:00 < Update end cond reset
+2026-10-23T20:09:02.561+02:00 < End cond first met
+2026-10-23T20:09:02.561+02:00 < Update end cond reset
+2026-10-23T20:09:02.561+02:00 < End cond first met
+2026-10-23T20:09:02.762+02:00 < Update end cond reset
+2026-10-23T20:09:02.762+02:00 < Pressure bar : 0.80
+2026-10-23T20:09:02.762+02:00 < Flow measured : 3
+2026-10-23T20:09:02.762+02:00 < End cond first met
+2026-10-23T20:09:02.762+02:00 < Update end cond reset
+2026-10-23T20:09:02.762+02:00 < End cond first met
+2026-10-23T20:09:02.963+02:00 < Update end cond reset
+2026-10-23T20:09:02.963+02:00 < End cond first met
+2026-10-23T20:09:02.963+02:00 < Update end cond reset
+2026-10-23T20:09:02.963+02:00 < End cond first met
+2026-10-23T20:09:02.963+02:00 < Update end cond reset
+2026-10-23T20:09:02.963+02:00 < End cond first met
+2026-10-23T20:09:02.963+02:00 < Update end cond reset
+2026-10-23T20:09:02.963+02:00 < End cond first met
+2026-10-23T20:09:02.963+02:00 < Update end cond reset
+2026-10-23T20:09:03.163+02:00 < End cond first met
+2026-10-23T20:09:03.165+02:00 < Update end cond reset
+2026-10-23T20:09:03.165+02:00 < End cond first met
+2026-10-23T20:09:03.165+02:00 < Update end cond reset
+2026-10-23T20:09:03.165+02:00 < End cond first met
+2026-10-23T20:09:03.165+02:00 < Update end cond reset
+2026-10-23T20:09:03.165+02:00 < End cond first met
+2026-10-23T20:09:03.165+02:00 < Update end cond reset
+2026-10-23T20:09:03.167+02:00 < End cond first met
+2026-10-23T20:09:03.375+02:00 < Update end cond reset
+2026-10-23T20:09:03.375+02:00 < End cond first met
+2026-10-23T20:09:03.377+02:00 < Update end cond reset
+2026-10-23T20:09:03.377+02:00 < End cond first met
+2026-10-23T20:09:03.377+02:00 < Update end cond reset
+2026-10-23T20:09:03.377+02:00 < End cond first met
+2026-10-23T20:09:03.377+02:00 < Update end cond reset
+2026-10-23T20:09:03.377+02:00 < End cond first met
+2026-10-23T20:09:03.377+02:00 < Update end cond reset
+2026-10-23T20:09:03.594+02:00 < End cond first met
+2026-10-23T20:09:03.596+02:00 < Update end cond reset
+2026-10-23T20:09:03.596+02:00 < End cond first met
+2026-10-23T20:09:03.596+02:00 < Update end cond reset
+2026-10-23T20:09:03.596+02:00 < End cond first met
+2026-10-23T20:09:03.596+02:00 < Update end cond reset
+2026-10-23T20:09:03.596+02:00 < End cond first met
+2026-10-23T20:09:03.596+02:00 < Update end cond reset
+2026-10-23T20:09:03.596+02:00 < End cond first met
+2026-10-23T20:09:03.598+02:00 < Update end cond reset
+2026-10-23T20:09:03.805+02:00 < End cond first met
+2026-10-23T20:09:03.805+02:00 < Update end cond reset
+2026-10-23T20:09:03.805+02:00 < End cond first met
+2026-10-23T20:09:03.805+02:00 < Update end cond reset
+2026-10-23T20:09:03.805+02:00 < End cond first met
+2026-10-23T20:09:04.008+02:00 < Update end cond reset
+2026-10-23T20:09:04.010+02:00 < End cond first met
+2026-10-23T20:09:04.010+02:00 < Update end cond reset
+2026-10-23T20:09:04.225+02:00 < End cond first met
+2026-10-23T20:09:04.225+02:00 < Update end cond reset
+2026-10-23T20:09:04.225+02:00 < End cond first met
+2026-10-23T20:09:04.225+02:00 < Update end cond reset
+2026-10-23T20:09:04.431+02:00 < End cond first met
+2026-10-23T20:09:04.431+02:00 < Update end cond reset
+2026-10-23T20:09:04.431+02:00 < End cond first met
+2026-10-23T20:09:04.431+02:00 < Update end cond reset
+2026-10-23T20:09:04.431+02:00 < End cond first met
+2026-10-23T20:09:04.431+02:00 < Update end cond reset
+2026-10-23T20:09:04.431+02:00 < End cond first met
+2026-10-23T20:09:04.431+02:00 < Update end cond reset
+2026-10-23T20:09:04.431+02:00 < End cond first met
+2026-10-23T20:09:04.633+02:00 < Update end cond reset
+2026-10-23T20:09:04.633+02:00 < End cond first met
+2026-10-23T20:09:04.633+02:00 < Update end cond reset
+2026-10-23T20:09:04.633+02:00 < End cond first met
+2026-10-23T20:09:04.633+02:00 < Update end cond reset
+2026-10-23T20:09:04.633+02:00 < End cond first met
+2026-10-23T20:09:04.633+02:00 < Update end cond reset
+2026-10-23T20:09:04.633+02:00 < End cond first met
+2026-10-23T20:09:04.633+02:00 < Update end cond reset
+2026-10-23T20:09:04.840+02:00 < End cond first met
+2026-10-23T20:09:04.847+02:00 < Update end cond reset
+2026-10-23T20:09:04.847+02:00 < End cond first met
+2026-10-23T20:09:04.847+02:00 < Update end cond reset
+2026-10-23T20:09:04.849+02:00 < End cond first met
+2026-10-23T20:09:04.849+02:00 < Update end cond reset
+2026-10-23T20:09:04.849+02:00 < End cond first met
+2026-10-23T20:09:04.849+02:00 < Update end cond reset
+2026-10-23T20:09:04.849+02:00 < End cond first met
+2026-10-23T20:09:05.053+02:00 < Update end cond reset
+2026-10-23T20:09:05.054+02:00 < End cond first met
+2026-10-23T20:09:05.054+02:00 < Update end cond reset
+2026-10-23T20:09:05.054+02:00 < End cond first met
+2026-10-23T20:09:05.054+02:00 < Update end cond reset
+2026-10-23T20:09:05.054+02:00 < End cond first met
+2026-10-23T20:09:05.054+02:00 < Update end cond reset
+2026-10-23T20:09:05.054+02:00 < End cond first met
+2026-10-23T20:09:05.054+02:00 < Update end cond reset
+2026-10-23T20:09:05.054+02:00 < End cond first met
+2026-10-23T20:09:05.259+02:00 < Update end cond reset
+2026-10-23T20:09:05.259+02:00 < End cond first met
+2026-10-23T20:09:05.261+02:00 < Update end cond reset
+2026-10-23T20:09:05.261+02:00 < End cond first met
+2026-10-23T20:09:05.261+02:00 < Update end cond reset
+2026-10-23T20:09:05.261+02:00 < End cond first met
+2026-10-23T20:09:05.261+02:00 < Update end cond reset
+2026-10-23T20:09:05.261+02:00 < End cond first met
+2026-10-23T20:09:05.261+02:00 < Update end cond reset
+2026-10-23T20:09:05.469+02:00 < End cond first met
+2026-10-23T20:09:05.469+02:00 < Update end cond reset
+2026-10-23T20:09:05.471+02:00 < End cond first met
+2026-10-23T20:09:05.471+02:00 < Update end cond reset
+2026-10-23T20:09:05.471+02:00 < End cond first met
+2026-10-23T20:09:05.471+02:00 < Update end cond reset
+2026-10-23T20:09:05.471+02:00 < End cond first met
+2026-10-23T20:09:05.473+02:00 < Update end cond reset
+2026-10-23T20:09:05.473+02:00 < End cond first met
+2026-10-23T20:09:05.473+02:00 < Update end cond reset
+2026-10-23T20:09:05.683+02:00 < End cond first met
+2026-10-23T20:09:05.685+02:00 < Update end cond reset
+2026-10-23T20:09:05.685+02:00 < End cond first met
+2026-10-23T20:09:05.685+02:00 < Update end cond reset
+2026-10-23T20:09:05.685+02:00 < End cond first met
+2026-10-23T20:09:05.685+02:00 < Update end cond reset
+2026-10-23T20:09:05.685+02:00 < End cond first met
+2026-10-23T20:09:05.685+02:00 < Update end cond reset
+2026-10-23T20:09:05.685+02:00 < End cond first met
+2026-10-23T20:09:05.886+02:00 < Update end cond reset
+2026-10-23T20:09:05.886+02:00 < End cond first met
+2026-10-23T20:09:05.886+02:00 < Update end cond reset
+2026-10-23T20:09:05.886+02:00 < End cond first met
+2026-10-23T20:09:05.886+02:00 < Pressure bar : 0.80
+2026-10-23T20:09:05.886+02:00 < Flow measured : 3
+2026-10-23T20:09:05.886+02:00 < Update end cond reset
+2026-10-23T20:09:05.886+02:00 < End cond first met
+2026-10-23T20:09:05.886+02:00 < Update end cond reset
+2026-10-23T20:09:05.886+02:00 < End cond first met
+2026-10-23T20:09:06.093+02:00 < Update end cond reset
+2026-10-23T20:09:06.093+02:00 < End cond first met
+2026-10-23T20:09:06.093+02:00 < Update end cond reset
+2026-10-23T20:09:06.093+02:00 < End cond first met
+2026-10-23T20:09:06.093+02:00 < Update end cond reset
+2026-10-23T20:09:06.093+02:00 < End cond first met
+2026-10-23T20:09:06.093+02:00 < Update end cond reset
+2026-10-23T20:09:06.093+02:00 < End cond first met
+2026-10-23T20:09:06.300+02:00 < Update end cond reset
+2026-10-23T20:09:06.300+02:00 < End cond first met
+2026-10-23T20:09:06.300+02:00 < Update end cond reset
+2026-10-23T20:09:06.300+02:00 < End cond first met
+2026-10-23T20:09:06.300+02:00 < Update end cond reset
+2026-10-23T20:09:06.300+02:00 < End cond first met
+2026-10-23T20:09:06.302+02:00 < Update end cond reset
+2026-10-23T20:09:06.302+02:00 < End cond first met
+2026-10-23T20:09:06.302+02:00 < Update end cond reset
+2026-10-23T20:09:06.516+02:00 < End cond first met
+2026-10-23T20:09:06.518+02:00 < Update end cond reset
+2026-10-23T20:09:06.518+02:00 < End cond first met
+2026-10-23T20:09:06.518+02:00 < Update end cond reset
+2026-10-23T20:09:06.518+02:00 < End cond first met
+2026-10-23T20:09:06.518+02:00 < Update end cond reset
+2026-10-23T20:09:06.518+02:00 < End cond first met
+2026-10-23T20:09:06.719+02:00 < Update end cond reset
+2026-10-23T20:09:06.719+02:00 < End cond first met
+2026-10-23T20:09:06.719+02:00 < Update end cond reset
+2026-10-23T20:09:06.719+02:00 < End cond first met
+2026-10-23T20:09:06.719+02:00 < Update end cond reset
+2026-10-23T20:09:06.719+02:00 < End cond first met
+2026-10-23T20:09:06.719+02:00 < Update end cond reset
+2026-10-23T20:09:06.719+02:00 < End cond first met
+2026-10-23T20:09:06.719+02:00 < Update end cond reset
+2026-10-23T20:09:06.936+02:00 < End cond first met
+2026-10-23T20:09:06.936+02:00 < Update end cond reset
+2026-10-23T20:09:06.936+02:00 < End cond first met
+2026-10-23T20:09:06.936+02:00 < Update end cond reset
+2026-10-23T20:09:06.936+02:00 < End cond first met
+2026-10-23T20:09:06.936+02:00 < Update end cond reset
+2026-10-23T20:09:06.936+02:00 < End cond first met
+2026-10-23T20:09:06.936+02:00 < Update end cond reset
+2026-10-23T20:09:06.936+02:00 < End cond first met
+2026-10-23T20:09:07.146+02:00 < Update end cond reset
+2026-10-23T20:09:07.146+02:00 < End cond first met
+2026-10-23T20:09:07.146+02:00 < Update end cond reset
+2026-10-23T20:09:07.146+02:00 < End cond first met
+2026-10-23T20:09:07.146+02:00 < Update end cond reset
+2026-10-23T20:09:07.146+02:00 < End cond first met
+2026-10-23T20:09:07.146+02:00 < Update end cond reset
+2026-10-23T20:09:07.146+02:00 < End cond first met
+2026-10-23T20:09:07.146+02:00 < Update end cond reset
+2026-10-23T20:09:07.146+02:00 < End cond first met
+2026-10-23T20:09:07.356+02:00 < Update end cond reset
+2026-10-23T20:09:07.358+02:00 < End cond first met
+2026-10-23T20:09:07.358+02:00 < Update end cond reset
+2026-10-23T20:09:07.358+02:00 < End cond first met
+2026-10-23T20:09:07.358+02:00 < Update end cond reset
+2026-10-23T20:09:07.358+02:00 < End cond first met
+2026-10-23T20:09:07.358+02:00 < Update end cond reset
+2026-10-23T20:09:07.561+02:00 < End cond first met
+2026-10-23T20:09:07.566+02:00 < Update end cond reset
+2026-10-23T20:09:07.566+02:00 < End cond first met
+2026-10-23T20:09:07.773+02:00 < Update end cond reset
+2026-10-23T20:09:07.773+02:00 < End cond first met
+2026-10-23T20:09:07.773+02:00 < Update end cond reset
+2026-10-23T20:09:07.773+02:00 < End cond first met
+2026-10-23T20:09:07.773+02:00 < Update end cond reset
+2026-10-23T20:09:07.773+02:00 < End cond first met
+2026-10-23T20:09:07.773+02:00 < Update end cond reset
+2026-10-23T20:09:07.773+02:00 < End cond first met
+2026-10-23T20:09:07.773+02:00 < Update end cond reset
+2026-10-23T20:09:07.978+02:00 < End cond first met
+2026-10-23T20:09:07.978+02:00 < Update end cond reset
+2026-10-23T20:09:07.978+02:00 < End cond first met
+2026-10-23T20:09:07.978+02:00 < Update end cond reset
+2026-10-23T20:09:07.978+02:00 < End cond first met
+2026-10-23T20:09:07.978+02:00 < Update end cond reset
+2026-10-23T20:09:07.978+02:00 < End cond first met
+2026-10-23T20:09:07.978+02:00 < Update end cond reset
+2026-10-23T20:09:07.978+02:00 < End cond first met
+2026-10-23T20:09:08.188+02:00 < Update end cond reset
+2026-10-23T20:09:08.188+02:00 < End cond first met
+2026-10-23T20:09:08.188+02:00 < Update end cond reset
+2026-10-23T20:09:08.188+02:00 < End cond first met
+2026-10-23T20:09:08.188+02:00 < Update end cond reset
+2026-10-23T20:09:08.188+02:00 < End cond first met
+2026-10-23T20:09:08.188+02:00 < Update end cond reset
+2026-10-23T20:09:08.188+02:00 < End cond first met
+2026-10-23T20:09:08.188+02:00 < Update end cond reset
+2026-10-23T20:09:08.188+02:00 < End cond first met
+2026-10-23T20:09:08.390+02:00 < Update end cond reset
+2026-10-23T20:09:08.390+02:00 < End cond first met
+2026-10-23T20:09:08.390+02:00 < Update end cond reset
+2026-10-23T20:09:08.390+02:00 < End cond first met
+2026-10-23T20:09:08.392+02:00 < Update end cond reset
+2026-10-23T20:09:08.392+02:00 < End cond first met
+2026-10-23T20:09:08.392+02:00 < Update end cond reset
+2026-10-23T20:09:08.392+02:00 < End cond first met
+2026-10-23T20:09:08.392+02:00 < Update end cond reset
+2026-10-23T20:09:08.602+02:00 < End cond first met
+2026-10-23T20:09:08.602+02:00 < Update end cond reset
+2026-10-23T20:09:08.602+02:00 < End cond first met
+2026-10-23T20:09:08.602+02:00 < Update end cond reset
+2026-10-23T20:09:08.602+02:00 < End cond first met
+2026-10-23T20:09:08.604+02:00 < Update end cond reset
+2026-10-23T20:09:08.604+02:00 < End cond first met
+2026-10-23T20:09:08.604+02:00 < Update end cond reset
+2026-10-23T20:09:08.604+02:00 < End cond first met
+2026-10-23T20:09:08.808+02:00 < Update end cond reset
+2026-10-23T20:09:08.808+02:00 < End cond first met
+2026-10-23T20:09:08.808+02:00 < Update end cond reset
+2026-10-23T20:09:08.808+02:00 < End cond first met
+2026-10-23T20:09:08.808+02:00 < Update end cond reset
+2026-10-23T20:09:08.809+02:00 < End cond first met
+2026-10-23T20:09:08.809+02:00 < Update end cond reset
+2026-10-23T20:09:08.809+02:00 < End cond first met
+2026-10-23T20:09:08.809+02:00 < Update end cond reset
+2026-10-23T20:09:09.022+02:00 < Pressure bar : 0.80
+2026-10-23T20:09:09.027+02:00 < Flow measured : 3
+2026-10-23T20:09:09.031+02:00 < End cond first met
+2026-10-23T20:09:09.032+02:00 < Update end cond reset
+2026-10-23T20:09:09.034+02:00 < End cond first met
+2026-10-23T20:09:09.036+02:00 < Update end cond reset
+2026-10-23T20:09:09.036+02:00 < End cond first met
+2026-10-23T20:09:09.036+02:00 < Update end cond reset
+2026-10-23T20:09:09.038+02:00 < End cond first met
+2026-10-23T20:09:09.038+02:00 < Update end cond reset
+2026-10-23T20:09:09.240+02:00 < End cond first met
+2026-10-23T20:09:09.242+02:00 < Update end cond reset
+2026-10-23T20:09:09.242+02:00 < End cond first met
+2026-10-23T20:09:09.242+02:00 < Update end cond reset
+2026-10-23T20:09:09.242+02:00 < End cond first met
+2026-10-23T20:09:09.242+02:00 < Update end cond reset
+2026-10-23T20:09:09.242+02:00 < End cond first met
+2026-10-23T20:09:09.242+02:00 < Update end cond reset
+2026-10-23T20:09:09.242+02:00 < End cond first met
+2026-10-23T20:09:09.242+02:00 < Update end cond reset
+2026-10-23T20:09:09.449+02:00 < End cond first met
+2026-10-23T20:09:09.449+02:00 < Update end cond reset
+2026-10-23T20:09:09.451+02:00 < End cond first met
+2026-10-23T20:09:09.451+02:00 < Update end cond reset
+2026-10-23T20:09:09.451+02:00 < End cond first met
+2026-10-23T20:09:09.451+02:00 < Update end cond reset
+2026-10-23T20:09:09.451+02:00 < End cond first met
+2026-10-23T20:09:09.451+02:00 < Update end cond reset
+2026-10-23T20:09:09.451+02:00 < End cond first met
+2026-10-23T20:09:09.658+02:00 < Update end cond reset
+2026-10-23T20:09:09.658+02:00 < End cond first met
+2026-10-23T20:09:09.658+02:00 < Update end cond reset
+2026-10-23T20:09:09.660+02:00 < End cond first met
+2026-10-23T20:09:09.661+02:00 < Update end cond reset
+2026-10-23T20:09:09.661+02:00 < End cond first met
+2026-10-23T20:09:09.661+02:00 < Update end cond reset
+2026-10-23T20:09:09.661+02:00 < End cond first met
+2026-10-23T20:09:09.661+02:00 < Update end cond reset
+2026-10-23T20:09:09.661+02:00 < End cond first met
+2026-10-23T20:09:09.865+02:00 < Update end cond reset
+2026-10-23T20:09:09.865+02:00 < End cond first met
+2026-10-23T20:09:09.865+02:00 < Update end cond reset
+2026-10-23T20:09:09.865+02:00 < End cond first met
+2026-10-23T20:09:09.865+02:00 < Update end cond reset
+2026-10-23T20:09:09.865+02:00 < End cond first met
+2026-10-23T20:09:09.865+02:00 < Update end cond reset
+2026-10-23T20:09:09.865+02:00 < End cond first met
+2026-10-23T20:09:10.075+02:00 < Update end cond reset
+2026-10-23T20:09:10.075+02:00 < End cond first met
+2026-10-23T20:09:10.075+02:00 < Update end cond reset
+2026-10-23T20:09:10.075+02:00 < End cond first met
+2026-10-23T20:09:10.075+02:00 < Update end cond reset
+2026-10-23T20:09:10.075+02:00 < End cond first met
+2026-10-23T20:09:10.075+02:00 < Update end cond reset
+2026-10-23T20:09:10.075+02:00 < End cond first met
+2026-10-23T20:09:10.075+02:00 < Update end cond reset
+2026-10-23T20:09:10.277+02:00 < End cond first met
+2026-10-23T20:09:10.291+02:00 < Update end cond reset
+2026-10-23T20:09:10.291+02:00 < End cond first met
+2026-10-23T20:09:10.291+02:00 < Update end cond reset
+2026-10-23T20:09:10.293+02:00 < End cond first met
+2026-10-23T20:09:10.294+02:00 < Update end cond reset
+2026-10-23T20:09:10.294+02:00 < End cond first met
+2026-10-23T20:09:10.294+02:00 < Update end cond reset
+2026-10-23T20:09:10.294+02:00 < End cond first met
+2026-10-23T20:09:10.500+02:00 < Update end cond reset
+2026-10-23T20:09:10.500+02:00 < End cond first met
+2026-10-23T20:09:10.500+02:00 < Update end cond reset
+2026-10-23T20:09:10.500+02:00 < End cond first met
+2026-10-23T20:09:10.502+02:00 < Update end cond reset
+2026-10-23T20:09:10.502+02:00 < End cond first met
+2026-10-23T20:09:10.502+02:00 < Update end cond reset
+2026-10-23T20:09:10.504+02:00 < End cond first met
+2026-10-23T20:09:10.504+02:00 < Update end cond reset
+2026-10-23T20:09:10.504+02:00 < End cond first met
+2026-10-23T20:09:10.708+02:00 < Update end cond reset
+2026-10-23T20:09:10.708+02:00 < End cond first met
+2026-10-23T20:09:10.708+02:00 < Update end cond reset
+2026-10-23T20:09:10.708+02:00 < End cond first met
+2026-10-23T20:09:10.708+02:00 < Update end cond reset
+2026-10-23T20:09:10.712+02:00 < End cond first met
+2026-10-23T20:09:10.712+02:00 < Update end cond reset
+2026-10-23T20:09:10.712+02:00 < End cond first met
+2026-10-23T20:09:10.712+02:00 < Update end cond reset
+2026-10-23T20:09:10.712+02:00 < End cond first met
+2026-10-23T20:09:10.916+02:00 < Update end cond reset
+2026-10-23T20:09:10.916+02:00 < End cond first met
+2026-10-23T20:09:10.916+02:00 < Update end cond reset
+2026-10-23T20:09:10.916+02:00 < End cond first met
+2026-10-23T20:09:10.916+02:00 < Update end cond reset
+2026-10-23T20:09:10.916+02:00 < End cond first met
+2026-10-23T20:09:10.916+02:00 < Update end cond reset
+2026-10-23T20:09:10.916+02:00 < End cond first met
+2026-10-23T20:09:10.916+02:00 < Update end cond reset
+2026-10-23T20:09:11.129+02:00 < End cond first met
+2026-10-23T20:09:11.131+02:00 < Update end cond reset
+2026-10-23T20:09:11.133+02:00 < End cond first met
+2026-10-23T20:09:11.133+02:00 < Update end cond reset
+2026-10-23T20:09:11.133+02:00 < End cond first met
+2026-10-23T20:09:11.133+02:00 < Update end cond reset
+2026-10-23T20:09:11.133+02:00 < End cond first met
+2026-10-23T20:09:11.133+02:00 < Update end cond reset
+2026-10-23T20:09:11.133+02:00 < End cond first met
+2026-10-23T20:09:11.334+02:00 < Update end cond reset
+2026-10-23T20:09:11.334+02:00 < End cond first met
+2026-10-23T20:09:11.334+02:00 < Update end cond reset
+2026-10-23T20:09:11.334+02:00 < End cond first met
+2026-10-23T20:09:11.334+02:00 < Update end cond reset
+2026-10-23T20:09:11.334+02:00 < End cond first met
+2026-10-23T20:09:11.334+02:00 < Update end cond reset
+2026-10-23T20:09:11.334+02:00 < End cond first met
+2026-10-23T20:09:11.334+02:00 < Update end cond reset
+2026-10-23T20:09:11.552+02:00 < End cond first met
+2026-10-23T20:09:11.552+02:00 < Update end cond reset
+2026-10-23T20:09:11.552+02:00 < End cond first met
+2026-10-23T20:09:11.552+02:00 < Update end cond reset
+2026-10-23T20:09:11.552+02:00 < End cond first met
+2026-10-23T20:09:11.552+02:00 < Update end cond reset
+2026-10-23T20:09:11.554+02:00 < End cond first met
+2026-10-23T20:09:11.554+02:00 < Update end cond reset
+2026-10-23T20:09:11.554+02:00 < End cond first met
+2026-10-23T20:09:11.554+02:00 < Update end cond reset
+2026-10-23T20:09:11.764+02:00 < Pressure bar : 0.80
+2026-10-23T20:09:11.764+02:00 < Flow measured : 3
+2026-10-23T20:09:11.965+02:00 < End cond first met
+2026-10-23T20:09:11.965+02:00 < Update end cond reset
+2026-10-23T20:09:11.965+02:00 < End cond first met
+2026-10-23T20:09:11.965+02:00 < Update end cond reset
+2026-10-23T20:09:11.965+02:00 < End cond first met
+2026-10-23T20:09:11.965+02:00 < Update end cond reset
+2026-10-23T20:09:11.965+02:00 < End cond first met
+2026-10-23T20:09:11.965+02:00 < Update end cond reset
+2026-10-23T20:09:11.965+02:00 < End cond first met
+2026-10-23T20:09:11.965+02:00 < Update end cond reset
+2026-10-23T20:09:12.171+02:00 < End cond first met
+2026-10-23T20:09:12.171+02:00 < Update end cond reset
+2026-10-23T20:09:12.171+02:00 < End cond first met
+2026-10-23T20:09:12.171+02:00 < Update end cond reset
+2026-10-23T20:09:12.171+02:00 < End cond first met
+2026-10-23T20:09:12.173+02:00 < Update end cond reset
+2026-10-23T20:09:12.173+02:00 < End cond first met
+2026-10-23T20:09:12.173+02:00 < Update end cond reset
+2026-10-23T20:09:12.173+02:00 < End cond first met
+2026-10-23T20:09:12.386+02:00 < Update end cond reset
+2026-10-23T20:09:12.388+02:00 < End cond first met
+2026-10-23T20:09:12.388+02:00 < Update end cond reset
+2026-10-23T20:09:12.390+02:00 < End cond first met
+2026-10-23T20:09:12.390+02:00 < Update end cond reset
+2026-10-23T20:09:12.394+02:00 < End cond first met
+2026-10-23T20:09:12.394+02:00 < Update end cond reset
+2026-10-23T20:09:12.394+02:00 < End cond first met
+2026-10-23T20:09:12.394+02:00 < Update end cond reset
+2026-10-23T20:09:12.610+02:00 < End cond first met
+2026-10-23T20:09:12.612+02:00 < Update end cond reset
+2026-10-23T20:09:12.612+02:00 < End cond first met
+2026-10-23T20:09:12.614+02:00 < Update end cond reset
+2026-10-23T20:09:12.614+02:00 < End cond first met
+2026-10-23T20:09:12.614+02:00 < Update end cond reset
+2026-10-23T20:09:12.614+02:00 < End cond first met
+2026-10-23T20:09:12.614+02:00 < Update end cond reset
+2026-10-23T20:09:12.614+02:00 < End cond first met
+2026-10-23T20:09:12.614+02:00 < Update end cond reset
+2026-10-23T20:09:12.821+02:00 < End cond first met
+2026-10-23T20:09:12.821+02:00 < Update end cond reset
+2026-10-23T20:09:12.821+02:00 < End cond first met
+2026-10-23T20:09:12.821+02:00 < Update end cond reset
+2026-10-23T20:09:12.821+02:00 < End cond first met
+2026-10-23T20:09:12.821+02:00 < Update end cond reset
+2026-10-23T20:09:12.821+02:00 < End cond first met
+2026-10-23T20:09:12.821+02:00 < Update end cond reset
+2026-10-23T20:09:12.821+02:00 < End cond first met
+2026-10-23T20:09:12.821+02:00 < Update end cond reset
+2026-10-23T20:09:13.028+02:00 < End cond first met
+2026-10-23T20:09:13.028+02:00 < Update end cond reset
+2026-10-23T20:09:13.028+02:00 < End cond first met
+2026-10-23T20:09:13.028+02:00 < Update end cond reset
+2026-10-23T20:09:13.030+02:00 < End cond first met
+2026-10-23T20:09:13.030+02:00 < Update end cond reset
+2026-10-23T20:09:13.030+02:00 < End cond first met
+2026-10-23T20:09:13.030+02:00 < Update end cond reset
+2026-10-23T20:09:13.233+02:00 < End cond first met
+2026-10-23T20:09:13.233+02:00 < Update end cond reset
+2026-10-23T20:09:13.233+02:00 < End cond first met
+2026-10-23T20:09:13.233+02:00 < Update end cond reset
+2026-10-23T20:09:13.233+02:00 < End cond first met
+2026-10-23T20:09:13.233+02:00 < Update end cond reset
+2026-10-23T20:09:13.233+02:00 < End cond first met
+2026-10-23T20:09:13.233+02:00 < Update end cond reset
+2026-10-23T20:09:13.233+02:00 < End cond first met
+2026-10-23T20:09:13.438+02:00 < Update end cond reset
+2026-10-23T20:09:13.438+02:00 < End cond first met
+2026-10-23T20:09:13.438+02:00 < Update end cond reset
+2026-10-23T20:09:13.438+02:00 < End cond first met
+2026-10-23T20:09:13.443+02:00 < Update end cond reset
+2026-10-23T20:09:13.443+02:00 < End cond first met
+2026-10-23T20:09:13.443+02:00 < Update end cond reset
+2026-10-23T20:09:13.443+02:00 < End cond first met
+2026-10-23T20:09:13.445+02:00 < Update end cond reset
+2026-10-23T20:09:13.653+02:00 < End cond first met
+2026-10-23T20:09:13.653+02:00 < Update end cond reset
+2026-10-23T20:09:13.653+02:00 < End cond first met
+2026-10-23T20:09:13.653+02:00 < Update end cond reset
+2026-10-23T20:09:13.655+02:00 < End cond first met
+2026-10-23T20:09:13.655+02:00 < Update end cond reset
+2026-10-23T20:09:13.655+02:00 < End cond first met
+2026-10-23T20:09:13.655+02:00 < Update end cond reset
+2026-10-23T20:09:13.655+02:00 < End cond first met
+2026-10-23T20:09:13.655+02:00 < Update end cond reset
+2026-10-23T20:09:13.867+02:00 < End cond first met
+2026-10-23T20:09:13.867+02:00 < Update end cond reset
+2026-10-23T20:09:13.867+02:00 < End cond first met
+2026-10-23T20:09:13.867+02:00 < Update end cond reset
+2026-10-23T20:09:13.867+02:00 < End cond first met
+2026-10-23T20:09:13.867+02:00 < Update end cond reset
+2026-10-23T20:09:13.867+02:00 < End cond first met
+2026-10-23T20:09:13.867+02:00 < Update end cond reset
+2026-10-23T20:09:13.867+02:00 < End cond first met
+2026-10-23T20:09:14.081+02:00 < Update end cond reset
+2026-10-23T20:09:14.081+02:00 < End cond first met
+2026-10-23T20:09:14.081+02:00 < Update end cond reset
+2026-10-23T20:09:14.081+02:00 < End cond first met
+2026-10-23T20:09:14.081+02:00 < Update end cond reset
+2026-10-23T20:09:14.081+02:00 < End cond first met
+2026-10-23T20:09:14.081+02:00 < Update end cond reset
+2026-10-23T20:09:14.286+02:00 < End cond first met
+2026-10-23T20:09:14.287+02:00 < Update end cond reset
+2026-10-23T20:09:14.287+02:00 < End cond first met
+2026-10-23T20:09:14.287+02:00 < Update end cond reset
+2026-10-23T20:09:14.287+02:00 < End cond first met
+2026-10-23T20:09:14.287+02:00 < Update end cond reset
+2026-10-23T20:09:14.287+02:00 < End cond first met
+2026-10-23T20:09:14.287+02:00 < Update end cond reset
+2026-10-23T20:09:14.287+02:00 < End cond first met
+2026-10-23T20:09:14.495+02:00 < Update end cond reset
+2026-10-23T20:09:14.495+02:00 < End cond first met
+2026-10-23T20:09:14.495+02:00 < Update end cond reset
+2026-10-23T20:09:14.495+02:00 < End cond first met
+2026-10-23T20:09:14.495+02:00 < Update end cond reset
+2026-10-23T20:09:14.495+02:00 < End cond first met
+2026-10-23T20:09:14.497+02:00 < Update end cond reset
+2026-10-23T20:09:14.497+02:00 < End cond first met
+2026-10-23T20:09:14.497+02:00 < Update end cond reset
+2026-10-23T20:09:14.713+02:00 < End cond first met
+2026-10-23T20:09:14.713+02:00 < Update end cond reset
+2026-10-23T20:09:14.713+02:00 < End cond first met
+2026-10-23T20:09:14.713+02:00 < Update end cond reset
+2026-10-23T20:09:14.918+02:00 < Pressure bar : 0.80
+2026-10-23T20:09:14.918+02:00 < Flow measured : 3
+2026-10-23T20:09:14.918+02:00 < End cond first met
+2026-10-23T20:09:14.918+02:00 < Update end cond reset
+2026-10-23T20:09:14.918+02:00 < End cond first met
+2026-10-23T20:09:15.124+02:00 < Update end cond reset
+2026-10-23T20:09:15.124+02:00 < End cond first met
+2026-10-23T20:09:15.124+02:00 < Update end cond reset
+2026-10-23T20:09:15.127+02:00 < End cond first met
+2026-10-23T20:09:15.127+02:00 < Update end cond reset
+2026-10-23T20:09:15.127+02:00 < End cond first met
+2026-10-23T20:09:15.127+02:00 < Update end cond reset
+2026-10-23T20:09:15.127+02:00 < End cond first met
+2026-10-23T20:09:15.127+02:00 < Update end cond reset
+2026-10-23T20:09:15.332+02:00 < End cond first met
+2026-10-23T20:09:15.332+02:00 < Update end cond reset
+2026-10-23T20:09:15.332+02:00 < End cond first met
+2026-10-23T20:09:15.332+02:00 < Update end cond reset
+2026-10-23T20:09:15.332+02:00 < End cond first met
+2026-10-23T20:09:15.332+02:00 < Update end cond reset
+2026-10-23T20:09:15.332+02:00 < End cond first met
+2026-10-23T20:09:15.332+02:00 < Update end cond reset
+2026-10-23T20:09:15.332+02:00 < End cond first met
+2026-10-23T20:09:15.332+02:00 < Update end cond reset
+2026-10-23T20:09:15.537+02:00 < End cond first met
+2026-10-23T20:09:15.537+02:00 < Update end cond reset
+2026-10-23T20:09:15.537+02:00 < End cond first met
+2026-10-23T20:09:15.537+02:00 < Update end cond reset
+2026-10-23T20:09:15.537+02:00 < End cond first met
+2026-10-23T20:09:15.537+02:00 < Update end cond reset
+2026-10-23T20:09:15.537+02:00 < End cond first met
+2026-10-23T20:09:15.537+02:00 < Update end cond reset
+2026-10-23T20:09:15.537+02:00 < End cond first met
+2026-10-23T20:09:15.744+02:00 < Update end cond reset
+2026-10-23T20:09:15.746+02:00 < End cond first met
+2026-10-23T20:09:15.746+02:00 < Update end cond reset
+2026-10-23T20:09:15.746+02:00 < End cond first met
+2026-10-23T20:09:15.746+02:00 < Update end cond reset
+2026-10-23T20:09:15.746+02:00 < End cond first met
+2026-10-23T20:09:15.746+02:00 < Update end cond reset
+2026-10-23T20:09:15.746+02:00 < End cond first met
+2026-10-23T20:09:15.746+02:00 < Update end cond reset
+2026-10-23T20:09:15.959+02:00 < End cond first met
+2026-10-23T20:09:15.959+02:00 < Update end cond reset
+2026-10-23T20:09:15.959+02:00 < End cond first met
+2026-10-23T20:09:15.959+02:00 < Update end cond reset
+2026-10-23T20:09:15.959+02:00 < End cond first met
+2026-10-23T20:09:15.959+02:00 < Update end cond reset
+2026-10-23T20:09:15.959+02:00 < End cond first met
+2026-10-23T20:09:15.959+02:00 < Update end cond reset
+2026-10-23T20:09:15.959+02:00 < End cond first met
+2026-10-23T20:09:15.959+02:00 < Update end cond reset
+2026-10-23T20:09:16.159+02:00 < End cond first met
+2026-10-23T20:09:16.159+02:00 < Update end cond reset
+2026-10-23T20:09:16.159+02:00 < End cond first met
+2026-10-23T20:09:16.159+02:00 < Update end cond reset
+2026-10-23T20:09:16.161+02:00 < End cond first met
+2026-10-23T20:09:16.161+02:00 < Update end cond reset
+2026-10-23T20:09:16.161+02:00 < End cond first met
+2026-10-23T20:09:16.161+02:00 < Update end cond reset
+2026-10-23T20:09:16.161+02:00 < End cond first met
+2026-10-23T20:09:16.364+02:00 < Update end cond reset
+2026-10-23T20:09:16.364+02:00 < End cond first met
+2026-10-23T20:09:16.364+02:00 < Update end cond reset
+2026-10-23T20:09:16.364+02:00 < End cond first met
+2026-10-23T20:09:16.364+02:00 < Update end cond reset
+2026-10-23T20:09:16.364+02:00 < End cond first met
+2026-10-23T20:09:16.364+02:00 < Update end cond reset
+2026-10-23T20:09:16.364+02:00 < End cond first met
+2026-10-23T20:09:16.364+02:00 < Update end cond reset
+2026-10-23T20:09:16.564+02:00 < End cond first met
+2026-10-23T20:09:16.566+02:00 < Update end cond reset
+2026-10-23T20:09:16.566+02:00 < End cond first met
+2026-10-23T20:09:16.566+02:00 < Update end cond reset
+2026-10-23T20:09:16.566+02:00 < End cond first met
+2026-10-23T20:09:16.568+02:00 < Update end cond reset
+2026-10-23T20:09:16.568+02:00 < End cond first met
+2026-10-23T20:09:16.568+02:00 < Update end cond reset
+2026-10-23T20:09:16.568+02:00 < End cond first met
+2026-10-23T20:09:16.775+02:00 < Update end cond reset
+2026-10-23T20:09:16.775+02:00 < End cond first met
+2026-10-23T20:09:16.775+02:00 < Update end cond reset
+2026-10-23T20:09:16.775+02:00 < End cond first met
+2026-10-23T20:09:16.777+02:00 < Update end cond reset
+2026-10-23T20:09:16.777+02:00 < End cond first met
+2026-10-23T20:09:16.777+02:00 < Update end cond reset
+2026-10-23T20:09:16.777+02:00 < End cond first met
+2026-10-23T20:09:16.777+02:00 < Update end cond reset
+2026-10-23T20:09:16.985+02:00 < End cond first met
+2026-10-23T20:09:16.985+02:00 < Update end cond reset
+2026-10-23T20:09:16.985+02:00 < End cond first met
+2026-10-23T20:09:16.986+02:00 < Update end cond reset
+2026-10-23T20:09:16.986+02:00 < End cond first met
+2026-10-23T20:09:16.986+02:00 < Update end cond reset
+2026-10-23T20:09:16.986+02:00 < End cond first met
+2026-10-23T20:09:16.986+02:00 < Update end cond reset
+2026-10-23T20:09:16.986+02:00 < End cond first met
+2026-10-23T20:09:17.191+02:00 < Update end cond reset
+2026-10-23T20:09:17.191+02:00 < End cond first met
+2026-10-23T20:09:17.400+02:00 < Update end cond reset
+2026-10-23T20:09:17.400+02:00 < End cond first met
+2026-10-23T20:09:17.400+02:00 < Update end cond reset
+2026-10-23T20:09:17.400+02:00 < End cond first met
+2026-10-23T20:09:17.400+02:00 < Update end cond reset
+2026-10-23T20:09:17.400+02:00 < End cond first met
+2026-10-23T20:09:17.400+02:00 < Update end cond reset
+2026-10-23T20:09:17.400+02:00 < End cond first met
+2026-10-23T20:09:17.400+02:00 < Update end cond reset
+2026-10-23T20:09:17.613+02:00 < End cond first met
+2026-10-23T20:09:17.613+02:00 < Update end cond reset
+2026-10-23T20:09:17.613+02:00 < End cond first met
+2026-10-23T20:09:17.613+02:00 < Update end cond reset
+2026-10-23T20:09:17.613+02:00 < End cond first met
+2026-10-23T20:09:17.613+02:00 < Update end cond reset
+2026-10-23T20:09:17.613+02:00 < End cond first met
+2026-10-23T20:09:17.613+02:00 < Update end cond reset
+2026-10-23T20:09:17.613+02:00 < End cond first met
+2026-10-23T20:09:17.618+02:00 < Update end cond reset
+2026-10-23T20:09:17.819+02:00 < End cond first met
+2026-10-23T20:09:17.819+02:00 < Update end cond reset
+2026-10-23T20:09:17.819+02:00 < End cond first met
+2026-10-23T20:09:17.819+02:00 < Update end cond reset
+2026-10-23T20:09:17.819+02:00 < End cond first met
+2026-10-23T20:09:17.819+02:00 < Update end cond reset
+2026-10-23T20:09:17.819+02:00 < End cond first met
+2026-10-23T20:09:17.819+02:00 < Update end cond reset
+2026-10-23T20:09:17.819+02:00 < End cond first met
+2026-10-23T20:09:18.029+02:00 < Update end cond reset
+2026-10-23T20:09:18.029+02:00 < Pressure bar : 0.80
+2026-10-23T20:09:18.029+02:00 < Flow measured : 3
+2026-10-23T20:09:18.029+02:00 < End cond first met
+2026-10-23T20:09:18.031+02:00 < Update end cond reset
+2026-10-23T20:09:18.031+02:00 < End cond first met
+2026-10-23T20:09:18.031+02:00 < Update end cond reset
+2026-10-23T20:09:18.031+02:00 < End cond first met
+2026-10-23T20:09:18.033+02:00 < Update end cond reset
+2026-10-23T20:09:18.237+02:00 < End cond first met
+2026-10-23T20:09:18.237+02:00 < Update end cond reset
+2026-10-23T20:09:18.237+02:00 < End cond first met
+2026-10-23T20:09:18.237+02:00 < Update end cond reset
+2026-10-23T20:09:18.237+02:00 < End cond first met
+2026-10-23T20:09:18.239+02:00 < Update end cond reset
+2026-10-23T20:09:18.239+02:00 < End cond first met
+2026-10-23T20:09:18.239+02:00 < Update end cond reset
+2026-10-23T20:09:18.239+02:00 < End cond first met
+2026-10-23T20:09:18.239+02:00 < Update end cond reset
+2026-10-23T20:09:18.442+02:00 < End cond first met
+2026-10-23T20:09:18.444+02:00 < Update end cond reset
+2026-10-23T20:09:18.444+02:00 < End cond first met
+2026-10-23T20:09:18.444+02:00 < Update end cond reset
+2026-10-23T20:09:18.444+02:00 < End cond first met
+2026-10-23T20:09:18.444+02:00 < Update end cond reset
+2026-10-23T20:09:18.444+02:00 < End cond first met
+2026-10-23T20:09:18.444+02:00 < Update end cond reset
+2026-10-23T20:09:18.444+02:00 < End cond first met
+2026-10-23T20:09:18.647+02:00 < Update end cond reset
+2026-10-23T20:09:18.647+02:00 < End cond first met
+2026-10-23T20:09:18.647+02:00 < Update end cond reset
+2026-10-23T20:09:18.858+02:00 < End cond first met
+2026-10-23T20:09:18.858+02:00 < Update end cond reset
+2026-10-23T20:09:18.858+02:00 < End cond first met
+2026-10-23T20:09:18.865+02:00 < Update end cond reset
+2026-10-23T20:09:18.869+02:00 < End cond first met
+2026-10-23T20:09:18.869+02:00 < Update end cond reset
+2026-10-23T20:09:18.873+02:00 < End cond first met
+2026-10-23T20:09:18.877+02:00 < Update end cond reset
+2026-10-23T20:09:18.879+02:00 < End cond first met
+2026-10-23T20:09:19.081+02:00 < Update end cond reset
+2026-10-23T20:09:19.081+02:00 < End cond first met
+2026-10-23T20:09:19.081+02:00 < Update end cond reset
+2026-10-23T20:09:19.081+02:00 < End cond first met
+2026-10-23T20:09:19.081+02:00 < Update end cond reset
+2026-10-23T20:09:19.081+02:00 < End cond first met
+2026-10-23T20:09:19.081+02:00 < Update end cond reset
+2026-10-23T20:09:19.081+02:00 < End cond first met
+2026-10-23T20:09:19.081+02:00 < Update end cond reset
+2026-10-23T20:09:19.081+02:00 < End cond first met
+2026-10-23T20:09:19.286+02:00 < Update end cond reset
+2026-10-23T20:09:19.287+02:00 < End cond first met
+2026-10-23T20:09:19.287+02:00 < Update end cond reset
+2026-10-23T20:09:19.287+02:00 < End cond first met
+2026-10-23T20:09:19.287+02:00 < Update end cond reset
+2026-10-23T20:09:19.287+02:00 < End cond first met
+2026-10-23T20:09:19.287+02:00 < Update end cond reset
+2026-10-23T20:09:19.287+02:00 < End cond first met
+2026-10-23T20:09:19.287+02:00 < Update end cond reset
+2026-10-23T20:09:19.287+02:00 < End cond first met
+2026-10-23T20:09:19.513+02:00 < Update end cond reset
+2026-10-23T20:09:19.521+02:00 < End cond first met
+2026-10-23T20:09:19.523+02:00 < Update end cond reset
+2026-10-23T20:09:19.523+02:00 < End cond first met
+2026-10-23T20:09:19.524+02:00 < Update end cond reset
+2026-10-23T20:09:19.524+02:00 < End cond first met
+2026-10-23T20:09:19.524+02:00 < Update end cond reset
+2026-10-23T20:09:19.525+02:00 < End cond first met
+2026-10-23T20:09:19.525+02:00 < Update end cond reset
+2026-10-23T20:09:19.731+02:00 < End cond first met
+2026-10-23T20:09:19.731+02:00 < Update end cond reset
+2026-10-23T20:09:19.731+02:00 < End cond first met
+2026-10-23T20:09:19.731+02:00 < Update end cond reset
+2026-10-23T20:09:19.731+02:00 < End cond first met
+2026-10-23T20:09:19.731+02:00 < Update end cond reset
+2026-10-23T20:09:19.731+02:00 < End cond first met
+2026-10-23T20:09:19.731+02:00 < Update end cond reset
+2026-10-23T20:09:19.731+02:00 < End cond first met
+2026-10-23T20:09:19.731+02:00 < Update end cond reset
+2026-10-23T20:09:19.936+02:00 < End cond first met
+2026-10-23T20:09:19.936+02:00 < Update end cond reset
+2026-10-23T20:09:19.936+02:00 < End cond first met
+2026-10-23T20:09:19.936+02:00 < Update end cond reset
+2026-10-23T20:09:19.936+02:00 < End cond first met
+2026-10-23T20:09:19.936+02:00 < Update end cond reset
+2026-10-23T20:09:19.936+02:00 < End cond first met
+2026-10-23T20:09:19.936+02:00 < Update end cond reset
+2026-10-23T20:09:19.936+02:00 < End cond first met
+2026-10-23T20:09:19.936+02:00 < Update end cond reset
+2026-10-23T20:09:20.142+02:00 < End cond first met
+2026-10-23T20:09:20.142+02:00 < Update end cond reset
+2026-10-23T20:09:20.349+02:00 < End cond first met
+2026-10-23T20:09:20.349+02:00 < Update end cond reset
+2026-10-23T20:09:20.351+02:00 < End cond first met
+2026-10-23T20:09:20.351+02:00 < Update end cond reset
+2026-10-23T20:09:20.563+02:00 < End cond first met
+2026-10-23T20:09:20.564+02:00 < Update end cond reset
+2026-10-23T20:09:20.564+02:00 < End cond first met
+2026-10-23T20:09:20.564+02:00 < Update end cond reset
+2026-10-23T20:09:20.564+02:00 < End cond first met
+2026-10-23T20:09:20.565+02:00 < Update end cond reset
+2026-10-23T20:09:20.565+02:00 < End cond first met
+2026-10-23T20:09:20.768+02:00 < Update end cond reset
+2026-10-23T20:09:20.768+02:00 < End cond first met
+2026-10-23T20:09:20.768+02:00 < Update end cond reset
+2026-10-23T20:09:20.768+02:00 < End cond first met
+2026-10-23T20:09:20.768+02:00 < Update end cond reset
+2026-10-23T20:09:20.768+02:00 < End cond first met
+2026-10-23T20:09:20.770+02:00 < Update end cond reset
+2026-10-23T20:09:20.770+02:00 < End cond first met
+2026-10-23T20:09:20.770+02:00 < Update end cond reset
+2026-10-23T20:09:20.975+02:00 < End cond first met
+2026-10-23T20:09:20.975+02:00 < Update end cond reset
+2026-10-23T20:09:20.977+02:00 < End cond first met
+2026-10-23T20:09:20.977+02:00 < Update end cond reset
+2026-10-23T20:09:20.977+02:00 < End cond first met
+2026-10-23T20:09:20.977+02:00 < Update end cond reset
+2026-10-23T20:09:20.977+02:00 < Pressure bar : 0.80
+2026-10-23T20:09:20.977+02:00 < Flow measured : 3
+2026-10-23T20:09:20.980+02:00 < End cond first met
+2026-10-23T20:09:21.185+02:00 < Update end cond reset
+2026-10-23T20:09:21.191+02:00 < End cond first met
+2026-10-23T20:09:21.191+02:00 < Update end cond reset
+2026-10-23T20:09:21.191+02:00 < End cond first met
+2026-10-23T20:09:21.194+02:00 < Update end cond reset
+2026-10-23T20:09:21.194+02:00 < End cond first met
+2026-10-23T20:09:21.194+02:00 < Update end cond reset
+2026-10-23T20:09:21.196+02:00 < End cond first met
+2026-10-23T20:09:21.196+02:00 < Update end cond reset
+2026-10-23T20:09:21.402+02:00 < End cond first met
+2026-10-23T20:09:21.402+02:00 < Update end cond reset
+2026-10-23T20:09:21.402+02:00 < End cond first met
+2026-10-23T20:09:21.402+02:00 < Update end cond reset
+2026-10-23T20:09:21.404+02:00 < End cond first met
+2026-10-23T20:09:21.404+02:00 < Update end cond reset
+2026-10-23T20:09:21.404+02:00 < End cond first met
+2026-10-23T20:09:21.404+02:00 < Update end cond reset
+2026-10-23T20:09:21.404+02:00 < End cond first met
+2026-10-23T20:09:21.404+02:00 < Update end cond reset
+2026-10-23T20:09:21.614+02:00 < End cond first met
+2026-10-23T20:09:21.614+02:00 < Update end cond reset
+2026-10-23T20:09:21.614+02:00 < End cond first met
+2026-10-23T20:09:21.614+02:00 < Update end cond reset
+2026-10-23T20:09:21.614+02:00 < End cond first met
+2026-10-23T20:09:21.614+02:00 < Update end cond reset
+2026-10-23T20:09:21.614+02:00 < End cond first met
+2026-10-23T20:09:21.614+02:00 < Update end cond reset
+2026-10-23T20:09:21.614+02:00 < End cond first met
+2026-10-23T20:09:21.614+02:00 < Update end cond reset
+2026-10-23T20:09:21.822+02:00 < End cond first met
+2026-10-23T20:09:21.822+02:00 < Update end cond reset
+2026-10-23T20:09:21.822+02:00 < End cond first met
+2026-10-23T20:09:21.822+02:00 < Update end cond reset
+2026-10-23T20:09:21.822+02:00 < End cond first met
+2026-10-23T20:09:21.822+02:00 < Update end cond reset
+2026-10-23T20:09:21.825+02:00 < End cond first met
+2026-10-23T20:09:21.825+02:00 < Update end cond reset
+2026-10-23T20:09:21.825+02:00 < End cond first met
+2026-10-23T20:09:22.035+02:00 < Update end cond reset
+2026-10-23T20:09:22.035+02:00 < End cond first met
+2026-10-23T20:09:22.035+02:00 < Update end cond reset
+2026-10-23T20:09:22.240+02:00 < End cond first met
+2026-10-23T20:09:22.242+02:00 < Update end cond reset
+2026-10-23T20:09:22.456+02:00 < End cond first met
+2026-10-23T20:09:22.456+02:00 < Update end cond reset
+2026-10-23T20:09:22.456+02:00 < End cond first met
+2026-10-23T20:09:22.456+02:00 < Update end cond reset
+2026-10-23T20:09:22.456+02:00 < End cond first met
+2026-10-23T20:09:22.456+02:00 < Update end cond reset
+2026-10-23T20:09:22.456+02:00 < End cond first met
+2026-10-23T20:09:22.456+02:00 < Update end cond reset
+2026-10-23T20:09:22.456+02:00 < End cond first met
+2026-10-23T20:09:22.456+02:00 < Update end cond reset
+2026-10-23T20:09:22.664+02:00 < End cond first met
+2026-10-23T20:09:22.664+02:00 < Update end cond reset
+2026-10-23T20:09:22.664+02:00 < End cond first met
+2026-10-23T20:09:22.664+02:00 < Update end cond reset
+2026-10-23T20:09:22.664+02:00 < End cond first met
+2026-10-23T20:09:22.664+02:00 < Update end cond reset
+2026-10-23T20:09:22.664+02:00 < End cond first met
+2026-10-23T20:09:22.666+02:00 < Update end cond reset
+2026-10-23T20:09:22.666+02:00 < End cond first met
+2026-10-23T20:09:22.887+02:00 < Update end cond reset
+2026-10-23T20:09:22.887+02:00 < End cond first met
+2026-10-23T20:09:22.887+02:00 < Update end cond reset
+2026-10-23T20:09:22.887+02:00 < End cond first met
+2026-10-23T20:09:22.887+02:00 < Update end cond reset
+2026-10-23T20:09:22.889+02:00 < End cond first met
+2026-10-23T20:09:22.889+02:00 < Update end cond reset
+2026-10-23T20:09:22.889+02:00 < End cond first met
+2026-10-23T20:09:22.889+02:00 < Update end cond reset
+2026-10-23T20:09:22.889+02:00 < End cond first met
+2026-10-23T20:09:23.097+02:00 < Update end cond reset
+2026-10-23T20:09:23.097+02:00 < End cond first met
+2026-10-23T20:09:23.316+02:00 < Update end cond reset
+2026-10-23T20:09:23.537+02:00 < End cond first met
+2026-10-23T20:09:23.537+02:00 < Update end cond reset
+2026-10-23T20:09:23.537+02:00 < End cond first met
+2026-10-23T20:09:23.537+02:00 < Update end cond reset
+2026-10-23T20:09:23.539+02:00 < End cond first met
+2026-10-23T20:09:23.539+02:00 < Update end cond reset
+2026-10-23T20:09:23.747+02:00 < End cond first met
+2026-10-23T20:09:23.747+02:00 < Update end cond reset
+2026-10-23T20:09:23.747+02:00 < End cond first met
+2026-10-23T20:09:23.747+02:00 < Update end cond reset
+2026-10-23T20:09:23.747+02:00 < End cond first met
+2026-10-23T20:09:23.747+02:00 < Update end cond reset
+2026-10-23T20:09:23.747+02:00 < End cond first met
+2026-10-23T20:09:23.747+02:00 < Update end cond reset
+2026-10-23T20:09:23.747+02:00 < End cond first met
+2026-10-23T20:09:23.948+02:00 < Pressure bar : 0.80
+2026-10-23T20:09:23.949+02:00 < Flow measured : 3
+2026-10-23T20:09:24.149+02:00 < Update end cond reset
+2026-10-23T20:09:24.149+02:00 < End cond first met
+2026-10-23T20:09:24.149+02:00 < Update end cond reset
+2026-10-23T20:09:24.149+02:00 < End cond first met
+2026-10-23T20:09:24.149+02:00 < Update end cond reset
+2026-10-23T20:09:24.149+02:00 < End cond first met
+2026-10-23T20:09:24.149+02:00 < Update end cond reset
+2026-10-23T20:09:24.364+02:00 < End cond first met
+2026-10-23T20:09:24.364+02:00 < Update end cond reset
+2026-10-23T20:09:24.366+02:00 < End cond first met
+2026-10-23T20:09:24.366+02:00 < Update end cond reset
+2026-10-23T20:09:24.366+02:00 < End cond first met
+2026-10-23T20:09:24.366+02:00 < Update end cond reset
+2026-10-23T20:09:24.366+02:00 < End cond first met
+2026-10-23T20:09:24.366+02:00 < Update end cond reset
+2026-10-23T20:09:24.366+02:00 < End cond first met
+2026-10-23T20:09:24.571+02:00 < Update end cond reset
+2026-10-23T20:09:24.572+02:00 < End cond first met
+2026-10-23T20:09:24.572+02:00 < Update end cond reset
+2026-10-23T20:09:24.572+02:00 < End cond first met
+2026-10-23T20:09:24.572+02:00 < Update end cond reset
+2026-10-23T20:09:24.572+02:00 < End cond first met
+2026-10-23T20:09:24.572+02:00 < Update end cond reset
+2026-10-23T20:09:24.572+02:00 < End cond first met
+2026-10-23T20:09:24.572+02:00 < Update end cond reset
+2026-10-23T20:09:24.572+02:00 < End cond first met
+2026-10-23T20:09:24.778+02:00 < Update end cond reset
+2026-10-23T20:09:24.778+02:00 < End cond first met
+2026-10-23T20:09:24.778+02:00 < Update end cond reset
+2026-10-23T20:09:24.778+02:00 < End cond first met
+2026-10-23T20:09:24.778+02:00 < Update end cond reset
+2026-10-23T20:09:24.778+02:00 < End cond first met
+2026-10-23T20:09:24.780+02:00 < Update end cond reset
+2026-10-23T20:09:24.780+02:00 < End cond first met
+2026-10-23T20:09:24.780+02:00 < Update end cond reset
+2026-10-23T20:09:24.982+02:00 < End cond first met
+2026-10-23T20:09:24.982+02:00 < Update end cond reset
+2026-10-23T20:09:24.982+02:00 < End cond first met
+2026-10-23T20:09:24.982+02:00 < Update end cond reset
+2026-10-23T20:09:24.982+02:00 < End cond first met
+2026-10-23T20:09:24.982+02:00 < Update end cond reset
+2026-10-23T20:09:24.982+02:00 < End cond first met
+2026-10-23T20:09:24.982+02:00 < Update end cond reset
+2026-10-23T20:09:24.982+02:00 < End cond first met
+2026-10-23T20:09:25.195+02:00 < Update end cond reset
+2026-10-23T20:09:25.195+02:00 < End cond first met
+2026-10-23T20:09:25.195+02:00 < Update end cond reset
+2026-10-23T20:09:25.195+02:00 < End cond first met
+2026-10-23T20:09:25.195+02:00 < Update end cond reset
+2026-10-23T20:09:25.195+02:00 < End cond first met
+2026-10-23T20:09:25.195+02:00 < Update end cond reset
+2026-10-23T20:09:25.195+02:00 < End cond first met
+2026-10-23T20:09:25.195+02:00 < Update end cond reset
+2026-10-23T20:09:25.405+02:00 < End cond first met
+2026-10-23T20:09:25.405+02:00 < Update end cond reset
+2026-10-23T20:09:25.405+02:00 < End cond first met
+2026-10-23T20:09:25.405+02:00 < Update end cond reset
+2026-10-23T20:09:25.405+02:00 < End cond first met
+2026-10-23T20:09:25.405+02:00 < Update end cond reset
+2026-10-23T20:09:25.405+02:00 < End cond first met
+2026-10-23T20:09:25.405+02:00 < Update end cond reset
+2026-10-23T20:09:25.405+02:00 < End cond first met
+2026-10-23T20:09:25.413+02:00 < Update end cond reset
+2026-10-23T20:09:25.615+02:00 < End cond first met
+2026-10-23T20:09:25.615+02:00 < Update end cond reset
+2026-10-23T20:09:25.617+02:00 < End cond first met
+2026-10-23T20:09:25.617+02:00 < Update end cond reset
+2026-10-23T20:09:25.617+02:00 < End cond first met
+2026-10-23T20:09:25.617+02:00 < Update end cond reset
+2026-10-23T20:09:25.617+02:00 < End cond first met
+2026-10-23T20:09:25.617+02:00 < Update end cond reset
+2026-10-23T20:09:25.617+02:00 < End cond first met
+2026-10-23T20:09:25.819+02:00 < Update end cond reset
+2026-10-23T20:09:25.820+02:00 < End cond first met
+2026-10-23T20:09:25.820+02:00 < Update end cond reset
+2026-10-23T20:09:25.820+02:00 < End cond first met
+2026-10-23T20:09:25.820+02:00 < Update end cond reset
+2026-10-23T20:09:25.822+02:00 < End cond first met
+2026-10-23T20:09:25.822+02:00 < Update end cond reset
+2026-10-23T20:09:25.822+02:00 < End cond first met
+2026-10-23T20:09:26.024+02:00 < Update end cond reset
+2026-10-23T20:09:26.024+02:00 < End cond first met
+2026-10-23T20:09:26.024+02:00 < Update end cond reset
+2026-10-23T20:09:26.024+02:00 < End cond first met
+2026-10-23T20:09:26.024+02:00 < Update end cond reset
+2026-10-23T20:09:26.024+02:00 < End cond first met
+2026-10-23T20:09:26.024+02:00 < Update end cond reset
+2026-10-23T20:09:26.024+02:00 < End cond first met
+2026-10-23T20:09:26.024+02:00 < Update end cond reset
+2026-10-23T20:09:26.229+02:00 < End cond first met
+2026-10-23T20:09:26.229+02:00 < Update end cond reset
+2026-10-23T20:09:26.432+02:00 < End cond first met
+2026-10-23T20:09:26.432+02:00 < Update end cond reset
+2026-10-23T20:09:26.849+02:00 < Pressure bar : 0.80
+2026-10-23T20:09:27.055+02:00 < Flow measured : 3
+2026-10-23T20:09:27.055+02:00 < End cond first met
+2026-10-23T20:09:27.055+02:00 < Update end cond reset
+2026-10-23T20:09:27.266+02:00 < End cond first met
+2026-10-23T20:09:27.268+02:00 < Update end cond reset
+2026-10-23T20:09:27.469+02:00 < End cond first met
+2026-10-23T20:09:27.469+02:00 < Update end cond reset
+2026-10-23T20:09:27.469+02:00 < End cond first met
+2026-10-23T20:09:27.469+02:00 < Update end cond reset
+2026-10-23T20:09:27.469+02:00 < End cond first met
+2026-10-23T20:09:27.670+02:00 < Update end cond reset
+2026-10-23T20:09:27.670+02:00 < End cond first met
+2026-10-23T20:09:27.670+02:00 < Update end cond reset
+2026-10-23T20:09:27.670+02:00 < End cond first met
+2026-10-23T20:09:27.670+02:00 < Update end cond reset
+2026-10-23T20:09:27.670+02:00 < End cond first met
+2026-10-23T20:09:27.670+02:00 < Update end cond reset
+2026-10-23T20:09:27.670+02:00 < End cond first met
+2026-10-23T20:09:27.670+02:00 < Update end cond reset
+2026-10-23T20:09:27.882+02:00 < End cond first met
+2026-10-23T20:09:27.882+02:00 < Update end cond reset
+2026-10-23T20:09:27.884+02:00 < End cond first met
+2026-10-23T20:09:27.884+02:00 < Update end cond reset
+2026-10-23T20:09:27.884+02:00 < End cond first met
+2026-10-23T20:09:27.884+02:00 < Update end cond reset
+2026-10-23T20:09:27.884+02:00 < End cond first met
+2026-10-23T20:09:27.884+02:00 < Update end cond reset
+2026-10-23T20:09:27.884+02:00 < End cond first met
+2026-10-23T20:09:28.096+02:00 < Update end cond reset
+2026-10-23T20:09:28.097+02:00 < End cond first met
+2026-10-23T20:09:28.097+02:00 < Update end cond reset
+2026-10-23T20:09:28.097+02:00 < End cond first met
+2026-10-23T20:09:28.097+02:00 < Update end cond reset
+2026-10-23T20:09:28.097+02:00 < End cond first met
+2026-10-23T20:09:28.097+02:00 < Update end cond reset
+2026-10-23T20:09:28.097+02:00 < End cond first met
+2026-10-23T20:09:28.099+02:00 < Update end cond reset
+2026-10-23T20:09:28.099+02:00 < End cond first met
+2026-10-23T20:09:28.307+02:00 < Update end cond reset
+2026-10-23T20:09:28.307+02:00 < End cond first met
+2026-10-23T20:09:28.307+02:00 < Update end cond reset
+2026-10-23T20:09:28.307+02:00 < End cond first met
+2026-10-23T20:09:28.309+02:00 < Update end cond reset
+2026-10-23T20:09:28.309+02:00 < End cond first met
+2026-10-23T20:09:28.309+02:00 < Update end cond reset
+2026-10-23T20:09:28.512+02:00 < End cond first met
+2026-10-23T20:09:28.512+02:00 < Update end cond reset
+2026-10-23T20:09:28.512+02:00 < End cond first met
+2026-10-23T20:09:28.726+02:00 < Update end cond reset
+2026-10-23T20:09:28.726+02:00 < End cond first met
+2026-10-23T20:09:28.726+02:00 < Update end cond reset
+2026-10-23T20:09:28.938+02:00 < End cond first met
+2026-10-23T20:09:28.938+02:00 < Update end cond reset
+2026-10-23T20:09:28.938+02:00 < End cond first met
+2026-10-23T20:09:29.148+02:00 < Update end cond reset
+2026-10-23T20:09:29.148+02:00 < End cond first met
+2026-10-23T20:09:29.148+02:00 < Update end cond reset
+2026-10-23T20:09:29.148+02:00 < End cond first met
+2026-10-23T20:09:29.148+02:00 < Update end cond reset
+2026-10-23T20:09:29.148+02:00 < End cond first met
+2026-10-23T20:09:29.148+02:00 < Update end cond reset
+2026-10-23T20:09:29.148+02:00 < End cond first met
+2026-10-23T20:09:29.148+02:00 < Update end cond reset
+2026-10-23T20:09:29.349+02:00 < End cond first met
+2026-10-23T20:09:29.349+02:00 < Update end cond reset
+2026-10-23T20:09:29.351+02:00 < End cond first met
+2026-10-23T20:09:29.351+02:00 < Update end cond reset
+2026-10-23T20:09:29.351+02:00 < End cond first met
+2026-10-23T20:09:29.351+02:00 < Update end cond reset
+2026-10-23T20:09:29.351+02:00 < End cond first met
+2026-10-23T20:09:29.351+02:00 < Update end cond reset
+2026-10-23T20:09:29.351+02:00 < End cond first met
+2026-10-23T20:09:29.556+02:00 < Update end cond reset
+2026-10-23T20:09:29.563+02:00 < End cond first met
+2026-10-23T20:09:29.563+02:00 < Update end cond reset
+2026-10-23T20:09:29.563+02:00 < End cond first met
+2026-10-23T20:09:29.563+02:00 < Update end cond reset
+2026-10-23T20:09:29.565+02:00 < End cond first met
+2026-10-23T20:09:29.565+02:00 < Update end cond reset
+2026-10-23T20:09:29.568+02:00 < End cond first met
+2026-10-23T20:09:29.568+02:00 < Update end cond reset
+2026-10-23T20:09:29.777+02:00 < End cond first met
+2026-10-23T20:09:29.777+02:00 < Update end cond reset
+2026-10-23T20:09:29.779+02:00 < End cond first met
+2026-10-23T20:09:29.779+02:00 < Update end cond reset
+2026-10-23T20:09:29.779+02:00 < End cond first met
+2026-10-23T20:09:29.779+02:00 < Update end cond reset
+2026-10-23T20:09:29.780+02:00 < End cond first met
+2026-10-23T20:09:29.780+02:00 < Update end cond reset
+2026-10-23T20:09:29.981+02:00 < Pressure bar : 0.80
+2026-10-23T20:09:29.981+02:00 < Flow measured : 3
+2026-10-23T20:09:30.391+02:00 < End cond first met
+2026-10-23T20:09:30.391+02:00 < Update end cond reset
+2026-10-23T20:09:30.391+02:00 < End cond first met
+2026-10-23T20:09:30.391+02:00 < Update end cond reset
+2026-10-23T20:09:30.392+02:00 < End cond first met
+2026-10-23T20:09:30.392+02:00 < Update end cond reset
+2026-10-23T20:09:30.392+02:00 < End cond first met
+2026-10-23T20:09:30.392+02:00 < Update end cond reset
+2026-10-23T20:09:30.392+02:00 < End cond first met
+2026-10-23T20:09:30.602+02:00 < Update end cond reset
+2026-10-23T20:09:30.604+02:00 < End cond first met
+2026-10-23T20:09:30.604+02:00 < Update end cond reset
+2026-10-23T20:09:30.604+02:00 < End cond first met
+2026-10-23T20:09:30.604+02:00 < Update end cond reset
+2026-10-23T20:09:30.604+02:00 < End cond first met
+2026-10-23T20:09:30.604+02:00 < Update end cond reset
+2026-10-23T20:09:30.604+02:00 < End cond first met
+2026-10-23T20:09:30.604+02:00 < Update end cond reset
+2026-10-23T20:09:30.607+02:00 < End cond first met
+2026-10-23T20:09:30.816+02:00 < Update end cond reset
+2026-10-23T20:09:30.816+02:00 < End cond first met
+2026-10-23T20:09:30.816+02:00 < Update end cond reset
+2026-10-23T20:09:30.816+02:00 < End cond first met
+2026-10-23T20:09:30.816+02:00 < Update end cond reset
+2026-10-23T20:09:30.816+02:00 < End cond first met
+2026-10-23T20:09:30.816+02:00 < Update end cond reset
+2026-10-23T20:09:30.816+02:00 < End cond first met
+2026-10-23T20:09:30.816+02:00 < Update end cond reset
+2026-10-23T20:09:31.017+02:00 < End cond first met
+2026-10-23T20:09:31.017+02:00 < Update end cond reset
+2026-10-23T20:09:31.017+02:00 < End cond first met
+2026-10-23T20:09:31.017+02:00 < Update end cond reset
+2026-10-23T20:09:31.017+02:00 < End cond first met
+2026-10-23T20:09:31.017+02:00 < Update end cond reset
+2026-10-23T20:09:31.017+02:00 < End cond first met
+2026-10-23T20:09:31.017+02:00 < Update end cond reset
+2026-10-23T20:09:31.017+02:00 < End cond first met
+2026-10-23T20:09:31.221+02:00 < Update end cond reset
+2026-10-23T20:09:31.222+02:00 < End cond first met
+2026-10-23T20:09:31.222+02:00 < Update end cond reset
+2026-10-23T20:09:31.222+02:00 < End cond first met
+2026-10-23T20:09:31.222+02:00 < Update end cond reset
+2026-10-23T20:09:31.222+02:00 < End cond first met
+2026-10-23T20:09:31.224+02:00 < Update end cond reset
+2026-10-23T20:09:31.224+02:00 < End cond first met
+2026-10-23T20:09:31.224+02:00 < Update end cond reset
+2026-10-23T20:09:31.429+02:00 < End cond first met
+2026-10-23T20:09:31.429+02:00 < Update end cond reset
+2026-10-23T20:09:31.429+02:00 < End cond first met
+2026-10-23T20:09:31.429+02:00 < Update end cond reset
+2026-10-23T20:09:31.429+02:00 < End cond first met
+2026-10-23T20:09:31.429+02:00 < Update end cond reset
+2026-10-23T20:09:31.429+02:00 < End cond first met
+2026-10-23T20:09:31.429+02:00 < Update end cond reset
+2026-10-23T20:09:31.429+02:00 < End cond first met
+2026-10-23T20:09:31.429+02:00 < Update end cond reset
+2026-10-23T20:09:31.631+02:00 < End cond first met
+2026-10-23T20:09:31.631+02:00 < Update end cond reset
+2026-10-23T20:09:31.631+02:00 < End cond first met
+2026-10-23T20:09:31.631+02:00 < Update end cond reset
+2026-10-23T20:09:31.631+02:00 < End cond first met
+2026-10-23T20:09:31.631+02:00 < Update end cond reset
+2026-10-23T20:09:31.631+02:00 < End cond first met
+2026-10-23T20:09:31.631+02:00 < Update end cond reset
+2026-10-23T20:09:31.631+02:00 < End cond first met
+2026-10-23T20:09:31.833+02:00 < Update end cond reset
+2026-10-23T20:09:31.833+02:00 < End cond first met
+2026-10-23T20:09:31.834+02:00 < Update end cond reset
+2026-10-23T20:09:31.834+02:00 < End cond first met
+2026-10-23T20:09:31.834+02:00 < Update end cond reset
+2026-10-23T20:09:31.834+02:00 < End cond first met
+2026-10-23T20:09:31.834+02:00 < Update end cond reset
+2026-10-23T20:09:31.834+02:00 < End cond first met
+2026-10-23T20:09:31.834+02:00 < Update end cond reset
+2026-10-23T20:09:32.044+02:00 < End cond first met
+2026-10-23T20:09:32.044+02:00 < Update end cond reset
+2026-10-23T20:09:32.044+02:00 < End cond first met
+2026-10-23T20:09:32.046+02:00 < Update end cond reset
+2026-10-23T20:09:32.046+02:00 < End cond first met
+2026-10-23T20:09:32.046+02:00 < Update end cond reset
+2026-10-23T20:09:32.046+02:00 < End cond first met
+2026-10-23T20:09:32.046+02:00 < Update end cond reset
+2026-10-23T20:09:32.046+02:00 < End cond first met
+2026-10-23T20:09:32.249+02:00 < Update end cond reset
+2026-10-23T20:09:32.249+02:00 < End cond first met
+2026-10-23T20:09:32.249+02:00 < Update end cond reset
+2026-10-23T20:09:32.249+02:00 < End cond first met
+2026-10-23T20:09:32.249+02:00 < Update end cond reset
+2026-10-23T20:09:32.249+02:00 < End cond first met
+2026-10-23T20:09:32.249+02:00 < Update end cond reset
+2026-10-23T20:09:32.249+02:00 < End cond first met
+2026-10-23T20:09:32.249+02:00 < Update end cond reset
+2026-10-23T20:09:32.456+02:00 < End cond first met
+2026-10-23T20:09:32.458+02:00 < Update end cond reset
+2026-10-23T20:09:32.458+02:00 < End cond first met
+2026-10-23T20:09:32.458+02:00 < Update end cond reset
+2026-10-23T20:09:32.458+02:00 < End cond first met
+2026-10-23T20:09:32.458+02:00 < Update end cond reset
+2026-10-23T20:09:32.458+02:00 < End cond first met
+2026-10-23T20:09:32.458+02:00 < Update end cond reset
+2026-10-23T20:09:32.458+02:00 < End cond first met
+2026-10-23T20:09:32.460+02:00 < Update end cond reset
+2026-10-23T20:09:32.668+02:00 < End cond first met
+2026-10-23T20:09:32.668+02:00 < Update end cond reset
+2026-10-23T20:09:32.668+02:00 < End cond first met
+2026-10-23T20:09:32.668+02:00 < Update end cond reset
+2026-10-23T20:09:32.668+02:00 < End cond first met
+2026-10-23T20:09:32.668+02:00 < Update end cond reset
+2026-10-23T20:09:32.668+02:00 < End cond first met
+2026-10-23T20:09:32.668+02:00 < Update end cond reset
+2026-10-23T20:09:32.668+02:00 < End cond first met
+2026-10-23T20:09:32.874+02:00 < Update end cond reset
+2026-10-23T20:09:32.874+02:00 < End cond first met
+2026-10-23T20:09:32.875+02:00 < Update end cond reset
+2026-10-23T20:09:32.876+02:00 < End cond first met
+2026-10-23T20:09:32.876+02:00 < Update end cond reset
+2026-10-23T20:09:32.876+02:00 < End cond first met
+2026-10-23T20:09:32.876+02:00 < Update end cond reset
+2026-10-23T20:09:32.876+02:00 < End cond first met
+2026-10-23T20:09:32.876+02:00 < Update end cond reset
+2026-10-23T20:09:33.083+02:00 < End cond first met
+2026-10-23T20:09:33.085+02:00 < Update end cond reset
+2026-10-23T20:09:33.085+02:00 < End cond first met
+2026-10-23T20:09:33.085+02:00 < Pressure bar : 0.80
+2026-10-23T20:09:33.085+02:00 < Flow measured : 3
+2026-10-23T20:09:33.085+02:00 < Update end cond reset
+2026-10-23T20:09:33.085+02:00 < End cond first met
+2026-10-23T20:09:33.085+02:00 < Update end cond reset
+2026-10-23T20:09:33.085+02:00 < End cond first met
+2026-10-23T20:09:33.085+02:00 < Update end cond reset
+2026-10-23T20:09:33.291+02:00 < End cond first met
+2026-10-23T20:09:33.291+02:00 < Update end cond reset
+2026-10-23T20:09:33.292+02:00 < End cond first met
+2026-10-23T20:09:33.292+02:00 < Update end cond reset
+2026-10-23T20:09:33.292+02:00 < End cond first met
+2026-10-23T20:09:33.292+02:00 < Update end cond reset
+2026-10-23T20:09:33.292+02:00 < End cond first met
+2026-10-23T20:09:33.292+02:00 < Update end cond reset
+2026-10-23T20:09:33.292+02:00 < End cond first met
+2026-10-23T20:09:33.509+02:00 < Update end cond reset
+2026-10-23T20:09:33.509+02:00 < End cond first met
+2026-10-23T20:09:33.509+02:00 < Update end cond reset
+2026-10-23T20:09:33.509+02:00 < End cond first met
+2026-10-23T20:09:33.509+02:00 < Update end cond reset
+2026-10-23T20:09:33.511+02:00 < End cond first met
+2026-10-23T20:09:33.511+02:00 < Update end cond reset
+2026-10-23T20:09:33.511+02:00 < End cond first met
+2026-10-23T20:09:33.511+02:00 < Update end cond reset
+2026-10-23T20:09:33.724+02:00 < End cond first met
+2026-10-23T20:09:33.726+02:00 < Update end cond reset
+2026-10-23T20:09:33.726+02:00 < End cond first met
+2026-10-23T20:09:33.726+02:00 < Update end cond reset
+2026-10-23T20:09:33.726+02:00 < End cond first met
+2026-10-23T20:09:33.726+02:00 < Update end cond reset
+2026-10-23T20:09:33.726+02:00 < End cond first met
+2026-10-23T20:09:33.726+02:00 < Update end cond reset
+2026-10-23T20:09:33.726+02:00 < End cond first met
+2026-10-23T20:09:33.726+02:00 < Update end cond reset
+2026-10-23T20:09:33.726+02:00 < End cond first met
+2026-10-23T20:09:33.931+02:00 < Update end cond reset
+2026-10-23T20:09:33.931+02:00 < End cond first met
+2026-10-23T20:09:33.933+02:00 < Update end cond reset
+2026-10-23T20:09:33.933+02:00 < End cond first met
+2026-10-23T20:09:33.933+02:00 < Update end cond reset
+2026-10-23T20:09:34.179+02:00 < End cond first met
+2026-10-23T20:09:34.179+02:00 < Update end cond reset
+2026-10-23T20:09:34.598+02:00 < End cond first met
+2026-10-23T20:09:34.600+02:00 < Update end cond reset
+2026-10-23T20:09:34.600+02:00 < End cond first met
+2026-10-23T20:09:34.602+02:00 < Update end cond reset
+2026-10-23T20:09:34.606+02:00 < End cond first met
+2026-10-23T20:09:34.812+02:00 < Update end cond reset
+2026-10-23T20:09:34.825+02:00 < End cond first met
+2026-10-23T20:09:34.825+02:00 < Update end cond reset
+2026-10-23T20:09:34.825+02:00 < End cond first met
+2026-10-23T20:09:34.825+02:00 < Update end cond reset
+2026-10-23T20:09:34.825+02:00 < End cond first met
+2026-10-23T20:09:34.825+02:00 < Update end cond reset
+2026-10-23T20:09:34.827+02:00 < End cond first met
+2026-10-23T20:09:34.827+02:00 < Update end cond reset
+2026-10-23T20:09:34.827+02:00 < End cond first met
+2026-10-23T20:09:35.034+02:00 < Update end cond reset
+2026-10-23T20:09:35.034+02:00 < End cond first met
+2026-10-23T20:09:35.034+02:00 < Update end cond reset
+2026-10-23T20:09:35.034+02:00 < End cond first met
+2026-10-23T20:09:35.034+02:00 < Update end cond reset
+2026-10-23T20:09:35.036+02:00 < End cond first met
+2026-10-23T20:09:35.036+02:00 < Update end cond reset
+2026-10-23T20:09:35.248+02:00 < End cond first met
+2026-10-23T20:09:35.248+02:00 < Update end cond reset
+2026-10-23T20:09:35.252+02:00 < End cond first met
+2026-10-23T20:09:35.252+02:00 < Update end cond reset
+2026-10-23T20:09:35.252+02:00 < End cond first met
+2026-10-23T20:09:35.252+02:00 < Update end cond reset
+2026-10-23T20:09:35.252+02:00 < End cond first met
+2026-10-23T20:09:35.252+02:00 < Update end cond reset
+2026-10-23T20:09:35.252+02:00 < End cond first met
+2026-10-23T20:09:35.254+02:00 < Update end cond reset
+2026-10-23T20:09:35.458+02:00 < End cond first met
+2026-10-23T20:09:35.460+02:00 < Update end cond reset
+2026-10-23T20:09:35.460+02:00 < End cond first met
+2026-10-23T20:09:35.460+02:00 < Update end cond reset
+2026-10-23T20:09:35.460+02:00 < End cond first met
+2026-10-23T20:09:35.460+02:00 < Update end cond reset
+2026-10-23T20:09:35.460+02:00 < End cond first met
+2026-10-23T20:09:35.460+02:00 < Update end cond reset
+2026-10-23T20:09:35.460+02:00 < End cond first met
+2026-10-23T20:09:35.665+02:00 < Update end cond reset
+2026-10-23T20:09:35.665+02:00 < End cond first met
+2026-10-23T20:09:35.665+02:00 < Update end cond reset
+2026-10-23T20:09:35.665+02:00 < End cond first met
+2026-10-23T20:09:35.665+02:00 < Update end cond reset
+2026-10-23T20:09:35.665+02:00 < End cond first met
+2026-10-23T20:09:35.665+02:00 < Update end cond reset
+2026-10-23T20:09:35.665+02:00 < End cond first met
+2026-10-23T20:09:35.665+02:00 < Update end cond reset
+2026-10-23T20:09:35.870+02:00 < End cond first met
+2026-10-23T20:09:35.872+02:00 < Update end cond reset
+2026-10-23T20:09:35.874+02:00 < End cond first met
+2026-10-23T20:09:35.874+02:00 < Update end cond reset
+2026-10-23T20:09:35.874+02:00 < End cond first met
+2026-10-23T20:09:35.874+02:00 < Update end cond reset
+2026-10-23T20:09:35.874+02:00 < End cond first met
+2026-10-23T20:09:35.874+02:00 < Update end cond reset
+2026-10-23T20:09:35.874+02:00 < End cond first met
+2026-10-23T20:09:36.078+02:00 < Update end cond reset
+2026-10-23T20:09:36.078+02:00 < End cond first met
+2026-10-23T20:09:36.078+02:00 < Update end cond reset
+2026-10-23T20:09:36.078+02:00 < End cond first met
+2026-10-23T20:09:36.078+02:00 < Pressure bar : 0.80
+2026-10-23T20:09:36.080+02:00 < Flow measured : 3
+2026-10-23T20:09:36.080+02:00 < Update end cond reset
+2026-10-23T20:09:36.082+02:00 < End cond first met
+2026-10-23T20:09:36.082+02:00 < Update end cond reset
+2026-10-23T20:09:36.084+02:00 < End cond first met
+2026-10-23T20:09:36.292+02:00 < Update end cond reset
+2026-10-23T20:09:36.292+02:00 < End cond first met
+2026-10-23T20:09:36.292+02:00 < Update end cond reset
+2026-10-23T20:09:36.292+02:00 < End cond first met
+2026-10-23T20:09:36.292+02:00 < Update end cond reset
+2026-10-23T20:09:36.292+02:00 < End cond first met
+2026-10-23T20:09:36.292+02:00 < Update end cond reset
+2026-10-23T20:09:36.292+02:00 < End cond first met
+2026-10-23T20:09:36.292+02:00 < Update end cond reset
+2026-10-23T20:09:36.292+02:00 < End cond first met
+2026-10-23T20:09:36.504+02:00 < Update end cond reset
+2026-10-23T20:09:36.504+02:00 < End cond first met
+2026-10-23T20:09:36.504+02:00 < Update end cond reset
+2026-10-23T20:09:36.509+02:00 < End cond first met
+2026-10-23T20:09:36.509+02:00 < Update end cond reset
+2026-10-23T20:09:36.511+02:00 < End cond first met
+2026-10-23T20:09:36.515+02:00 < Update end cond reset
+2026-10-23T20:09:36.515+02:00 < End cond first met
+2026-10-23T20:09:36.515+02:00 < Update end cond reset
+2026-10-23T20:09:36.722+02:00 < End cond first met
+2026-10-23T20:09:36.726+02:00 < Update end cond reset
+2026-10-23T20:09:36.726+02:00 < End cond first met
+2026-10-23T20:09:36.726+02:00 < Update end cond reset
+2026-10-23T20:09:36.726+02:00 < End cond first met
+2026-10-23T20:09:36.726+02:00 < Update end cond reset
+2026-10-23T20:09:36.729+02:00 < End cond first met
+2026-10-23T20:09:36.729+02:00 < Update end cond reset
+2026-10-23T20:09:36.731+02:00 < End cond first met
+2026-10-23T20:09:36.735+02:00 < Update end cond reset
+2026-10-23T20:09:36.937+02:00 < End cond first met
+2026-10-23T20:09:36.937+02:00 < Update end cond reset
+2026-10-23T20:09:36.937+02:00 < End cond first met
+2026-10-23T20:09:36.937+02:00 < Update end cond reset
+2026-10-23T20:09:36.939+02:00 < End cond first met
+2026-10-23T20:09:36.939+02:00 < Update end cond reset
+2026-10-23T20:09:36.939+02:00 < End cond first met
+2026-10-23T20:09:36.939+02:00 < Update end cond reset
+2026-10-23T20:09:36.939+02:00 < End cond first met
+2026-10-23T20:09:37.148+02:00 < Update end cond reset
+2026-10-23T20:09:37.150+02:00 < End cond first met
+2026-10-23T20:09:37.150+02:00 < Update end cond reset
+2026-10-23T20:09:37.150+02:00 < End cond first met
+2026-10-23T20:09:37.150+02:00 < Update end cond reset
+2026-10-23T20:09:37.150+02:00 < End cond first met
+2026-10-23T20:09:37.150+02:00 < Update end cond reset
+2026-10-23T20:09:37.150+02:00 < End cond first met
+2026-10-23T20:09:37.150+02:00 < Update end cond reset
+2026-10-23T20:09:37.150+02:00 < End cond first met
+2026-10-23T20:09:37.351+02:00 < Update end cond reset
+2026-10-23T20:09:37.351+02:00 < End cond first met
+2026-10-23T20:09:37.351+02:00 < Update end cond reset
+2026-10-23T20:09:37.351+02:00 < End cond first met
+2026-10-23T20:09:37.351+02:00 < Update end cond reset
+2026-10-23T20:09:37.351+02:00 < End cond first met
+2026-10-23T20:09:37.353+02:00 < Update end cond reset
+2026-10-23T20:09:37.353+02:00 < End cond first met
+2026-10-23T20:09:37.353+02:00 < Update end cond reset
+2026-10-23T20:09:37.566+02:00 < End cond first met
+2026-10-23T20:09:37.566+02:00 < Update end cond reset
+2026-10-23T20:09:37.566+02:00 < End cond first met
+2026-10-23T20:09:37.566+02:00 < Update end cond reset
+2026-10-23T20:09:37.566+02:00 < End cond first met
+2026-10-23T20:09:37.566+02:00 < Update end cond reset
+2026-10-23T20:09:37.566+02:00 < End cond first met
+2026-10-23T20:09:37.566+02:00 < Update end cond reset
+2026-10-23T20:09:37.566+02:00 < End cond first met
+2026-10-23T20:09:37.767+02:00 < Update end cond reset
+2026-10-23T20:09:37.767+02:00 < End cond first met
+2026-10-23T20:09:37.767+02:00 < Update end cond reset
+2026-10-23T20:09:37.767+02:00 < End cond first met
+2026-10-23T20:09:37.767+02:00 < Update end cond reset
+2026-10-23T20:09:37.767+02:00 < End cond first met
+2026-10-23T20:09:37.767+02:00 < Update end cond reset
+2026-10-23T20:09:37.767+02:00 < End cond first met
+2026-10-23T20:09:37.767+02:00 < Update end cond reset
+2026-10-23T20:09:37.969+02:00 < End cond first met
+2026-10-23T20:09:37.969+02:00 < Update end cond reset
+2026-10-23T20:09:37.969+02:00 < End cond first met
+2026-10-23T20:09:37.969+02:00 < Update end cond reset
+2026-10-23T20:09:37.969+02:00 < End cond first met
+2026-10-23T20:09:37.969+02:00 < Update end cond reset
+2026-10-23T20:09:37.969+02:00 < End cond first met
+2026-10-23T20:09:37.969+02:00 < Update end cond reset
+2026-10-23T20:09:37.969+02:00 < End cond first met
+2026-10-23T20:09:38.180+02:00 < Update end cond reset
+2026-10-23T20:09:38.180+02:00 < End cond first met
+2026-10-23T20:09:38.180+02:00 < Update end cond reset
+2026-10-23T20:09:38.180+02:00 < End cond first met
+2026-10-23T20:09:38.180+02:00 < Update end cond reset
+2026-10-23T20:09:38.180+02:00 < End cond first met
+2026-10-23T20:09:38.180+02:00 < Update end cond reset
+2026-10-23T20:09:38.180+02:00 < End cond first met
+2026-10-23T20:09:38.180+02:00 < Update end cond reset
+2026-10-23T20:09:38.393+02:00 < End cond first met
+2026-10-23T20:09:38.393+02:00 < Update end cond reset
+2026-10-23T20:09:38.393+02:00 < End cond first met
+2026-10-23T20:09:38.393+02:00 < Update end cond reset
+2026-10-23T20:09:38.395+02:00 < End cond first met
+2026-10-23T20:09:38.395+02:00 < Update end cond reset
+2026-10-23T20:09:38.395+02:00 < End cond first met
+2026-10-23T20:09:38.395+02:00 < Update end cond reset
+2026-10-23T20:09:38.396+02:00 < End cond first met
+2026-10-23T20:09:38.396+02:00 < Update end cond reset
+2026-10-23T20:09:38.604+02:00 < End cond first met
+2026-10-23T20:09:38.606+02:00 < Update end cond reset
+2026-10-23T20:09:38.606+02:00 < End cond first met
+2026-10-23T20:09:38.610+02:00 < Update end cond reset
+2026-10-23T20:09:38.610+02:00 < End cond first met
+2026-10-23T20:09:38.614+02:00 < Update end cond reset
+2026-10-23T20:09:38.614+02:00 < End cond first met
+2026-10-23T20:09:38.814+02:00 < Update end cond reset
+2026-10-23T20:09:38.814+02:00 < End cond first met
+2026-10-23T20:09:38.816+02:00 < Update end cond reset
+2026-10-23T20:09:38.816+02:00 < End cond first met
+2026-10-23T20:09:38.816+02:00 < Update end cond reset
+2026-10-23T20:09:38.816+02:00 < End cond first met
+2026-10-23T20:09:39.023+02:00 < Update end cond reset
+2026-10-23T20:09:39.023+02:00 < End cond first met
+2026-10-23T20:09:39.023+02:00 < Update end cond reset
+2026-10-23T20:09:39.025+02:00 < End cond first met
+2026-10-23T20:09:39.036+02:00 < Update end cond reset
+2026-10-23T20:09:39.036+02:00 < End cond first met
+2026-10-23T20:09:39.036+02:00 < Update end cond reset
+2026-10-23T20:09:39.038+02:00 < End cond first met
+2026-10-23T20:09:39.038+02:00 < Update end cond reset
+2026-10-23T20:09:39.040+02:00 < Pressure bar : 0.80
+2026-10-23T20:09:39.250+02:00 < Flow measured : 3
+2026-10-23T20:09:39.250+02:00 < End cond first met
+2026-10-23T20:09:39.250+02:00 < Update end cond reset
+2026-10-23T20:09:39.250+02:00 < End cond first met
+2026-10-23T20:09:39.250+02:00 < Update end cond reset
+2026-10-23T20:09:39.250+02:00 < End cond first met
+2026-10-23T20:09:39.250+02:00 < Update end cond reset
+2026-10-23T20:09:39.462+02:00 < End cond first met
+2026-10-23T20:09:39.462+02:00 < Update end cond reset
+2026-10-23T20:09:39.670+02:00 < End cond first met
+2026-10-23T20:09:39.670+02:00 < Update end cond reset
+2026-10-23T20:09:39.670+02:00 < End cond first met
+2026-10-23T20:09:39.670+02:00 < Update end cond reset
+2026-10-23T20:09:39.670+02:00 < End cond first met
+2026-10-23T20:09:39.670+02:00 < Update end cond reset
+2026-10-23T20:09:39.674+02:00 < End cond first met
+2026-10-23T20:09:39.876+02:00 < Update end cond reset
+2026-10-23T20:09:39.876+02:00 < End cond first met
+2026-10-23T20:09:39.876+02:00 < Update end cond reset
+2026-10-23T20:09:39.876+02:00 < End cond first met
+2026-10-23T20:09:39.876+02:00 < Update end cond reset
+2026-10-23T20:09:39.876+02:00 < End cond first met
+2026-10-23T20:09:39.876+02:00 < Update end cond reset
+2026-10-23T20:09:39.876+02:00 < End cond first met
+2026-10-23T20:09:39.876+02:00 < Update end cond reset
+2026-10-23T20:09:40.077+02:00 < End cond first met
+2026-10-23T20:09:40.079+02:00 < Update end cond reset
+2026-10-23T20:09:40.079+02:00 < End cond first met
+2026-10-23T20:09:40.079+02:00 < Update end cond reset
+2026-10-23T20:09:40.291+02:00 < End cond first met
+2026-10-23T20:09:40.291+02:00 < Update end cond reset
+2026-10-23T20:09:40.291+02:00 < End cond first met
+2026-10-23T20:09:40.294+02:00 < Update end cond reset
+2026-10-23T20:09:40.294+02:00 < End cond first met
+2026-10-23T20:09:40.294+02:00 < Update end cond reset
+2026-10-23T20:09:40.503+02:00 < End cond first met
+2026-10-23T20:09:40.505+02:00 < Update end cond reset
+2026-10-23T20:09:40.505+02:00 < End cond first met
+2026-10-23T20:09:40.505+02:00 < Update end cond reset
+2026-10-23T20:09:40.505+02:00 < End cond first met
+2026-10-23T20:09:40.505+02:00 < Update end cond reset
+2026-10-23T20:09:40.505+02:00 < End cond first met
+2026-10-23T20:09:40.505+02:00 < Update end cond reset
+2026-10-23T20:09:40.507+02:00 < End cond first met
+2026-10-23T20:09:40.716+02:00 < Update end cond reset
+2026-10-23T20:09:40.716+02:00 < End cond first met
+2026-10-23T20:09:40.716+02:00 < Update end cond reset
+2026-10-23T20:09:40.716+02:00 < End cond first met
+2026-10-23T20:09:40.716+02:00 < Update end cond reset
+2026-10-23T20:09:40.716+02:00 < End cond first met
+2026-10-23T20:09:40.716+02:00 < Update end cond reset
+2026-10-23T20:09:40.716+02:00 < End cond first met
+2026-10-23T20:09:40.716+02:00 < Update end cond reset
+2026-10-23T20:09:40.925+02:00 < End cond first met
+2026-10-23T20:09:40.925+02:00 < Update end cond reset
+2026-10-23T20:09:40.927+02:00 < End cond first met
+2026-10-23T20:09:40.927+02:00 < Update end cond reset
+2026-10-23T20:09:40.927+02:00 < End cond first met
+2026-10-23T20:09:41.135+02:00 < Update end cond reset
+2026-10-23T20:09:41.137+02:00 < End cond first met
+2026-10-23T20:09:41.137+02:00 < Update end cond reset
+2026-10-23T20:09:41.137+02:00 < End cond first met
+2026-10-23T20:09:41.139+02:00 < Update end cond reset
+2026-10-23T20:09:41.139+02:00 < End cond first met
+2026-10-23T20:09:41.340+02:00 < Update end cond reset
+2026-10-23T20:09:41.343+02:00 < End cond first met
+2026-10-23T20:09:41.343+02:00 < Update end cond reset
+2026-10-23T20:09:41.343+02:00 < End cond first met
+2026-10-23T20:09:41.343+02:00 < Update end cond reset
+2026-10-23T20:09:41.343+02:00 < End cond first met
+2026-10-23T20:09:41.343+02:00 < Update end cond reset
+2026-10-23T20:09:41.345+02:00 < End cond first met
+2026-10-23T20:09:41.345+02:00 < Update end cond reset
+2026-10-23T20:09:41.551+02:00 < End cond first met
+2026-10-23T20:09:41.551+02:00 < Update end cond reset
+2026-10-23T20:09:41.551+02:00 < End cond first met
+2026-10-23T20:09:41.551+02:00 < Update end cond reset
+2026-10-23T20:09:41.551+02:00 < End cond first met
+2026-10-23T20:09:41.551+02:00 < Update end cond reset
+2026-10-23T20:09:41.551+02:00 < End cond first met
+2026-10-23T20:09:41.551+02:00 < Update end cond reset
+2026-10-23T20:09:41.551+02:00 < End cond first met
+2026-10-23T20:09:41.779+02:00 < Update end cond reset
+2026-10-23T20:09:41.779+02:00 < End cond first met
+2026-10-23T20:09:41.779+02:00 < Update end cond reset
+2026-10-23T20:09:41.779+02:00 < End cond first met
+2026-10-23T20:09:41.779+02:00 < Update end cond reset
+2026-10-23T20:09:41.781+02:00 < End cond first met
+2026-10-23T20:09:41.781+02:00 < Update end cond reset
+2026-10-23T20:09:41.781+02:00 < End cond first met
+2026-10-23T20:09:41.781+02:00 < Update end cond reset
+2026-10-23T20:09:41.783+02:00 < End cond first met
+2026-10-23T20:09:41.985+02:00 < Update end cond reset
+2026-10-23T20:09:41.985+02:00 < End cond first met
+2026-10-23T20:09:41.985+02:00 < Update end cond reset
+2026-10-23T20:09:41.985+02:00 < End cond first met
+2026-10-23T20:09:41.985+02:00 < Update end cond reset
+2026-10-23T20:09:41.985+02:00 < End cond first met
+2026-10-23T20:09:41.985+02:00 < Update end cond reset
+2026-10-23T20:09:41.985+02:00 < End cond first met
+2026-10-23T20:09:41.985+02:00 < Update end cond reset
+2026-10-23T20:09:42.191+02:00 < End cond first met
+2026-10-23T20:09:42.193+02:00 < Update end cond reset
+2026-10-23T20:09:42.193+02:00 < Pressure bar : 0.80
+2026-10-23T20:09:42.193+02:00 < Flow measured : 3
+2026-10-23T20:09:42.193+02:00 < End cond first met
+2026-10-23T20:09:42.193+02:00 < Update end cond reset
+2026-10-23T20:09:42.193+02:00 < End cond first met
+2026-10-23T20:09:42.193+02:00 < Update end cond reset
+2026-10-23T20:09:42.193+02:00 < End cond first met
+2026-10-23T20:09:42.397+02:00 < Update end cond reset
+2026-10-23T20:09:42.397+02:00 < End cond first met
+2026-10-23T20:09:42.397+02:00 < Update end cond reset
+2026-10-23T20:09:42.397+02:00 < End cond first met
+2026-10-23T20:09:42.397+02:00 < Update end cond reset
+2026-10-23T20:09:42.397+02:00 < End cond first met
+2026-10-23T20:09:42.397+02:00 < Update end cond reset
+2026-10-23T20:09:42.397+02:00 < End cond first met
+2026-10-23T20:09:42.397+02:00 < Update end cond reset
+2026-10-23T20:09:42.600+02:00 < End cond first met
+2026-10-23T20:09:42.600+02:00 < Update end cond reset
+2026-10-23T20:09:42.600+02:00 < End cond first met
+2026-10-23T20:09:42.600+02:00 < Update end cond reset
+2026-10-23T20:09:42.600+02:00 < End cond first met
+2026-10-23T20:09:42.600+02:00 < Update end cond reset
+2026-10-23T20:09:42.600+02:00 < End cond first met
+2026-10-23T20:09:42.600+02:00 < Update end cond reset
+2026-10-23T20:09:42.815+02:00 < End cond first met
+2026-10-23T20:09:42.817+02:00 < Update end cond reset
+2026-10-23T20:09:43.026+02:00 < End cond first met
+2026-10-23T20:09:43.028+02:00 < Update end cond reset
+2026-10-23T20:09:43.028+02:00 < End cond first met
+2026-10-23T20:09:43.028+02:00 < Update end cond reset
+2026-10-23T20:09:43.028+02:00 < End cond first met
+2026-10-23T20:09:43.028+02:00 < Update end cond reset
+2026-10-23T20:09:43.030+02:00 < End cond first met
+2026-10-23T20:09:43.030+02:00 < Update end cond reset
+2026-10-23T20:09:43.030+02:00 < End cond first met
+2026-10-23T20:09:43.030+02:00 < Update end cond reset
+2026-10-23T20:09:43.240+02:00 < End cond first met
+2026-10-23T20:09:43.240+02:00 < Update end cond reset
+2026-10-23T20:09:43.242+02:00 < End cond first met
+2026-10-23T20:09:43.242+02:00 < Update end cond reset
+2026-10-23T20:09:43.242+02:00 < End cond first met
+2026-10-23T20:09:43.243+02:00 < Update end cond reset
+2026-10-23T20:09:43.243+02:00 < End cond first met
+2026-10-23T20:09:43.243+02:00 < Update end cond reset
+2026-10-23T20:09:43.243+02:00 < End cond first met
+2026-10-23T20:09:43.448+02:00 < Update end cond reset
+2026-10-23T20:09:43.448+02:00 < End cond first met
+2026-10-23T20:09:43.448+02:00 < Update end cond reset
+2026-10-23T20:09:43.448+02:00 < End cond first met
+2026-10-23T20:09:43.448+02:00 < Update end cond reset
+2026-10-23T20:09:43.448+02:00 < End cond first met
+2026-10-23T20:09:43.448+02:00 < Update end cond reset
+2026-10-23T20:09:43.448+02:00 < End cond first met
+2026-10-23T20:09:43.448+02:00 < Update end cond reset
+2026-10-23T20:09:43.653+02:00 < End cond first met
+2026-10-23T20:09:43.653+02:00 < Update end cond reset
+2026-10-23T20:09:43.653+02:00 < End cond first met
+2026-10-23T20:09:43.653+02:00 < Update end cond reset
+2026-10-23T20:09:43.653+02:00 < End cond first met
+2026-10-23T20:09:43.653+02:00 < Update end cond reset
+2026-10-23T20:09:43.653+02:00 < End cond first met
+2026-10-23T20:09:43.653+02:00 < Update end cond reset
+2026-10-23T20:09:43.653+02:00 < End cond first met
+2026-10-23T20:09:43.854+02:00 < Update end cond reset
+2026-10-23T20:09:43.854+02:00 < End cond first met
+2026-10-23T20:09:43.855+02:00 < Update end cond reset
+2026-10-23T20:09:43.855+02:00 < End cond first met
+2026-10-23T20:09:43.855+02:00 < Update end cond reset
+2026-10-23T20:09:43.855+02:00 < End cond first met
+2026-10-23T20:09:43.855+02:00 < Update end cond reset
+2026-10-23T20:09:43.855+02:00 < End cond first met
+2026-10-23T20:09:43.857+02:00 < Update end cond reset
+2026-10-23T20:09:44.058+02:00 < End cond first met
+2026-10-23T20:09:44.058+02:00 < Update end cond reset
+2026-10-23T20:09:44.061+02:00 < End cond first met
+2026-10-23T20:09:44.061+02:00 < Update end cond reset
+2026-10-23T20:09:44.061+02:00 < End cond first met
+2026-10-23T20:09:44.061+02:00 < Update end cond reset
+2026-10-23T20:09:44.061+02:00 < End cond first met
+2026-10-23T20:09:44.061+02:00 < Update end cond reset
+2026-10-23T20:09:44.061+02:00 < End cond first met
+2026-10-23T20:09:44.267+02:00 < Update end cond reset
+2026-10-23T20:09:44.267+02:00 < End cond first met
+2026-10-23T20:09:44.267+02:00 < Update end cond reset
+2026-10-23T20:09:44.267+02:00 < End cond first met
+2026-10-23T20:09:44.267+02:00 < Update end cond reset
+2026-10-23T20:09:44.267+02:00 < End cond first met
+2026-10-23T20:09:44.267+02:00 < Update end cond reset
+2026-10-23T20:09:44.267+02:00 < End cond first met
+2026-10-23T20:09:44.267+02:00 < Update end cond reset
+2026-10-23T20:09:44.467+02:00 < End cond first met
+2026-10-23T20:09:44.467+02:00 < Update end cond reset
+2026-10-23T20:09:44.467+02:00 < End cond first met
+2026-10-23T20:09:44.467+02:00 < Update end cond reset
+2026-10-23T20:09:44.467+02:00 < End cond first met
+2026-10-23T20:09:44.467+02:00 < Update end cond reset
+2026-10-23T20:09:44.467+02:00 < End cond first met
+2026-10-23T20:09:44.467+02:00 < Update end cond reset
+2026-10-23T20:09:44.874+02:00 < End cond first met
+2026-10-23T20:09:44.874+02:00 < Update end cond reset
+2026-10-23T20:09:44.876+02:00 < End cond first met
+2026-10-23T20:09:44.876+02:00 < Update end cond reset
+2026-10-23T20:09:44.876+02:00 < End cond first met
+2026-10-23T20:09:44.876+02:00 < Update end cond reset
+2026-10-23T20:09:44.876+02:00 < End cond first met
+2026-10-23T20:09:45.079+02:00 < Update end cond reset
+2026-10-23T20:09:45.079+02:00 < End cond first met
+2026-10-23T20:09:45.079+02:00 < Update end cond reset
+2026-10-23T20:09:45.079+02:00 < End cond first met
+2026-10-23T20:09:45.079+02:00 < Update end cond reset
+2026-10-23T20:09:45.079+02:00 < End cond first met
+2026-10-23T20:09:45.079+02:00 < Update end cond reset
+2026-10-23T20:09:45.079+02:00 < End cond first met
+2026-10-23T20:09:45.079+02:00 < Update end cond reset
+2026-10-23T20:09:45.294+02:00 < Pressure bar : 0.80
+2026-10-23T20:09:45.294+02:00 < Flow measured : 3
+2026-10-23T20:09:45.294+02:00 < End cond first met
+2026-10-23T20:09:45.294+02:00 < Update end cond reset
+2026-10-23T20:09:45.294+02:00 < End cond first met
+2026-10-23T20:09:45.294+02:00 < Update end cond reset
+2026-10-23T20:09:45.711+02:00 < End cond first met
+2026-10-23T20:09:45.713+02:00 < Update end cond reset
+2026-10-23T20:09:45.714+02:00 < End cond first met
+2026-10-23T20:09:45.714+02:00 < Update end cond reset
+2026-10-23T20:09:45.714+02:00 < End cond first met
+2026-10-23T20:09:45.714+02:00 < Update end cond reset
+2026-10-23T20:09:45.929+02:00 < End cond first met
+2026-10-23T20:09:45.929+02:00 < Update end cond reset
+2026-10-23T20:09:45.929+02:00 < End cond first met
+2026-10-23T20:09:45.931+02:00 < Update end cond reset
+2026-10-23T20:09:45.931+02:00 < End cond first met
+2026-10-23T20:09:45.931+02:00 < Update end cond reset
+2026-10-23T20:09:46.347+02:00 < End cond first met
+2026-10-23T20:09:46.347+02:00 < Update end cond reset
+2026-10-23T20:09:46.347+02:00 < End cond first met
+2026-10-23T20:09:46.347+02:00 < Update end cond reset
+2026-10-23T20:09:46.347+02:00 < End cond first met
+2026-10-23T20:09:46.350+02:00 < Update end cond reset
+2026-10-23T20:09:46.350+02:00 < End cond first met
+2026-10-23T20:09:46.554+02:00 < Update end cond reset
+2026-10-23T20:09:46.558+02:00 < End cond first met
+2026-10-23T20:09:46.558+02:00 < Update end cond reset
+2026-10-23T20:09:46.558+02:00 < End cond first met
+2026-10-23T20:09:46.560+02:00 < Update end cond reset
+2026-10-23T20:09:46.560+02:00 < End cond first met
+2026-10-23T20:09:46.560+02:00 < Update end cond reset
+2026-10-23T20:09:46.560+02:00 < End cond first met
+2026-10-23T20:09:46.560+02:00 < Update end cond reset
+2026-10-23T20:09:46.763+02:00 < End cond first met
+2026-10-23T20:09:46.763+02:00 < Update end cond reset
+2026-10-23T20:09:46.763+02:00 < End cond first met
+2026-10-23T20:09:46.763+02:00 < Update end cond reset
+2026-10-23T20:09:48.008+02:00 < Pressure bar : 0.80
+2026-10-23T20:09:48.228+02:00 < Flow measured : 3
+2026-10-23T20:09:48.652+02:00 < End cond first met
+2026-10-23T20:09:48.652+02:00 < Update end cond reset
+2026-10-23T20:09:48.860+02:00 < End cond first met
+2026-10-23T20:09:48.860+02:00 < Update end cond reset
+2026-10-23T20:09:49.066+02:00 < End cond first met
+2026-10-23T20:09:49.066+02:00 < Update end cond reset
+2026-10-23T20:09:49.066+02:00 < End cond first met
+2026-10-23T20:09:49.066+02:00 < Update end cond reset
+2026-10-23T20:09:50.509+02:00 < End cond first met
+2026-10-23T20:09:50.509+02:00 < Update end cond reset
+2026-10-23T20:09:50.717+02:00 < End cond first met
+2026-10-23T20:09:50.717+02:00 < Update end cond reset
+2026-10-23T20:09:50.927+02:00 < End cond first met
+2026-10-23T20:09:50.927+02:00 < Update end cond reset
+2026-10-23T20:09:50.927+02:00 < End cond first met
+2026-10-23T20:09:50.927+02:00 < Update end cond reset
+2026-10-23T20:09:51.141+02:00 < Pressure bar : 0.80
+2026-10-23T20:09:51.142+02:00 < Flow measured : 3
+2026-10-23T20:09:51.142+02:00 < End cond first met
+2026-10-23T20:09:51.345+02:00 < Update end cond reset
+2026-10-23T20:09:51.553+02:00 < End cond first met
+2026-10-23T20:09:51.553+02:00 < Update end cond reset
+2026-10-23T20:09:51.553+02:00 < End cond first met
+2026-10-23T20:09:51.766+02:00 < Update end cond reset
+2026-10-23T20:09:51.766+02:00 < End cond first met
+2026-10-23T20:09:51.766+02:00 < Update end cond reset
+2026-10-23T20:09:51.766+02:00 < End cond first met
+2026-10-23T20:09:51.766+02:00 < Update end cond reset
+2026-10-23T20:09:51.766+02:00 < End cond first met
+2026-10-23T20:09:51.766+02:00 < Update end cond reset
+2026-10-23T20:09:51.766+02:00 < End cond first met
+2026-10-23T20:09:51.766+02:00 < Update end cond reset
+2026-10-23T20:09:51.974+02:00 < End cond first met
+2026-10-23T20:09:51.975+02:00 < Update end cond reset
+2026-10-23T20:09:51.975+02:00 < End cond first met
+2026-10-23T20:09:51.975+02:00 < Update end cond reset
+2026-10-23T20:09:51.975+02:00 < End cond first met
+2026-10-23T20:09:51.975+02:00 < Update end cond reset
+2026-10-23T20:09:51.977+02:00 < End cond first met
+2026-10-23T20:09:51.977+02:00 < Update end cond reset
+2026-10-23T20:09:51.977+02:00 < End cond first met
+2026-10-23T20:09:51.977+02:00 < Update end cond reset
+2026-10-23T20:09:52.191+02:00 < End cond first met
+2026-10-23T20:09:52.191+02:00 < Update end cond reset
+2026-10-23T20:09:52.191+02:00 < End cond first met
+2026-10-23T20:09:52.191+02:00 < Update end cond reset
+2026-10-23T20:09:52.191+02:00 < End cond first met
+2026-10-23T20:09:52.193+02:00 < Update end cond reset
+2026-10-23T20:09:52.193+02:00 < End cond first met
+2026-10-23T20:09:52.193+02:00 < Update end cond reset
+2026-10-23T20:09:52.193+02:00 < End cond first met
+2026-10-23T20:09:52.408+02:00 < Update end cond reset
+2026-10-23T20:09:52.408+02:00 < End cond first met
+2026-10-23T20:09:52.409+02:00 < Update end cond reset
+2026-10-23T20:09:52.409+02:00 < End cond first met
+2026-10-23T20:09:52.409+02:00 < Update end cond reset
+2026-10-23T20:09:52.409+02:00 < End cond first met
+2026-10-23T20:09:52.409+02:00 < Update end cond reset
+2026-10-23T20:09:52.409+02:00 < End cond first met
+2026-10-23T20:09:52.409+02:00 < Update end cond reset
+2026-10-23T20:09:52.409+02:00 < End cond first met
+2026-10-23T20:09:52.615+02:00 < Update end cond reset
+2026-10-23T20:09:52.829+02:00 < End cond first met
+2026-10-23T20:09:52.829+02:00 < Update end cond reset
+2026-10-23T20:09:52.831+02:00 < End cond first met
+2026-10-23T20:09:52.831+02:00 < Update end cond reset
+2026-10-23T20:09:53.043+02:00 < End cond first met
+2026-10-23T20:09:53.045+02:00 < Update end cond reset
+2026-10-23T20:09:53.045+02:00 < End cond first met
+2026-10-23T20:09:53.045+02:00 < Update end cond reset
+2026-10-23T20:09:53.045+02:00 < End cond first met
+2026-10-23T20:09:53.049+02:00 < Update end cond reset
+2026-10-23T20:09:53.049+02:00 < End cond first met
+2026-10-23T20:09:53.049+02:00 < Update end cond reset
+2026-10-23T20:09:53.049+02:00 < End cond first met
+2026-10-23T20:09:53.252+02:00 < Update end cond reset
+2026-10-23T20:09:53.252+02:00 < End cond first met
+2026-10-23T20:09:53.252+02:00 < Update end cond reset
+2026-10-23T20:09:53.686+02:00 < End cond first met
+2026-10-23T20:09:53.686+02:00 < Update end cond reset
+2026-10-23T20:09:53.688+02:00 < End cond first met
+2026-10-23T20:09:53.690+02:00 < Update end cond reset
+2026-10-23T20:09:53.690+02:00 < End cond first met
+2026-10-23T20:09:53.890+02:00 < Update end cond reset
+2026-10-23T20:09:53.890+02:00 < End cond first met
+2026-10-23T20:09:53.890+02:00 < Update end cond reset
+2026-10-23T20:09:54.101+02:00 < Pressure bar : 0.80
+2026-10-23T20:09:54.101+02:00 < Flow measured : 3
+2026-10-23T20:09:54.101+02:00 < End cond first met
+2026-10-23T20:09:54.101+02:00 < Update end cond reset
+2026-10-23T20:09:54.101+02:00 < End cond first met
+2026-10-23T20:09:54.303+02:00 < Update end cond reset
+2026-10-23T20:09:54.303+02:00 < End cond first met
+2026-10-23T20:09:54.303+02:00 < Update end cond reset
+2026-10-23T20:09:54.303+02:00 < End cond first met
+2026-10-23T20:09:54.303+02:00 < Update end cond reset
+2026-10-23T20:09:54.929+02:00 < End cond first met
+2026-10-23T20:09:54.929+02:00 < Update end cond reset
+2026-10-23T20:09:54.929+02:00 < End cond first met
+2026-10-23T20:09:54.929+02:00 < Update end cond reset
+2026-10-23T20:09:54.929+02:00 < End cond first met
+2026-10-23T20:09:54.930+02:00 < Update end cond reset
+2026-10-23T20:09:54.930+02:00 < End cond first met
+2026-10-23T20:09:54.930+02:00 < Update end cond reset
+2026-10-23T20:09:55.141+02:00 < End cond first met
+2026-10-23T20:09:55.143+02:00 < Update end cond reset
+2026-10-23T20:09:57.191+02:00 < Pressure bar : 0.80
+2026-10-23T20:09:57.191+02:00 < Flow measured : 3
+2026-10-23T20:09:58.632+02:00 < loop break max runtime (80 s, last pressure 0.803 bar)
+2026-10-23T20:09:59.262+02:00 < Pump P1 stopped
+2026-10-23T20:09:59.264+02:00 < Valve V1 closed
+2026-10-23T20:09:59.264+02:00 < Time to sample water : 232477 ms
+2026-10-23T20:09:59.266+02:00 < Step sample through filter ended
+2026-10-23T20:09:59.266+02:00 < Step DNA-shield started
+2026-10-23T20:09:59.266+02:00 < Micro Pump DNA Shield pump started 
+2026-10-23T20:10:24.200+02:00 < Micro Pump DNA Shield pump stopped
+2026-10-23T20:10:24.403+02:00 < Step DNA-shield: micro pump ran 25036 ms (time-based, volume not measured)
+2026-10-23T20:10:24.804+02:00 < Valve V_manifold closed
+2026-10-23T20:10:24.808+02:00 < Valve V1 opened
+2026-10-23T20:10:29.142+02:00 < Pump P1 started with power 13
+2026-10-23T20:10:29.962+02:00 < Pump P1 stopped
+2026-10-23T20:10:30.169+02:00 < Step DNA-shield: air push ran 4800 ms at 13 %
+2026-10-23T20:10:37.584+02:00 < O-ring unlocked
+2026-10-23T20:10:46.830+02:00 < O-ring locked
+2026-10-23T20:10:46.830+02:00 < Valve V1 closed
+2026-10-23T20:10:46.832+02:00 < Step DNA-shield finished
+2026-10-23T20:10:53.872+02:00 < O-ring unlocked
+2026-10-23T20:10:54.079+02:00 < TEST|run_sample|12|PASS|slot=12;purge=y;shield=y;empty=y;volume_ml=1000;placeholders=purge_ml,shield_time,flow_factor;purge_ml=100;spool=absent;name=clogged;condition=filter 2;site=test;experiment=airEau;sampled_ml=3;trusted_ml= 0;sample_end=clogged;rule=clogged;empty_step=removed
+2026-10-23T20:10:54.079+02:00 < --- run_sample summary ---
+2026-10-23T20:10:54.280+02:00 < id          | result | data
+2026-10-23T20:10:54.280+02:00 < 12          | PASS   | slot=12;purge=y;shield=y;empty=y;volume_ml=1000;placeholders=purge_ml,shield_ti
+2026-10-23T20:10:54.280+02:00 < TOTAL: 1 PASS, 0 FAIL, 0 SKIP -> PASS
+2026-10-23T20:10:54.487+02:00 < TEST|run_sample|summary|PASS|pass=1;fail=0;skip=0
+2026-10-23T20:11:04.967+02:00 > run_sample 10
+2026-10-23T20:11:05.195+02:00 < > run_sample 10
+2026-10-23T20:11:05.195+02:00 < ASK | sample name  (type the answer + ENTER, x = cancel)
+2026-10-23T20:11:08.694+02:00 > emptyTube
+2026-10-23T20:11:08.919+02:00 < ASK | condition (e.g. control, blank, filter A)  (type the answer + ENTER, x = cancel)
+2026-10-23T20:11:13.998+02:00 > control
+2026-10-23T20:11:14.286+02:00 < ASK | notes (optional)  (type the answer + ENTER, x = cancel)
+2026-10-23T20:11:16.603+02:00 > test
+2026-10-23T20:11:16.785+02:00 < META|sample;slot=10;name=emptyTube;condition=control;notes=test;site=test;date=2026-10-23;experiment=airEau
+2026-10-23T20:11:16.785+02:00 < === run_sample ===
+2026-10-23T20:11:16.785+02:00 < Step purge started
+2026-10-23T20:11:16.994+02:00 < Step purge: 100 mL, spool absent
+2026-10-23T20:11:24.622+02:00 < O-ring locked
+2026-10-23T20:11:24.625+02:00 < Valve V1 closed
+2026-10-23T20:11:24.625+02:00 < Valve V_manifold opened
+2026-10-23T20:11:25.674+02:00 < Flow sensor reset, CtrlPumpFlow
+2026-10-23T20:11:25.674+02:00 < Millil after reset: 0
+2026-10-23T20:11:25.674+02:00 < ctrl flow started
+2026-10-23T20:11:25.674+02:00 < Flow sensor reset, CtrlPumpFlow
+2026-10-23T20:11:25.674+02:00 < Millil after reset: 0
+2026-10-23T20:11:25.887+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:11:25.887+02:00 < Pressure bar : 0.04
+2026-10-23T20:11:25.887+02:00 < Flow measured : 0
+2026-10-23T20:11:28.756+02:00 < Pressure bar : 0.07
+2026-10-23T20:11:28.756+02:00 < Flow measured : 0
+2026-10-23T20:11:31.660+02:00 < Pressure bar : 0.04
+2026-10-23T20:11:31.660+02:00 < Flow measured : 0
+2026-10-23T20:11:34.752+02:00 < Pressure bar : 0.33
+2026-10-23T20:11:34.754+02:00 < Flow measured : 9
+2026-10-23T20:11:37.642+02:00 < Pressure bar : 0.57
+2026-10-23T20:11:37.642+02:00 < Flow measured : 38
+2026-10-23T20:11:40.719+02:00 < Pressure bar : 0.60
+2026-10-23T20:11:40.721+02:00 < Flow measured : 71
+2026-10-23T20:11:43.212+02:00 < End cond first met
+2026-10-23T20:11:43.419+02:00 < Pump control loop should stop now
+2026-10-23T20:11:43.834+02:00 < Pump P1 stopped
+2026-10-23T20:11:44.468+02:00 < {"t":"sample","fw":"S1-1b-dev","id":"auto-3","purpose":"purge","site":"test","date":"2026-10-23","condition":"control","slot":0,"start_ms":1109699,"end_ms":1127867,"target_ml":100.000,"vol_ml":101.000,"vol_trusted_ml":101.000,"purge_ml":101.000,"end_reason":"volume","p_mean_bar":0.294,"p_max_bar":0.613,"p_cap_bar":3.600,"lock_before":"UNLOCKED","lock_after":"LOCKED","shield_ml":null,"calib":{"flow_factor":77.000,"p_gain":1.041,"p_offset_bar":-0.031,"abp_full_scale_psi":60.000,"linear_act_locked_steps":210},"flags":["placeholder:ABP_FULL_SCALE_PSI","placeholder:STX_MAX_PRESSURE"]}
+2026-10-23T20:11:44.473+02:00 < Valve V1 closed
+2026-10-23T20:11:44.473+02:00 < Valve V_manifold closed
+2026-10-23T20:11:44.475+02:00 < Time to purge : 18706 ms (end=cond)
+2026-10-23T20:11:44.475+02:00 < Step purge ended
+2026-10-23T20:11:44.475+02:00 < Step sample through filter started
+2026-10-23T20:11:51.492+02:00 < O-ring unlocked
+2026-10-23T20:12:01.417+02:00 < O-ring locked
+2026-10-23T20:12:01.417+02:00 < Valve V1 closed
+2026-10-23T20:12:01.419+02:00 < Valve V_manifold opened
+2026-10-23T20:12:02.466+02:00 < Flow sensor reset, CtrlPumpFlow
+2026-10-23T20:12:02.466+02:00 < Millil after reset: 0
+2026-10-23T20:12:02.466+02:00 < Step sample: pumping water through sterivex
+2026-10-23T20:12:02.466+02:00 < Flow sensor reset, CtrlPumpFlow
+2026-10-23T20:12:02.466+02:00 < Millil after reset: 0
+2026-10-23T20:12:02.674+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:12:02.674+02:00 < Pressure bar : -0.05
+2026-10-23T20:12:02.674+02:00 < Flow measured : 0
+2026-10-23T20:12:05.583+02:00 < Pressure bar : 0.09
+2026-10-23T20:12:05.583+02:00 < Flow measured : 0
+2026-10-23T20:12:08.468+02:00 < Pressure bar : 0.24
+2026-10-23T20:12:08.468+02:00 < Flow measured : 11
+2026-10-23T20:12:11.589+02:00 < Pressure bar : 0.45
+2026-10-23T20:12:11.589+02:00 < Flow measured : 32
+2026-10-23T20:12:14.453+02:00 < Pressure bar : 0.71
+2026-10-23T20:12:14.665+02:00 < Flow measured : 61
+2026-10-23T20:12:17.567+02:00 < Pressure bar : 0.72
+2026-10-23T20:12:17.567+02:00 < Flow measured : 95
+2026-10-23T20:12:20.635+02:00 < Pressure bar : 0.72
+2026-10-23T20:12:20.637+02:00 < Flow measured : 128
+2026-10-23T20:12:23.555+02:00 < Pressure bar : 0.71
+2026-10-23T20:12:23.555+02:00 < Flow measured : 161
+2026-10-23T20:12:26.447+02:00 < Pressure bar : 0.71
+2026-10-23T20:12:26.651+02:00 < Flow measured : 195
+2026-10-23T20:12:29.540+02:00 < Pressure bar : 0.71
+2026-10-23T20:12:29.540+02:00 < Flow measured : 229
+2026-10-23T20:12:32.617+02:00 < Pressure bar : 0.71
+2026-10-23T20:12:32.617+02:00 < Flow measured : 262
+2026-10-23T20:12:35.506+02:00 < Pressure bar : 0.71
+2026-10-23T20:12:35.506+02:00 < Flow measured : 296
+2026-10-23T20:12:38.632+02:00 < Pressure bar : 0.71
+2026-10-23T20:12:38.632+02:00 < Flow measured : 329
+2026-10-23T20:12:41.517+02:00 < Pressure bar : 0.72
+2026-10-23T20:12:41.517+02:00 < Flow measured : 362
+2026-10-23T20:12:44.590+02:00 < Pressure bar : 0.71
+2026-10-23T20:12:44.590+02:00 < Flow measured : 396
+2026-10-23T20:12:47.484+02:00 < Pressure bar : 0.73
+2026-10-23T20:12:47.484+02:00 < Flow measured : 429
+2026-10-23T20:12:50.588+02:00 < Pressure bar : 0.70
+2026-10-23T20:12:50.588+02:00 < Flow measured : 463
+2026-10-23T20:12:53.481+02:00 < Pressure bar : 0.72
+2026-10-23T20:12:53.481+02:00 < Flow measured : 496
+2026-10-23T20:12:56.552+02:00 < Pressure bar : 0.71
+2026-10-23T20:12:56.552+02:00 < Flow measured : 530
+2026-10-23T20:12:59.461+02:00 < Pressure bar : 0.73
+2026-10-23T20:12:59.665+02:00 < Flow measured : 563
+2026-10-23T20:13:02.544+02:00 <   window 60 s pumping: 596 mL (first 596 mL)
+2026-10-23T20:13:02.544+02:00 < Pressure bar : 0.73
+2026-10-23T20:13:02.544+02:00 < Flow measured : 596
+2026-10-23T20:13:05.632+02:00 < Pressure bar : 0.70
+2026-10-23T20:13:05.632+02:00 < Flow measured : 630
+2026-10-23T20:13:08.508+02:00 < Pressure bar : 0.71
+2026-10-23T20:13:08.508+02:00 < Flow measured : 664
+2026-10-23T20:13:11.616+02:00 < Pressure bar : 0.73
+2026-10-23T20:13:11.616+02:00 < Flow measured : 697
+2026-10-23T20:13:14.509+02:00 < Pressure bar : 0.72
+2026-10-23T20:13:14.509+02:00 < Flow measured : 731
+2026-10-23T20:13:17.599+02:00 < Pressure bar : 0.72
+2026-10-23T20:13:17.599+02:00 < Flow measured : 764
+2026-10-23T20:13:20.486+02:00 < Pressure bar : 0.72
+2026-10-23T20:13:20.486+02:00 < Flow measured : 797
+2026-10-23T20:13:23.584+02:00 < Pressure bar : 0.71
+2026-10-23T20:13:23.584+02:00 < Flow measured : 831
+2026-10-23T20:13:26.668+02:00 < Pressure bar : 0.72
+2026-10-23T20:13:26.668+02:00 < Flow measured : 864
+2026-10-23T20:13:29.559+02:00 < Pressure bar : 0.73
+2026-10-23T20:13:29.559+02:00 < Flow measured : 897
+2026-10-23T20:13:32.648+02:00 < Pressure bar : 0.73
+2026-10-23T20:13:32.648+02:00 < Flow measured : 930
+2026-10-23T20:13:35.538+02:00 < Pressure bar : 0.72
+2026-10-23T20:13:35.538+02:00 < Flow measured : 964
+2026-10-23T20:13:38.651+02:00 < Pressure bar : 0.72
+2026-10-23T20:13:38.651+02:00 < Flow measured : 997
+2026-10-23T20:13:38.855+02:00 < End cond first met
+2026-10-23T20:13:38.855+02:00 < Pump control loop should stop now
+2026-10-23T20:13:39.471+02:00 < Pump P1 stopped
+2026-10-23T20:13:39.473+02:00 < pauses=0 paused_s= 0
+2026-10-23T20:13:39.473+02:00 < Step sample ended: volume, pauses 0
+2026-10-23T20:13:40.084+02:00 < {"t":"sample","fw":"S1-1b-dev","id":"emptyTube","purpose":"sample","site":"test","date":"2026-10-23","condition":"control","slot":10,"start_ms":1146489,"end_ms":1243438,"target_ml":1000.000,"vol_ml":1001.000,"vol_trusted_ml":1001.000,"purge_ml":null,"end_reason":"volume","p_mean_bar":0.658,"p_max_bar":0.736,"p_cap_bar":3.600,"lock_before":"LOCKED","lock_after":"LOCKED","shield_ml":null,"calib":{"flow_factor":77.000,"p_gain":1.041,"p_offset_bar":-0.031,"abp_full_scale_psi":60.000,"linear_act_locked_steps":210},"flags":["placeholder:ABP_FULL_SCALE_PSI","placeholder:STX_MAX_PRESSURE"]}
+2026-10-23T20:13:40.503+02:00 < Pump P1 stopped
+2026-10-23T20:13:40.503+02:00 < Valve V1 closed
+2026-10-23T20:13:40.503+02:00 < Valve V_manifold closed
+2026-10-23T20:13:40.503+02:00 < Vent: pump off, V1 and Vman closed for 20 s, then air vent V1 open for 5 s
+2026-10-23T20:14:00.473+02:00 < Valve V1 opened
+2026-10-23T20:14:05.415+02:00 < Valve V1 closed
+2026-10-23T20:14:05.626+02:00 < Vent: -0.06 bar before, -0.06 bar after the wait, 0.01 bar after the air vent (released)
+2026-10-23T20:14:05.627+02:00 < Valve V1 opened
+2026-10-23T20:14:05.627+02:00 < Valve V_manifold closed
+2026-10-23T20:14:12.665+02:00 < O-ring unlocked
+2026-10-23T20:14:22.353+02:00 < O-ring locked
+2026-10-23T20:14:22.353+02:00 < Step sample: emptying through purge
+2026-10-23T20:14:22.564+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:14:22.564+02:00 < End cond first met
+2026-10-23T20:14:22.564+02:00 < Pressure bar : 0.01
+2026-10-23T20:14:22.566+02:00 < Flow measured : 1001
+2026-10-23T20:14:25.440+02:00 < Pressure bar : 0.08
+2026-10-23T20:14:25.440+02:00 < Flow measured : 1001
+2026-10-23T20:14:28.543+02:00 < Pressure bar : 0.15
+2026-10-23T20:14:28.545+02:00 < Flow measured : 1001
+2026-10-23T20:14:31.425+02:00 < Pressure bar : 0.13
+2026-10-23T20:14:31.425+02:00 < Flow measured : 1001
+2026-10-23T20:14:34.552+02:00 < Pressure bar : 0.06
+2026-10-23T20:14:34.552+02:00 < Flow measured : 1001
+2026-10-23T20:14:37.449+02:00 < Pressure bar : 0.05
+2026-10-23T20:14:37.449+02:00 < Flow measured : 1001
+2026-10-23T20:14:40.531+02:00 < Pressure bar : 0.06
+2026-10-23T20:14:40.533+02:00 < Flow measured : 1001
+2026-10-23T20:14:42.400+02:00 < Pump control loop should stop now
+2026-10-23T20:14:43.024+02:00 < Pump P1 stopped
+2026-10-23T20:14:50.063+02:00 < O-ring unlocked
+2026-10-23T20:14:59.982+02:00 < O-ring locked
+2026-10-23T20:14:59.985+02:00 < Step sample: emptying sterivex
+2026-10-23T20:14:59.985+02:00 < Pump P1 started at once with power 0
+2026-10-23T20:14:59.985+02:00 < End cond first met
+2026-10-23T20:14:59.985+02:00 < Pressure bar : 0.04
+2026-10-23T20:14:59.985+02:00 < Flow measured : 1001
+2026-10-23T20:15:02.888+02:00 < Pressure bar : 0.06
+2026-10-23T20:15:02.888+02:00 < Flow measured : 1001
+2026-10-23T20:15:05.997+02:00 < Pressure bar : 0.04
+2026-10-23T20:15:05.999+02:00 < Flow measured : 1001
+2026-10-23T20:15:08.882+02:00 < Pressure bar : 0.06
+2026-10-23T20:15:08.884+02:00 < Flow measured : 1001
+2026-10-23T20:15:11.980+02:00 < Pressure bar : 0.06
+2026-10-23T20:15:11.983+02:00 < Flow measured : 1001
+2026-10-23T20:15:14.885+02:00 < Pressure bar : 0.06
+2026-10-23T20:15:14.885+02:00 < Flow measured : 1001
+2026-10-23T20:15:17.994+02:00 < Pressure bar : 0.06
+2026-10-23T20:15:17.994+02:00 < Flow measured : 1001
+2026-10-23T20:15:20.879+02:00 < Pressure bar : 0.05
+2026-10-23T20:15:20.879+02:00 < Flow measured : 1001
+2026-10-23T20:15:23.974+02:00 < Pressure bar : 0.05
+2026-10-23T20:15:23.974+02:00 < Flow measured : 1001
+2026-10-23T20:15:26.885+02:00 < Pressure bar : 0.05
+2026-10-23T20:15:26.885+02:00 < Flow measured : 1001
+2026-10-23T20:15:29.984+02:00 < Pressure bar : 0.05
+2026-10-23T20:15:29.984+02:00 < Flow measured : 1001
+2026-10-23T20:15:32.871+02:00 < Pressure bar : 0.05
+2026-10-23T20:15:32.873+02:00 < Flow measured : 1001
+2026-10-23T20:15:35.962+02:00 < Pressure bar : 0.06
+2026-10-23T20:15:35.962+02:00 < Flow measured : 1001
+2026-10-23T20:15:38.844+02:00 < Pressure bar : 0.06
+2026-10-23T20:15:39.050+02:00 < Flow measured : 1001
+2026-10-23T20:15:39.881+02:00 < Pump control loop should stop now
+2026-10-23T20:15:40.496+02:00 < Pump P1 stopped
+2026-10-23T20:15:40.498+02:00 < Valve V1 closed
+2026-10-23T20:15:40.498+02:00 < Time to sample water : 217975 ms
+2026-10-23T20:15:40.498+02:00 < Step sample through filter ended
+2026-10-23T20:15:40.498+02:00 < Step DNA-shield started
+2026-10-23T20:15:40.498+02:00 < Micro Pump DNA Shield pump started 
+2026-10-23T20:16:05.492+02:00 < Micro Pump DNA Shield pump stopped
+2026-10-23T20:16:05.492+02:00 < Step DNA-shield: micro pump ran 25036 ms (time-based, volume not measured)
+2026-10-23T20:16:05.907+02:00 < Valve V_manifold closed
+2026-10-23T20:16:05.907+02:00 < Valve V1 opened
+2026-10-23T20:16:10.457+02:00 < Pump P1 started with power 13
+2026-10-23T20:16:11.279+02:00 < Pump P1 stopped
+2026-10-23T20:16:11.279+02:00 < Step DNA-shield: air push ran 4800 ms at 13 %
+2026-10-23T20:16:18.897+02:00 < O-ring unlocked
+2026-10-23T20:16:28.615+02:00 < O-ring locked
+2026-10-23T20:16:28.617+02:00 < Valve V1 closed
+2026-10-23T20:16:28.818+02:00 < Step DNA-shield finished
+2026-10-23T20:16:35.806+02:00 < O-ring unlocked
+2026-10-23T20:16:36.013+02:00 < TEST|run_sample|10|PASS|slot=10;purge=y;shield=y;empty=y;volume_ml=1000;placeholders=purge_ml,shield_time,flow_factor;purge_ml=100;spool=absent;name=emptyTube;condition=control;site=test;experiment=airEau;sampled_ml=1001;trusted_ml=1001;sample_end=volume;empty_step=removed
+2026-10-23T20:16:36.236+02:00 < --- run_sample summary ---
+2026-10-23T20:16:36.238+02:00 < id          | result | data
+2026-10-23T20:16:36.238+02:00 < 10          | PASS   | slot=10;purge=y;shield=y;empty=y;volume_ml=1000;placeholders=purge_ml,shield_ti
+2026-10-23T20:16:36.238+02:00 < TOTAL: 1 PASS, 0 FAIL, 0 SKIP -> PASS
+2026-10-23T20:16:36.454+02:00 < TEST|run_sample|summary|PASS|pass=1;fail=0;skip=0
+2026-10-23T20:17:36.096+02:00 ! closed

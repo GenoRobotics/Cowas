@@ -1,0 +1,26 @@
+String format_date_friendly(time_t t){
+    // add time before printing in format hh:mm:ss yyyy-mm-dd
+    
+    String data = "";
+    if(hour(t) < 10)
+        data += String("0")+String(hour(t));
+    else
+        data += String(hour(t));
+    data+="h";
+    if(minute(t) < 10)
+        data += String("0")+String(minute(t));
+    else
+        data += String(minute(t));
+    data+="m";
+    data+= " " + String(year(t))+"-";
+    if(month(t) < 10)
+        data += String("0")+String(month(t));
+    else
+        data += String(month(t));
+    data+="-";
+    if(day(t) < 10)
+        data += String("0")+String(day(t));
+    else
+        data += String(day(t));
+    return data;
+}

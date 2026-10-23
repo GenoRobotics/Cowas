@@ -1,0 +1,19 @@
+{
+  "_doc": "LA3 pass/fail thresholds for tools/analyze_la3.py. null = not decided yet: the check prints OPEN. Fill these from docs/lab/shield-protocol.md §7 after the lab meeting (the question ID is in _from), then rerun the analysis.",
+  "_from": {
+    "shield_target_ml": "team decision B1 (target Shield volume per Sterivex)",
+    "shield_min_ml": "team decision B2 (minimum Shield volume)",
+    "residual_max_ml": "team decision B3 (max residual water)",
+    "ratio_min": "team decision B3 (min Shield:water ratio; 1.0 = 1:1)",
+    "retention_loss_max_pct_per_day": "team decision B5 (acceptable loss, % of the liquid per day)",
+    "shield_density_g_ml": "LA3 protocol A1 (measured; null = 1.00 PLACEHOLDER)",
+    "water_density_g_ml": "null = 1.00 (lake water, fine at 0.01 g)"
+  },
+  "shield_target_ml": null,
+  "shield_min_ml": null,
+  "residual_max_ml": null,
+  "ratio_min": null,
+  "retention_loss_max_pct_per_day": null,
+  "shield_density_g_ml": null,
+  "water_density_g_ml": null
+}

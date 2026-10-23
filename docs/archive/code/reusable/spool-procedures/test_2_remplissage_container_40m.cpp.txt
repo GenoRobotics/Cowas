@@ -1,0 +1,20 @@
+void test_2_remplissage_container_40m()
+{
+
+    output.println("TEST 2 - container 40m");
+
+    spool.start(40000);
+    valve_23.set_I_way();
+    delay(200);
+    pump.set_power(100);
+    timerStart(timer_control_pressure2);
+    pump.start();
+    while (button_container.getState() == 1)
+        ;
+    pump.stop();
+    timerStop(timer_control_pressure2);
+    valve_23.set_L_way();
+
+    step_purge();
+    step_rewind();
+}

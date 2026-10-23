@@ -1,0 +1,72 @@
+S1-0 / FW2 bench session, 2026-10-12. Console output pasted by the user (tools/hw_test_log.py did not run). Only the TEST| lines and the totals are kept.
+Run A = stop offsets 5.2 (CW) / -1.05 (CCW) (F128). Run B = offsets 1.2 / +1.2. The wrap-point change (F129) was not in either build.
+The run order below follows the session: A before B. Runs A were pasted in the chat of 2026-10-12; the rows 1-2 (actuator_home, lock_cycle 5) were reported as PASS without output.
+
+=== Run A: rotate_all dry auto (offsets 5.2 / -1.05) ===
+TEST|rotate_all_dry|0|FAIL|slot=0;clock=30;err_deg=-2.11
+TEST|rotate_all_dry|1|FAIL|slot=1;clock=34;err_deg=-3.87
+TEST|rotate_all_dry|2|FAIL|slot=2;clock=38;err_deg=-2.20
+TEST|rotate_all_dry|3|FAIL|slot=3;clock=41;err_deg=-2.28
+TEST|rotate_all_dry|14|FAIL|slot=14;clock=26;err_deg=-2.28
+TEST|rotate_all_dry|13|FAIL|slot=13;clock=23;err_deg=-4.13
+TEST|rotate_all_dry|12|FAIL|slot=12;clock=19;err_deg=-4.04
+TEST|rotate_all_dry|11|FAIL|slot=11;clock=15;err_deg=-4.13
+TEST|rotate_all_dry|10|FAIL|slot=10;clock=11;err_deg=-4.13
+TEST|rotate_all_dry|9|FAIL|slot=9;clock=8;err_deg=-4.04
+TEST|rotate_all_dry|8|FAIL|slot=8;clock=4;err_deg=-4.04
+TEST|rotate_all_dry|4|FAIL|slot=4;clock=49;err_deg=-3.78
+TEST|rotate_all_dry|5|FAIL|slot=5;clock=53;err_deg=-2.11
+TEST|rotate_all_dry|6|FAIL|slot=6;clock=56;err_deg=-2.37
+TEST|rotate_all_dry|7|FAIL|slot=7;clock=0;err_deg=-2.46
+TEST|rotate_all_dry|summary|FAIL|pass=0;fail=15;skip=0;worst_err_deg=-4.13;limit_deg=1.00
+
+=== Run A: encoder_repeat 5 10 auto (offsets 5.2 / -1.05) ===
+TEST|encoder_repeat|1|FAIL|slot=5;from=12;err_deg=-3.95
+TEST|encoder_repeat|2|FAIL|slot=5;from=13;err_deg=-3.95
+TEST|encoder_repeat|3|FAIL|slot=5;from=12;err_deg=-3.95
+TEST|encoder_repeat|4|FAIL|slot=5;from=13;err_deg=-3.95
+TEST|encoder_repeat|5|FAIL|slot=5;from=12;err_deg=-3.95
+TEST|encoder_repeat|6|FAIL|slot=5;from=13;err_deg=-3.95
+TEST|encoder_repeat|7|FAIL|slot=5;from=12;err_deg=-3.95
+TEST|encoder_repeat|8|FAIL|slot=5;from=13;err_deg=-3.87
+TEST|encoder_repeat|9|FAIL|slot=5;from=12;err_deg=-3.95
+TEST|encoder_repeat|10|FAIL|slot=5;from=13;err_deg=-3.95
+TEST|encoder_repeat|spread|FAIL|slot=5;repeats=10;spread_deg=0.09;min_deg=-3.95;max_deg=-3.87;limit_deg=0.50
+TEST|encoder_repeat|summary|FAIL|pass=0;fail=11;skip=0
+
+=== Run B: rotate_all dry auto (offsets 1.2 / +1.2) ===
+TEST|rotate_all_dry|0|PASS|slot=0;clock=30;err_deg=0.09
+TEST|rotate_all_dry|1|PASS|slot=1;clock=34;err_deg=-0.35
+TEST|rotate_all_dry|2|PASS|slot=2;clock=38;err_deg=-0.18
+TEST|rotate_all_dry|3|PASS|slot=3;clock=41;err_deg=-0.18
+TEST|rotate_all_dry|14|PASS|slot=14;clock=26;err_deg=0.00
+TEST|rotate_all_dry|13|PASS|slot=13;clock=23;err_deg=-0.09
+TEST|rotate_all_dry|12|PASS|slot=12;clock=19;err_deg=0.09
+TEST|rotate_all_dry|11|PASS|slot=11;clock=15;err_deg=0.18
+TEST|rotate_all_dry|10|PASS|slot=10;clock=11;err_deg=0.18
+TEST|rotate_all_dry|9|PASS|slot=9;clock=8;err_deg=0.18
+TEST|rotate_all_dry|8|PASS|slot=8;clock=4;err_deg=0.00
+TEST|rotate_all_dry|4|PASS|slot=4;clock=49;err_deg=0.18
+TEST|rotate_all_dry|5|PASS|slot=5;clock=53;err_deg=0.09
+TEST|rotate_all_dry|6|PASS|slot=6;clock=56;err_deg=0.09
+TEST|rotate_all_dry|7|PASS|slot=7;clock=0;err_deg=-0.18
+TEST|rotate_all_dry|summary|PASS|pass=15;fail=0;skip=0;worst_err_deg=-0.35;limit_deg=1.00
+
+=== Run B: encoder_repeat 5 10 auto (offsets 1.2 / +1.2) ===
+TEST|encoder_repeat|1|PASS|slot=5;from=12;err_deg=0.09
+TEST|encoder_repeat|2|PASS|slot=5;from=13;err_deg=0.09
+TEST|encoder_repeat|3|PASS|slot=5;from=12;err_deg=0.18
+TEST|encoder_repeat|4|PASS|slot=5;from=13;err_deg=0.18
+TEST|encoder_repeat|5|PASS|slot=5;from=12;err_deg=0.09
+TEST|encoder_repeat|6|PASS|slot=5;from=13;err_deg=0.18
+TEST|encoder_repeat|7|PASS|slot=5;from=12;err_deg=0.18
+TEST|encoder_repeat|8|PASS|slot=5;from=13;err_deg=0.26
+TEST|encoder_repeat|9|PASS|slot=5;from=12;err_deg=0.18
+TEST|encoder_repeat|10|PASS|slot=5;from=13;err_deg=0.18
+TEST|encoder_repeat|spread|PASS|slot=5;repeats=10;spread_deg=0.18;min_deg=0.09;max_deg=0.26;limit_deg=0.50
+TEST|encoder_repeat|summary|PASS|pass=11;fail=0;skip=0
+
+=== valve_check (run B) ===
+TEST|valve_check|V1|PASS|open=y;close=y
+TEST|valve_check|Vman|PASS|open=y;close=y
+TEST|valve_check|summary|PASS|pass=2;fail=0;skip=0

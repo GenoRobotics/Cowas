@@ -1,0 +1,54 @@
+void test_3_sterivex_1()
+{
+
+    output.println("TEST 3 - sterivex 1");
+
+    spool.start(1000);
+    for (int i = 0; i < 3; i++)
+    {
+        output.println("Fill container number " + String(i + 1));
+        step_fill_container();
+        output.println("Purge number " + String(i + 1));
+        step_purge();
+    }
+
+    output.println("Fill container number 4");
+    step_fill_container();
+
+    // sampling sterivex 1
+    uint32_t lastTime = millis();
+    step_sampling(1);
+    output.println("Temps " + String(millis() - lastTime));
+
+    output.println("Control manuel pompe");
+    status_led.on();
+    button_start.waitPressedAndReleased();
+    status_led.off();
+
+    while (!button_start.isPressed())
+    {
+        if (button_left.isPressed())
+        {
+            button_left.waitPressedAndReleased();
+            pump.set_power(100);
+            pump.start();
+        }
+        if (button_right.isPressed())
+        {
+            button_right.waitPressedAndReleased();
+            pump.set_power(100);
+            pump.stop();
+        }
+        delay(10);
+    }
+    button_start.waitPressedAndReleased();
+    output.println("purge");
+    green_led.on();
+    button_start.waitPressedAndReleased();
+    green_led.off();
+
+    step_purge();
+    output.println("rewind");
+    button_start.waitPressedAndReleased();
+    step_rewind();
+}

@@ -1,0 +1,9 @@
+// Removed 2026-10-23: a check of the constants against an old request (3-5 s soft start). It tests a setting, not a behaviour.
+void test_settings_ramp_is_in_the_asked_window(void)
+{
+    // the user asked for 3-5 s to reach the set power
+    TEST_ASSERT_TRUE(PUMP_RAMP_MS >= 3000 && PUMP_RAMP_MS <= 5000);
+    TEST_ASSERT_TRUE(PUMP_RAMP_STEP_MS > 0 && PUMP_RAMP_STEP_MS <= 50);
+    TEST_ASSERT_TRUE(PUMP_RAMP_MS / PUMP_RAMP_STEP_MS >= 50); // enough steps to see the pressure move
+    TEST_ASSERT_TRUE(PUMP_RAMP_MIN_STEP_PERCENT > 0 && PUMP_RAMP_MIN_STEP_PERCENT < 50);
+}

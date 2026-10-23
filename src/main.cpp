@@ -25,22 +25,20 @@
 #include "Settings.h"
 #include "Critical_error.h"
 #include "Timer.h"
-#include "Serial_device.h"
 #include "Tests.h"
+#include "Run_keys.h"
 #include "Step_functions.h"
 #include "GPIO.h"
 #include "TimeLib.h"
 #include "Manifold.h"
 #include "maintenance.h"
-#include "experiences.h"
+#include "Linear_actuator.h"
 
 #include "Flow_sensor.h"
-#include "Pressure_sensor.h"
 
 // ============ MAIN FUNCTION DECLARATION =======
 void main_program();
 void button_control();
-void SIC_control();
 
 // ============ EXECUTION MODE ===================
 // comment this line if no system check at startup
@@ -97,9 +95,17 @@ Manifold manifold;                    // Manifold
 Flow_sensor flow_sensor_small;
 Flow_sensor flow_sensor_big;
 
-BigPressure pressure2;
+Linear_actuator linear_actuator; // NEMA17 (42SHD034-20B) + A4988, bring-up in progress
 
-// PressureSensor pressureDFRobot;
+// Pump/CtrlPump take a plain function pointer (PressureReadFn) rather than a
+// specific sensor type, so the cap and every PID loop read the ABP through read_p_in().
+// The sensor that backs the pump cap and every PID loop: the ABP on SPI (pressure1, CS D8).
+// getPressure() returns PRESSURE_SENSOR_INVALID_BAR when the ABP can't be trusted, which stops the pump.
+float read_p_in()
+{
+    return pressure1.getPressure();
+}
+
 
 void setup()
 {
@@ -112,11 +118,12 @@ void setup()
     // ========== HARDWARE INITIALIZATION ==========
     status_led.begin(STATUS_LED_PIN, "status");
     green_led.begin(GREEN_LED_PIN, "green");
-    pressure1.begin(PRESSURE1_PIN, 3, "P1");
+    pressure1.begin(PRESSURE1_PIN, STX_MAX_PRESSURE, "P1"); // was a hard-coded 3: it printed "Pressure to high" at every read above 3 bar (F123, F145)
     valve_1.begin(VALVE_1_PIN, "V1");
     valve_23.begin(VALVE_23_PIN, "V_23");
     valve_manifold.begin(VALVE_MANIFOLD, "V_manifold");
     pump.begin(PUMP_PIN, true, "P1", PUMP_ENABLE);
+    pump.set_pressure_safety(read_p_in, STX_MAX_PRESSURE); // hard cap - pump refuses to run above this, no matter what's controlling it
     micro_pump.begin(ON_OFF_33V, "DNA Shield pump");
     spool.begin();
     manifold_motor.begin("MANIFOLD");
@@ -134,13 +141,18 @@ void setup()
     spool.endstop_up = false;
     spool.endstop_down = false;
     manifold.begin();
-    manifold.change_state(PURGE_SLOT, unaivailable); // The purge has no filter
+    // PURGE_SLOT no longer needs marking unavailable here - FILL_ORDER never includes it
 
     // new sensors
     flow_sensor_small.begin(FLOW_SMALL_PIN, calibrationFactor_small, &pulseCount_small, pulseCounter_small);
     flow_sensor_big.begin(FLOW_BIG_PIN, calibrationFactor_big, &pulseCount_big, pulseCounter_big);
 
-    pressure2.begin(pressure_2_pin);
+    // TEMP DIAGNOSTIC: commented out to test whether these two inits are interfering
+    // with the manifold motor (shares no pin numbers, but worth ruling out a shared
+    // timer/peripheral conflict) - restore both lines once the manifold is confirmed
+    // working with them enabled again.
+    // lead_mm_per_rev left at 0 (steps-only) until the lead screw pitch is known
+    linear_actuator.begin(LINEAR_ACT_STEP_PIN, LINEAR_ACT_DIR_PIN, LINEAR_ACT_ENABLE_PIN, LINEAR_ACT_STEPS_PER_REV, 1);
 
     output.println("system initalized\n");
 
@@ -177,24 +189,19 @@ void setup()
     ctrl_button = true;
 
     // ! calling testing function
-    // purge_pipes_manifold();
 
     // ! Flow sensor test
     // flow_setup();
-    // pressure2.readPressure();
-    // delay(500);
-    // pressure2.readPressure();
 
     pump_pid.setOutputLimits(0, 100); // always do in setup/ or in pump.begin()
 
-    pump_pid.setPID(200, 100, 100);
+    pump_pid.setPID(PUMP_PID_KP, PUMP_PID_KI, PUMP_PID_KD); // 200 / 100 / 100, Settings.h
 
     test_all_components();
     // testing dna shield
     // rotateMotor(1);
     // spool.start_origin();
 
-    // fill_DNA_shield_tube();
 
     // all_on();
 }
@@ -202,19 +209,15 @@ void setup()
 uint32_t last_p_p = millis();
 float pressure_meas_count = 0;
 float avg_old = 0;
-float avg_new = 0;
 
 void loop()
 {
     // flow_loop();
     button_control();
-    // SIC_control();
     main_program();
 
     // float pressure;
-    // float pressureBig;
     // avg_old += pressure1.getPressure();
-    // avg_new += pressure2.readPressure();
     // pressure_meas_count = pressure_meas_count + 1.0;
 
     delay(50);
@@ -225,6 +228,13 @@ void main_program()
     if (Serial.available() > 0)
     {
         String data = Serial.readStringUntil('\n');
+        data.trim(); // a CR or a space at the end of a line must not make a command unknown (2026-10-19)
+        if (data.length() == 0)
+        {
+            return; // an empty line: nothing to answer
+        }
+        run_keys_reset(); // a new command: an abort (x) from the one before does not carry over (S1-C)
+        bool known = true; // false for a line no branch below handles (2026-10-19: it used to answer "function accomplished")
         int depth = 0;
         String cmp_temp = "sample";
         if (data.startsWith(cmp_temp))
@@ -256,10 +266,6 @@ void main_program()
         {
             step_purge();
         }
-        else if (data == "purgePipesFunction")
-        {
-            purge_pipes_manifold();
-        }
         else if (data == "fillContainerFunction")
         {
             step_fill_container();
@@ -271,19 +277,36 @@ void main_program()
         }
         else if (data == "rollingFunctionUp")
         {
-            uint8_t speedy = 60;
-            spool.set_speed(speedy, up);
-            spool.start();
+            if (!SPOOL_USE)
+            {
+                Serial.println("Spool disabled (SPOOL_USE=false in Settings.h)");
+            }
+            else
+            {
+                uint8_t speedy = 60;
+                spool.set_speed(speedy, up);
+                spool.start();
+            }
         }
         else if (data == "rollingFunctionDown")
         {
-            uint8_t speedy = 60;
-            spool.set_speed(speedy, down);
-            spool.start();
+            if (!SPOOL_USE)
+            {
+                Serial.println("Spool disabled (SPOOL_USE=false in Settings.h)");
+            }
+            else
+            {
+                uint8_t speedy = 60;
+                spool.set_speed(speedy, down);
+                spool.start();
+            }
         }
         else if (data == "stopRolling")
         {
-            spool.stop();
+            if (SPOOL_USE)
+            {
+                spool.stop();
+            }
         }
         else if (data == "startDNA")
         {
@@ -293,9 +316,21 @@ void main_program()
         {
             micro_pump.stop();
         }
+        else
+        {
+            known = false;
+        }
 
-        Serial.print(" - function accomplished - ");
-        Serial.println(data);
+        if (known)
+        {
+            Serial.print(" - function accomplished - ");
+            Serial.println(data);
+        }
+        else
+        {
+            // the test commands (actuator_home, full_cycle, fill_test, ...) exist only in the test menu, before 'stop'
+            Serial.println("UNKNOWN command: " + data + ". Test commands run only in the test menu (reset the Due to get back to it, then 'stop' at the end)");
+        }
         Serial.flush();
     }
 }
@@ -317,16 +352,27 @@ void button_control()
     {
         return;
     }
+    run_keys_reset(); // a panel press is a new command too: no abort latched by an earlier console command
 
     switch (control_state)
     {
     case ctrl_pump:
     {
+        // safety (2026-10-23 check): the panel pump was never polled against the cap; stop it when over
+        if (pump_on && pump.enforce_pressure_safety())
+        {
+            pump_on = false;
+            valve_manifold.set_close_way();
+        }
         if (button_right.isPressed())
         {
             if (pump_on == false)
             {
                 button_right.waitPressedAndReleased();
+                if (!require_pressure_sensor("panel Pump mode")) // FW2
+                {
+                    break;
+                }
                 pump.set_power(pump_power);
                 valve_manifold.set_open_way();
                 pump.start();
@@ -422,6 +468,20 @@ void button_control()
     }
     case ctrl_motor_spool:
     {
+        if (!SPOOL_USE)
+        {
+            if (button_right.isPressed())
+            {
+                Serial.println("Spool disabled (SPOOL_USE=false in Settings.h)");
+                button_right.waitPressedAndReleased();
+            }
+            if (button_left.isPressed())
+            {
+                Serial.println("Spool disabled (SPOOL_USE=false in Settings.h)");
+                button_left.waitPressedAndReleased();
+            }
+            break;
+        }
         if (button_right.isPressed()) //! temp disabled && button_spool_down.isReleased())
         {
             spool.set_speed(50, down);
@@ -467,40 +527,5 @@ void button_control()
         Serial.print(ctrl_state_name[control_state]);
         Serial.print(" : ");
         Serial.println(control_state);
-    }
-}
-
-void SIC_control()
-{
-    if (button_right.isPressed())
-    {
-        button_right.waitPressedAndReleased();
-
-        manifold.begin();
-        manifold.change_state(PURGE_SLOT, unaivailable); // The purge has no filter
-
-        demo_sample_process();
-
-        green_led.off();
-        status_led.off();
-    }
-    else if (button_left.isPressed())
-    {
-        button_left.waitPressedAndReleased();
-        status_led.on();
-
-        button_start.waitPressedAndReleased();
-
-        green_led.on();
-
-        step_dive(50);
-
-        green_led.off();
-        button_start.waitPressedAndReleased();
-        green_led.on();
-        spool.start_origin();
-
-        green_led.off();
-        status_led.off();
     }
 }

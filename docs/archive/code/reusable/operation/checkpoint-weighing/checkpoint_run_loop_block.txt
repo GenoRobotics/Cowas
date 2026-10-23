@@ -1,0 +1,43 @@
+        if (checkpoint_ml > 0 && ml >= next_cp)
+        {
+            // checkpoint: the pump stops, the operator weighs and types the grams, the pump restarts. The wait is not
+            // pumping time: the stall and clog windows keep their state (not re-armed, so they keep working at every
+            // checkpoint), and the pressure rule does not run during the wait.
+            n_cp++;
+            const uint32_t pumped_ms = now - cp_resume;
+            const float rate = pumped_ms > 0 ? (ml - cp_last_ml) * 1000.0f / (float)pumped_ms : 0.0f; // mL per s
+            if (cp_ref_rate < 0.0f)
+            {
+                cp_ref_rate = rate; // the first interval is the reference for "slow"
+            }
+            else if (cp_step > FILL_CHECKPOINT_FINE_ML && rate < FILL_CHECKPOINT_SLOW_FRACTION * cp_ref_rate)
+            {
+                cp_step = FILL_CHECKPOINT_FINE_ML;
+                Serial.println("SLOW | " + String(rate * 60.0f, 0) + " mL/min, under " + String(FILL_CHECKPOINT_SLOW_FRACTION * 100.0f, 0) +
+                               " % of the first " + String(cp_ref_rate * 60.0f, 0) + " mL/min: checkpoint every " + String(cp_step, 0) + " mL from now");
+            }
+            pump.stop();
+            Serial.println("CHECKPOINT " + String(n_cp) + " at " + String(ml, 0) + " mL (flowmeter), " + String(rate * 60.0f, 0) +
+                           " mL/min. Pump stopped. Weigh the water collected so far (tare removed), send the grams + ENTER. x + ENTER ends the run.");
+            float grams = 0.0f;
+            const uint32_t wait_start = millis();
+            const int got = read_checkpoint_grams(grams, FILL_CHECKPOINT_WAIT_MS);
+            t_waited += millis() - wait_start;
+            if (got != 0)
+            {
+                reason = (got == 1) ? "aborted" : "checkpoint_timeout";
+                break;
+            }
+            Serial.println("CHECKPOINT|n=" + String(n_cp) + ";flow_ml=" + String(ml, 0) + ";weight_g=" + String(grams, 0) +
+                           ";diff_ml=" + String(ml - grams, 0) + ";rate_mlmin=" + String(rate * 60.0f, 0) + ";step_ml=" + String(cp_step, 0));
+            watch.resume_at(millis());
+            pid.reset();
+            power_cmd = (float)start_power;
+            pump.start_at((uint8_t)start_power);
+            paused = false;
+            last_update = millis();
+            cp_resume = millis();
+            cp_last_ml = ml;
+            next_cp = ml + cp_step;
+            continue;
+        }

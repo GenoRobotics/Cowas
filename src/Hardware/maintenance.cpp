@@ -18,14 +18,12 @@
 #include "C_output.h"
 #include "Settings.h"
 #include "Timer.h"
-#include "Serial_device.h"
 #include "maintenance.h"
 #include "Step_functions.h"
 #include "Manifold.h"
 
 extern int manifold_slot;
 extern C_output output;
-extern Serial_device serial;
 extern Led status_led;
 extern Led green_led;
 extern Trustability_ABP_Gage pressure1;
@@ -48,50 +46,13 @@ extern Button button_right;
 
 enum DNA_state {fill, start_micro, stop_micro, start_big, stop_big, results, start_end};
 
-void run_pump(uint32_t max_time);
-
-
-void purge_pipes_manifold(){
-    Serial.println("Ready to start purge of manifold pipes, please press start button");
-
-    button_start.waitPressedAndReleased();
-
-    step_fill_container();
-    delay(1000);
-    pump.set_power(25);
-
-    for (uint8_t slot = 0; slot < 15; slot++){
-        Serial.print("Filling and purging slot ");
-        Serial.println(slot);
-
-        // valve_1.set_close_way();
-        // valve_23.set_I_way();
-        // run_pump(MAINT_FILL_TIME);
-
-        rotateMotor(slot);
-        delay(500);
-
-        valve_23.set_L_way();
-        valve_manifold.set_open_way();
-        run_pump(MAINT_PURGE_TIME);
-        valve_manifold.set_close_way();
-
-        if (slot == 8){ // to avoid tangling pipe, note: should work without
-            rotateMotor(4);
-            rotateMotor(0);
-        }
-
-        delay(500);
-    }
-
-    valve_1.set_close_way();
-    
-    step_purge(false);  // emptying container in case some water is left
-
-}
-
 void calibrate_DNA_pump(){
-    rotateMotor(1);
+    if (!require_pressure_sensor("cal_DNA")){ // runs the big pump (cap)
+        return;
+    }
+    if (!rotateMotor(1)){ // FW2: refused (lock state) or failed -> nothing else runs
+        return;
+    }
     DNA_state state = fill;
     uint32_t time_micro_pump = 0;
     uint32_t time_big_pump = 0;
@@ -218,38 +179,6 @@ void calibrate_DNA_pump(){
     output.println("Calibration of DNA pump done");
 }
 
-void fill_DNA_shield_tube(){
-    output.println("THe DNA-shield need to be pumped until the first valve");
-    output.println("Press RIGHT button to start, LEFT button to stop pump. When DNA-shield is at valve press STOP and then START to continue");
-    while (button_start.isReleased()){
-        if (button_right.isPressed()){
-            micro_pump.start();
-            button_right.waitPressedAndReleased();
-        }
-        if (button_left.isPressed()){
-            micro_pump.stop();
-            button_left.waitPressedAndReleased();
-        }      
-    }
-    button_start.waitPressedAndReleased();
-}
-
-
-
-void run_pump(uint32_t max_time){
-    uint32_t start_time = millis();
-    pump.start();
-
-    do {
-        delay(20);
-        // Serial.println(millis() - start_time);
-    } while (button_start.isReleased() && (millis() - start_time) < max_time);
-
-    if (button_start.isPressed()) 
-        button_start.waitPressedAndReleased();
-
-    pump.stop();
-}
 
 
 #ifdef SYSTEM_CHECKUP

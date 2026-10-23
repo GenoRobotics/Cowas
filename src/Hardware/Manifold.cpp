@@ -3,6 +3,8 @@
 #include "Button.h"
 #include "C_output.h"
 #include <SPI.h>
+#include "../Core/manifold_geometry.h"
+#include "Oring_lock.h"
 
 extern C_output output;
 extern Motor manifold_motor;
@@ -12,7 +14,7 @@ const uint16_t speed = 40; // Refers to power, min 70 to move
 
 // ! move back to .h
 //float angle_offset_neg = -1.05;   // when turning CCW
-float angle_offset_pos = 5.2;   // when turning CW
+float angle_offset_pos = 2.3;   // when turning CW. 2026-10-22 (user): rotate_all dry, CW moves mean +1.09 deg overshoot, so 1.2 + 1.09 (F128 history: was 5.2 at speed 40, 2026-10-12). Check with rotate_all dry order=fill auto
 
 motor_direction direction = down; // 1 or -1
 int nb_turns = 0;
@@ -22,6 +24,15 @@ float deg_previousEncoderPosition = 0;
 
 // first element is the purge angle. The following elements are the sterivex angles in the order we want them to be used.
 float sterivex_angle[15];
+// raw slot index (0-15, see PURGE_RAW_OFFSET/omitted_angle_nb in Manifold.h) each
+// sterivex_angle[]/human_idx entry was built from - kept alongside it so
+// clock_minutes_for_slot() doesn't have to redo the walk in Manifold::begin().
+int raw_slot_of_human_idx[15];
+
+// The manifold layout, as the pure math in src/Core/manifold_geometry.cpp sees it.
+static const core::ManifoldGeometry manifold_geometry = {
+    MANIFOLD_RAW_POSITIONS, PURGE_RAW_OFFSET, omitted_angle_nb, purge_angle, angle_between_slots};
+static_assert(NB_SLOT == MANIFOLD_RAW_POSITIONS - 1, "NB_SLOT must be the raw positions minus the no-hole position");
 
 /**
  * @brief Constructor for the manifold slots
@@ -65,21 +76,11 @@ void Manifold::begin()
     pinMode(ENCODER_MANIFOLD, OUTPUT);
     digitalWrite(ENCODER_MANIFOLD, HIGH);
 
-    // Creation of array with sterivex position in angle
-    // omitted_angle_nb is omitted as there is no sterivex at this angle
-
-    for (int slot = 0; slot < 16; slot++){
-      if (slot == omitted_angle_nb){
-        continue;
-      }
-      float angle;
-      angle = purge_angle - slot*angle_between_slots;
-      if (angle < 0){
-        angle += 360.0;
-      }
-      // if before omitted angle, index (slot) is right, when after need to correct index
-      sterivex_angle[(slot < omitted_angle_nb ? slot : slot - 1)] = angle;
-    }
+    // Creation of array with sterivex position in angle.
+    // Walks outward from the purge position (PURGE_RAW_OFFSET raw steps from the
+    // calibrated reference), so index 0 = purge and 1..14 = samples, skipping the
+    // no-hole position (omitted_angle_nb) wherever it falls along that walk.
+    core::build_slot_angle_table(manifold_geometry, sterivex_angle, raw_slot_of_human_idx, NB_SLOT);
 
     if (VERBOSE_INIT){output.println("Manifold initiated");}
 }
@@ -106,11 +107,24 @@ void Manifold::reload()
       }   
 }
 
-void rotateMotor(int index)
+bool rotateMotor(int index)
 {
   // if the manifold is not connected to the system, exit function
   if(MANIFOLD_USE == false){
-    return;
+    return true;
+  }
+
+  // target: the O-ring UNLOCKED to turn. OringScope locks it again on every return (rest state).
+  OringScope oring(core::LOCK_STATE_UNLOCKED);
+  if (!oring.ok())
+  {
+    output.println("REFUSED | rotateMotor: manifold not moved (O-ring not unlocked)");
+    return false;
+  }
+  if (index < 0 || index >= NB_SLOT)
+  {
+    output.println("REFUSED | rotateMotor: no slot " + String(index));
+    return false;
   }
 
   // SETUP//
@@ -119,7 +133,11 @@ void rotateMotor(int index)
   float angle_to_reach = sterivex_angle[index];
 
   readEncoder(true);
-  readEncoder(false);
+  if (!readEncoder(false))
+  {
+    output.println("ERROR | rotateMotor: could not get a starting position from the encoder - aborting, motor never started");
+    return false;
+  }
   directionDetermination(angle_to_reach);
 
   manifold_motor.start(speed, direction);
@@ -129,6 +147,8 @@ void rotateMotor(int index)
   }
 
   uint32_t last_print = 0;
+  uint32_t rotation_start = millis();
+  uint8_t consecutive_failures = 0;
 
   float scaled_goal = scale_angle(angle_to_reach);
   float adapted_goal_angle; // incorporates slip of motor, need to calibrate manually
@@ -143,7 +163,25 @@ void rotateMotor(int index)
 
   while (end_rotation == false)
   {
-    readEncoder(false);
+    consecutive_failures = readEncoder(false) ? 0 : (consecutive_failures + 1);
+
+    // Safety net: without this, a persistent encoder failure (current_angle frozen,
+    // so the stop condition below is never re-evaluated with fresh data) or a real
+    // mechanical stall used to spin this loop forever with the motor left running
+    // and zero feedback - see MANIFOLD_ENCODER_MAX_CONSECUTIVE_FAILURES/
+    // MANIFOLD_ROTATE_TIMEOUT_MS (Settings.h).
+    if (consecutive_failures >= MANIFOLD_ENCODER_MAX_CONSECUTIVE_FAILURES)
+    {
+      manifold_motor.stop();
+      output.println("ERROR | rotateMotor: aborted - lost the encoder (too many consecutive bad reads). Motor stopped, position may be off - re-home/recalibrate before trusting slot positions.");
+      return false;
+    }
+    if (millis() - rotation_start > MANIFOLD_ROTATE_TIMEOUT_MS)
+    {
+      manifold_motor.stop();
+      output.println("ERROR | rotateMotor: aborted - timed out before reaching the target (possible mechanical stall). Motor stopped.");
+      return false;
+    }
 
     if(VERBOSE_MANIFOLD && (millis() - last_print > 500)){
       output.print("   Angle to reach: ");
@@ -161,6 +199,28 @@ void rotateMotor(int index)
 
     delay(1);//smaller delay -> better precision
   }
+
+  return true;
+}
+
+/**
+ * @brief Human slot index (0=purge, 1-14=samples) -> clock-face minute label
+ * (0-59), top of the manifold = 0. 16 raw positions around the circle * 3.75
+ * min/position = 60 min, same scale as a real clock face. See
+ * MANIFOLD_RAW_INDEX_INCREASES_CW (Settings.h) for the physical-direction caveat.
+ */
+int clock_minutes_for_slot(int human_slot)
+{
+  return core::clock_minutes_for_slot(raw_slot_of_human_idx, NB_SLOT, human_slot,
+                                      MANIFOLD_RAW_POSITIONS, MANIFOLD_RAW_INDEX_INCREASES_CW);
+}
+
+/// @brief Inverse of clock_minutes_for_slot() - the human slot at a given clock
+/// minute label, or -1 if none matches exactly.
+int slot_for_clock_minutes(int minutes)
+{
+  return core::slot_for_clock_minutes(raw_slot_of_human_idx, NB_SLOT, minutes,
+                                      MANIFOLD_RAW_POSITIONS, MANIFOLD_RAW_INDEX_INCREASES_CW);
 }
 
 void directionDetermination(float goal_angle)
@@ -181,9 +241,10 @@ void directionDetermination(float goal_angle)
 }
 
 
-void readEncoder(bool init_setup)
+bool readEncoder(bool init_setup)
 {
   static uint32_t last_print = millis();
+  static uint32_t last_error_print = 0;
 
   uint16_t encoderPosition; //a 16 bit variable to hold the encoders position (goes up to 4096)
   uint8_t attempts; //count how many times we've tried to obtain the position in case there are errors
@@ -209,31 +270,40 @@ void readEncoder(bool init_setup)
 
   if (encoderPosition == 0xFFFF) //position is bad, let the user know how many times we tried
   {
-    if(VERBOSE_MANIFOLD){output.print("Encoder 0 error. Attempts: ");
-    output.println(attempts);
-    output.println(DEC);} //print out the number in decimal format. attempts - 1 is used since we post incremented the loop
-  }
-  else //position was good, print to serial stream
-  {
-    deg_encoderPosition = encoderPosition * encoder_to_deg;
-
-    if (!init_setup)
+    // Always surfaced (not gated behind VERBOSE_MANIFOLD, unlike the routine print
+    // below) - a communication failure here used to be completely silent, which is
+    // exactly why "the manifold just stops moving" looked like a mystery: current_angle
+    // freezes below without ANY indication why. Throttled since this can be polled
+    // every ~1ms from rotateMotor()'s wait loop.
+    if (millis() - last_error_print > 1000)
     {
-      //increments or decrements nb_turns, if the 0/360deg point have been exceeded
-      if ((deg_encoderPosition > 350) && (deg_previousEncoderPosition < 10))
-        nb_turns = nb_turns - 1;
-      else if ((deg_encoderPosition < 10) && (deg_previousEncoderPosition > 350))
-        nb_turns = nb_turns + 1;
-      current_angle = deg_encoderPosition + 360 * nb_turns;
+      output.println("ERROR | manifold encoder: bad checksum after " + String(attempts) + " attempts - check AMT22 wiring/SPI bus");
+      last_error_print = millis();
+    }
+    return false; // current_angle intentionally left untouched - caller must not trust it moved
+  }
+
+  //position was good
+  deg_encoderPosition = encoderPosition * encoder_to_deg;
+
+  if (!init_setup)
+  {
+    //increments or decrements nb_turns, if the 0/360deg point have been exceeded
+    if ((deg_encoderPosition > 350) && (deg_previousEncoderPosition < 10))
+      nb_turns = nb_turns - 1;
+    else if ((deg_encoderPosition < 10) && (deg_previousEncoderPosition > 350))
+      nb_turns = nb_turns + 1;
+    current_angle = deg_encoderPosition + 360 * nb_turns;
+  }
+
+  if(VERBOSE_MANIFOLD && (millis() - last_print > 500)){
+      output.print("Encoder: ");
+      output.println(current_angle);
+
+      last_print = millis();
     }
 
-    if(VERBOSE_MANIFOLD && (millis() - last_print > 500)){
-        output.print("Encoder: ");
-        output.println(current_angle);
-
-        last_print = millis();
-      }
-  }
+  return true;
 }
 
 /**
@@ -327,34 +397,52 @@ uint8_t spiWriteRead(uint8_t sendByte, uint8_t encoder, uint8_t releaseLine)
 /**
  * @brief Calibrate the encoder of the manifold
  * TODO: implement calibration with button and integrate to GUI
- * @param speed Speed of the motor
+ * @param speed Speed of the motor - kept deliberately slow (see MANIFOLD_CAL_SPEED)
+ * so there's time to react and stop the motor exactly aligned.
  */
 void calibrateEncoder(uint16_t speed){
+    OringScope oring(core::LOCK_STATE_UNLOCKED); // locked again on return
+    if (!oring.ok())
+    {
+        output.println("REFUSED | cal: manifold not moved (O-ring not unlocked)");
+        return;
+    }
     output.println("Calibrating encoder of the manifold");
-    output.println("Be ready to press button when motor is aligned with slot 0");
-    output.println("Press button or type text to start motor");
+    output.println("Be ready to press a key when the motor is aligned with slot 0");
+    output.println("Send 'c' to rotate clockwise, 'x' to abort, or any other key to rotate anticlockwise");
+    output.println("(pick whichever direction is safe from the manifold's current position)");
 
     while (!Serial.available())
     {
       delay(10);
     }
 
-    output.println("Starting to rotate");
-    Serial.flush();
-    delay(1000);
-
-    manifold_motor.start(speed, up);
-    
+    char dir_choice = Serial.read();
     while (Serial.available())
     {
       Serial.read();
     }
+    if (dir_choice == 'x' || dir_choice == 'X')
+    {
+      output.println("Aborted before starting.");
+      return;
+    }
+    motor_direction dir = (dir_choice == 'c' || dir_choice == 'C') ? down : up; // down = clockwise, up = anticlockwise (see Motor.h)
+
+    output.println(dir == down ? "Starting to rotate CLOCKWISE" : "Starting to rotate ANTICLOCKWISE");
+    delay(1000);
+
+    manifold_motor.start(speed, dir);
     
     while (!Serial.available()){
         delay(1);
     }
 
     manifold_motor.stop();
+
+    while (Serial.available()){
+        Serial.read(); // consume the stopping keypress - leaving it buffered would get eaten by whatever reads Serial next
+    }
 
     // read encoder value and convert to degrees
     float pos = getPositionSPI(ENCODER_MANIFOLD, RES12);
@@ -401,24 +489,55 @@ uint16_t getRotationSPI(uint8_t encoder){
     Serial.print("Manifold encoder turns : ");
     Serial.println(encoderTurns);
     Serial.print("With angle value : ");
-    Serial.println(encoderPosition * encoder_to_deg);
+    Serial.println((encoderPosition >> 2) * encoder_to_deg); // F52: 14-bit frame, 12-bit encoder -> >> 2 (as getPositionSPI does)
     return encoderTurns;
 }
 
 float scale_angle(float angle){
-  float new_angle;
+  return core::scale_angle(angle, scale_reference_angle, angle_between_slots);
+}
 
-  new_angle = angle - purge_angle + 11.25;
-
-  uint8_t loop_nb = 0;
-  while ((new_angle < -180 || new_angle >= 180) && loop_nb < 3){
-    if (new_angle < -180){
-      new_angle += 360.0;
-    }
-    else {
-      new_angle -= 360.0;
+bool read_manifold_angle(float *angle_deg)
+{
+  for (uint8_t attempt = 0; attempt < 3; attempt++)
+  {
+    uint16_t pos = getPositionSPI(ENCODER_MANIFOLD, RES12);
+    if (pos != 0xFFFF)
+    {
+      *angle_deg = pos * encoder_to_deg;
+      return true;
     }
   }
+  return false;
+}
 
-  return new_angle;
+int manifold_nearest_slot(float *error_deg, bool *encoder_ok)
+{
+  float angle;
+  bool ok = read_manifold_angle(&angle);
+  if (encoder_ok)
+  {
+    *encoder_ok = ok;
+  }
+  if (!ok)
+  {
+    if (error_deg)
+    {
+      *error_deg = NAN;
+    }
+    return -1;
+  }
+  return core::nearest_slot(sterivex_angle, NB_SLOT, angle, error_deg);
+}
+
+bool manifold_slot_error(int slot, float *error_deg)
+{
+  float angle;
+  if (slot < 0 || slot >= NB_SLOT || !read_manifold_angle(&angle))
+  {
+    *error_deg = NAN;
+    return false;
+  }
+  *error_deg = core::angle_diff_deg(angle, sterivex_angle[slot]);
+  return true;
 }

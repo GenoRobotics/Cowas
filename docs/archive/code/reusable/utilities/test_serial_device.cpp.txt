@@ -1,0 +1,8 @@
+void test_serial_device()
+{
+    if (Serial.available())
+    {
+        output.println(Serial.read());
+        output.println("");
+    }
+}

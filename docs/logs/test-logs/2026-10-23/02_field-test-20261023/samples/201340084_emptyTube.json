@@ -1,0 +1,38 @@
+{
+  "t": "sample",
+  "fw": "S1-1b-dev",
+  "id": "emptyTube",
+  "purpose": "sample",
+  "site": "test",
+  "date": "2026-10-23",
+  "condition": "control",
+  "slot": 10,
+  "start_ms": 1146489,
+  "end_ms": 1243438,
+  "target_ml": 1000.0,
+  "vol_ml": 1001.0,
+  "vol_trusted_ml": 1001.0,
+  "purge_ml": null,
+  "end_reason": "volume",
+  "p_mean_bar": 0.658,
+  "p_max_bar": 0.736,
+  "p_cap_bar": 3.6,
+  "lock_before": "LOCKED",
+  "lock_after": "LOCKED",
+  "shield_ml": null,
+  "calib": {
+    "flow_factor": 77.0,
+    "p_gain": 1.041,
+    "p_offset_bar": -0.031,
+    "abp_full_scale_psi": 60.0,
+    "linear_act_locked_steps": 210
+  },
+  "flags": [
+    "placeholder:ABP_FULL_SCALE_PSI",
+    "placeholder:STX_MAX_PRESSURE"
+  ],
+  "pc_received": "2026-10-23T20:13:40.084+02:00",
+  "file": "201340084_emptyTube.json",
+  "run_start_pc": "2026-10-23T20:11:16.785+02:00",
+  "run_finish_pc": "2026-10-23T20:16:36.013+02:00"
+}

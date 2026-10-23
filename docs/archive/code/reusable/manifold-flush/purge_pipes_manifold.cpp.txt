@@ -1,0 +1,74 @@
+// ARCHIVED 2026-10-23 (user: "purgePipesFunction can be put to the archive"). Not compiled.
+// From: src/Hardware/maintenance.cpp (purge_pipes_manifold, run_pump), the Pi command purgePipesFunction in
+// src/main.cpp, and computer_interface/ (cowas_interface.py button, cowas_loop.py function, see the .py.txt next to this file).
+// Why removed: the operator does not use it; the Pi command is the only caller. It runs the pump with no cap poll
+// (F202), and it rotates the manifold without a lock check of its own (F63, the rotation goes through rotateMotor()).
+// Why kept: one routine that fills the container and purges all 15 manifold slots in turn (27 s each, slot 8 untangle
+// move). A maintenance flush after the manifold realignment could use the same sequence, with the cap polled.
+// To restore: copy back into src/Hardware/maintenance.cpp, declare it in include/maintenance.h, add the MAINT_FILL_TIME
+// and MAINT_PURGE_TIME macros, and put the command back in main.cpp. Check the cap first (F202).
+
+// --- run_pump() (its only caller was purge_pipes_manifold) ---
+void run_pump(uint32_t max_time){
+    uint32_t start_time = millis();
+    pump.start();
+
+    do {
+        delay(20);
+        // Serial.println(millis() - start_time);
+    } while (button_start.isReleased() && (millis() - start_time) < max_time);
+
+    if (button_start.isPressed()) 
+        button_start.waitPressedAndReleased();
+
+    pump.stop();
+}
+
+// --- purge_pipes_manifold() ---
+void purge_pipes_manifold(){
+    if (!require_pressure_sensor("purge_pipes_manifold")){
+        return;
+    }
+    Serial.println("Ready to start purge of manifold pipes, please press start button");
+
+    button_start.waitPressedAndReleased();
+
+    step_fill_container();
+    delay(1000);
+    pump.set_power(25);
+
+    for (uint8_t slot = 0; slot < 15; slot++){
+        Serial.print("Filling and purging slot ");
+        Serial.println(slot);
+
+        // valve_1.set_close_way();
+        // valve_23.set_I_way();
+        // run_pump(MAINT_FILL_TIME);
+
+        if (!rotateMotor(slot)){ // FW2: refused (lock state) or failed -> stop, never pump at the wrong slot
+            pump.stop();
+            valve_manifold.set_close_way();
+            valve_1.set_close_way();
+            output.println("ERROR | purge_pipes_manifold: rotation to slot " + String(slot) + " failed - stopped");
+            return;
+        }
+        delay(500);
+
+        valve_23.set_L_way();
+        valve_manifold.set_open_way();
+        run_pump(MAINT_PURGE_TIME);
+        valve_manifold.set_close_way();
+
+        if (slot == 8){ // to avoid tangling pipe, note: should work without
+            rotateMotor(4);
+            rotateMotor(0);
+        }
+
+        delay(500);
+    }
+
+    valve_1.set_close_way();
+    
+    step_purge(false);  // emptying container in case some water is left
+
+}
