@@ -1862,3 +1862,21 @@ Condensed on 2026-10-23 at the user's request. The findings and decisions are in
 **Checks:** all links in `LOG.md`, `findings.md` and `decisions.md` resolve.
 
 **Open items:** unchanged from the entry above (stale references to renamed files, `docs/for-felix.md`, wording in other documents, the log is not yet in git).
+
+---
+
+### Session 2026-10-23 (stage1-field): branch and checks for the field-deployment push
+
+**Why.** The S1-1 pressure work, the S1-1b pressure ramp (Part 2 reverted), the run-key, filter-watch, fill-stop, pump-start, sample-record and trusted-volume modules, and the docs reorganization had sat uncommitted on `s1-1-pressure-abp`. They are now on one reviewable branch, `stage1-field`.
+
+**Done:**
+- Committed in four commits, by area: docs reorganization (`5a5cce3`), host protocol and simulator (`6178611`), tools (`67d45bc`), firmware (`b8fdbd3`). Pushed to origin under the old name `CoWas-Stage1-Proto-FieldDeployment`.
+- Local branch renamed to `stage1-field`. The remote rename (push under the new name, delete the old one) is not done yet.
+
+**Checks (on `b8fdbd3`):** `pio run -e due` passes. `pio test -e native`: 172 of 172 pass. Host `pytest`: pass. `ruff check` and `ruff format --check`: pass. `pytest tools/`: 109 pass. The host venv was created in `host/.venv` (git-ignored).
+
+**Open:**
+1. Merge `shield_V2` into `stage1-field` before the pull request. The merge conflicts in 15 files (`include/Manifold.h`, `Pump.h`, `Settings.h`, `Tests.h`, `src/main.cpp`, `src/Tests.cpp`, `src/Step_functions.cpp`, and others). Which side wins in each file is a decision not yet taken.
+2. Push the rename and delete the old remote branch name.
+3. Open the pull request into `shield_V2`.
+4. No bench run was done in this session. The hardware checklist for this step is not run.
