@@ -1,0 +1,32 @@
+void test_1_depth_40m_direct()
+{
+    if (!SPOOL_USE)
+    {
+        output.println("Spool disabled (SPOOL_USE=false in Settings.h) - test skipped");
+        return;
+    }
+    output.println("TEST 1 - ALTIMETRE 19m direct");
+    uint32_t lastTime = 0;
+
+    spool.start_origin();
+    status_led.on();
+    output.println("=========== go 19m");
+    button_start.waitPressedAndReleased();
+    status_led.off();
+    lastTime = millis();
+    spool.start(19000);
+    output.println(millis() - lastTime);
+
+    status_led.on();
+    output.println("=========== go origin");
+    button_start.waitPressedAndReleased();
+    status_led.off();
+    lastTime = millis();
+    spool.start(-1);
+    output.println(millis() - lastTime);
+
+    green_led.on();
+    output.println("END OF TEST 1 19 meters direct");
+    button_start.waitPressedAndReleased();
+    green_led.off();
+}

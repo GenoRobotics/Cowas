@@ -1,0 +1,6 @@
+void timerStop(struct Timer pTimer){
+    IRQn_Type _irq = pTimer.irq;
+
+    pmc_disable_periph_clk((uint32_t)_irq);
+    NVIC_DisableIRQ(_irq);
+}

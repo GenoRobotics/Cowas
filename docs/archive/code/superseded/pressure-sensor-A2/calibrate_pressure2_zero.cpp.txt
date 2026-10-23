@@ -1,0 +1,39 @@
+void calibrate_pressure2_zero()
+{
+    output.println("=== Pressure2 (new sensor) zero-point calibration ===");
+    output.println("Make sure NO pressure is applied (open to air / disconnected), then send any key to read, or 'x' to abort.");
+
+    if (wait_for_keypress_or_abort())
+    {
+        output.println("Aborted.");
+        return;
+    }
+
+    const uint8_t SAMPLES = 50;
+    float total = 0;
+    float min_reading = 0;
+    float max_reading = 0;
+    for (uint8_t i = 0; i < SAMPLES; i++)
+    {
+        float reading = pressure2.readPressure();
+        if (i == 0 || reading < min_reading) min_reading = reading;
+        if (i == 0 || reading > max_reading) max_reading = reading;
+        total += reading;
+        delay(20);
+    }
+    float mean_reading = total / SAMPLES;
+    float spread = max_reading - min_reading;
+
+    output.println("Mean reading over " + String(SAMPLES) + " samples (should be ~0 bar at true ambient): " + String(mean_reading, 3) + " bar");
+    output.println("Spread (max-min): " + String(spread, 3) + " bar");
+    if (spread > 0.3)
+    {
+        output.println("WARNING: that spread is large for a sensor just sitting still - this looks like signal noise or a wiring issue (loose connector, floating pin, missing ground), not just an offset error. Fixing the offset alone won't help until the underlying signal is stable - worth checking the physical wiring before trusting this sensor for anything safety-related.");
+    }
+
+    const float OLD_OFFSET = 0.483; // must match the OffSet constant in BigPressure::convertToPressure() (Pressure_sensor.cpp) - update this too if that constant is ever changed by hand
+    float new_offset = OLD_OFFSET + mean_reading / 2.5;
+
+    output.println("Edit this in Pressure_sensor.cpp (BigPressure::convertToPressure()), then rebuild and reflash:");
+    output.println("  const float OffSet = " + String(new_offset, 3) + "; // V");
+}

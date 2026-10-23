@@ -1,0 +1,38 @@
+{
+  "t": "sample",
+  "fw": "S1-1b-dev",
+  "id": "newFilter",
+  "purpose": "sample",
+  "site": "test",
+  "date": "2026-10-23",
+  "condition": "filter 1",
+  "slot": 11,
+  "start_ms": 268314,
+  "end_ms": 528013,
+  "target_ml": 1000.0,
+  "vol_ml": 382.0,
+  "vol_trusted_ml": 323.0,
+  "purge_ml": null,
+  "end_reason": "clogged",
+  "p_mean_bar": 1.946,
+  "p_max_bar": 3.412,
+  "p_cap_bar": 3.6,
+  "lock_before": "LOCKED",
+  "lock_after": "LOCKED",
+  "shield_ml": null,
+  "calib": {
+    "flow_factor": 77.0,
+    "p_gain": 1.041,
+    "p_offset_bar": -0.031,
+    "abp_full_scale_psi": 60.0,
+    "linear_act_locked_steps": 210
+  },
+  "flags": [
+    "placeholder:ABP_FULL_SCALE_PSI",
+    "placeholder:STX_MAX_PRESSURE"
+  ],
+  "pc_received": "2026-10-23T20:01:44.517+02:00",
+  "file": "200144517_newFilter.json",
+  "run_start_pc": "2026-10-23T19:56:29.285+02:00",
+  "run_finish_pc": "2026-10-23T20:04:39.655+02:00"
+}

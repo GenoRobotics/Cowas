@@ -1,0 +1,44 @@
+/**
+ * @brief Multi-sample dry run: rotates through every available slot in FILL_ORDER
+ * and runs load_slot() at each with a small volume (TEST_MULTI_SAMPLE_VOLUME_ML,
+ * not a real sample) - goal is to exercise every joint for leaks and confirm the
+ * fill order/manifold rotation itself, without spending a full sample's worth of
+ * water per slot. Pauses for operator confirmation between slots so leaks can be
+ * inspected before moving on; send any key to continue, 'x' to abort the whole run.
+ */
+void test_multi_sample_loading()
+{
+    output.println("=== Multi-sample loading test (dry run, " + String(TEST_MULTI_SAMPLE_VOLUME_ML) + " mL/slot) ===");
+    output.println("Visits every available slot in FILL_ORDER. Send any key to start, or 'x' to abort now.");
+
+    if (wait_for_keypress_or_abort())
+    {
+        output.println("Aborted before start");
+        return;
+    }
+
+    for (uint8_t i = 0; i < 14; i++)
+    {
+        int slot = FILL_ORDER[i];
+        if (manifold.get_state(slot) != available)
+        {
+            continue;
+        }
+
+        output.println("--- Slot " + String(slot) + " (clock " + String(clock_minutes_for_slot(slot)) + " min), " + String(i + 1) + "/14 in FILL_ORDER ---");
+        unlock_oring(); // no-op if already unlocked - guards the first iteration too, in case a prior run left it locked
+        rotateMotor(slot);
+
+        bool ok = load_slot(TEST_MULTI_SAMPLE_VOLUME_ML);
+        output.println(ok ? "  ok" : "  FAILED - lock_oring() did not confirm lock, check manually");
+
+        output.println("Inspect joints for leaks. Send any key to continue to the next slot, or 'x' to abort.");
+        if (wait_for_keypress_or_abort())
+        {
+            output.println("Aborted by operator.");
+            return;
+        }
+    }
+
+    output.println("Multi-sample loading test complete - all available slots visited.");
+}

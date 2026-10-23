@@ -1,0 +1,8 @@
+float slot_encoder_angle(int slot)
+{
+  if (slot < 0 || slot >= NB_SLOT)
+  {
+    return NAN;
+  }
+  return sterivex_angle[slot];
+}

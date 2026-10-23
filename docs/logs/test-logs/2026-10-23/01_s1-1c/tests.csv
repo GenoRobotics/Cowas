@@ -1,0 +1,5 @@
+host_time,tag,name,id,result,data,raw
+2026-10-23T18:08:41,s1-1c,actuator_home,home,PASS,slot=0;err_deg=-0.00;tol_deg=3.0;state=UNLOCKED,TEST|actuator_home|home|PASS|slot=0;err_deg=-0.00;tol_deg=3.0;state=UNLOCKED
+2026-10-23T18:08:41,s1-1c,actuator_home,summary,PASS,pass=1;fail=0;skip=0,TEST|actuator_home|summary|PASS|pass=1;fail=0;skip=0
+2026-10-23T18:14:30,s1-1c,run_sample,11,PASS,"slot=11;purge=y;shield=y;empty=y;volume_ml=1000;placeholders=purge_ml,shield_time,flow_factor;purge_ml=100;spool=absent;name=cloged filter1;condition=filter1;time=18:09;site=boisChamblard;experiment=AirEau;sampled_ml=4;trusted_ml= 0;sample_end=clogged;rule=clogged;empty_step=removed","TEST|run_sample|11|PASS|slot=11;purge=y;shield=y;empty=y;volume_ml=1000;placeholders=purge_ml,shield_time,flow_factor;purge_ml=100;spool=absent;name=cloged filter1;condition=filter1;time=18:09;site=boisChamblard;experiment=AirEau;sampled_ml=4;trusted_ml= 0;sample_end=clogged;rule=clogged;empty_step=removed"
+2026-10-23T18:14:30,s1-1c,run_sample,summary,PASS,pass=1;fail=0;skip=0,TEST|run_sample|summary|PASS|pass=1;fail=0;skip=0

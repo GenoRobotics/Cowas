@@ -1,0 +1,17 @@
+void DNA_shield_test(int slot_manifold)
+{
+    // ! need to leave water in pipe
+
+    if (VERBOSE_SHIELD)
+    {
+        output.println("Step DNA-shield started");
+    }
+
+    // go to right slot
+    if (!rotateMotor(slot_manifold))
+    {
+        return;
+    }
+
+    micro_pump.start(FILL_STERIVEX_TIME);
+}

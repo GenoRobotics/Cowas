@@ -1,0 +1,81 @@
+# S1-A bench session, 2026-10-19 (slot 7 and slot 11)
+
+Condensed from the console transcripts the user pasted in the chat. The raw `hw_test_log.py` output (CSV and full transcript) was not captured this session. The TEST lines below are verbatim. Tables are abridged.
+
+Firmware: branch s1-1-pressure-abp, uncommitted. Cap, pause and resume changed during the session (see FIRMWARE_LOG, S1-A entry). The runs below are listed in order.
+
+## Run 1: slot 7 (bare tube), 1000 mL, 2.2 bar (the flowmeter check)
+
+Visual: the outlet ran freely, into a graduated beaker. Weight of the water: 1006 g.
+
+    fill_test volume=1000 label=a1 quick
+    Pump 1000 mL (flowmeter, UNCALIBRATED) at 2.20 bar. PID 200.0 / 100.00 / 100.0, output 0..60 %, start 15%, steps 3 % per update, pressure raw.
+    ...
+    90  FILL   2.20  0.361  0.36  60.0  980  0.649
+    Pump P1 stopped
+    fill_test ended: volume, 1000 mL (flowmeter) in 92 s, P max 0.37 bar, 0 pause(s)
+    TEST|fill_test|7|PASS|slot=7;label=a1;end=volume;vol_ml=1000;want_ml=1000;t_s=92;tgt=2.20;kp=200.0;ki=100.00;kd=100.0;slew=3;filt=0.0;pmax=0.37;pauses=0;paused_s= 0;pw_end=60.0;ml_min=650;p_end=-0.06
+
+Note: the bare tube cannot build pressure (output capped at 60 %, P ≈ 0.36 bar), so this run checks the water path and the flowmeter only.
+
+## Run 2: slot 11 (new filter), 100 mL, 2.2 bar (the S1-A pass)
+
+    fill_test volume=100 label=a2 quick
+    Pump 100 mL (flowmeter, UNCALIBRATED) at 2.20 bar. ...
+    Pauses at 2.80 bar (raw), resumes under 2.30 bar. ... Hard cap 3.20 bar.
+    ...
+    50  FILL   2.20  2.151  2.15  23.3  95  0.130
+    Pump P1 stopped
+    fill_test ended: volume, 100 mL (flowmeter) in 52 s, P max 2.43 bar, 0 pause(s)
+    TEST|fill_test|11|PASS|slot=11;label=a2;end=volume;vol_ml=100;want_ml=100;t_s=52;tgt=2.20;kp=200.0;ki=100.00;kd=100.0;slew=3;filt=0.0;pmax=2.43;pauses=0;paused_s= 0;pw_end=24.0;ml_min=115;p_end=0.28
+
+Weight: not recorded in the chat. The user reports the result as "perfect". **To record in this file.**
+
+## Run 3: slot 11, 1000 mL, 2.2 bar, aborted by hand (before the stall fix)
+
+Same filter as run 2, after it had run for a while. The flowmeter count went flat at 516–517 mL for about 200 s while the pump kept running and pausing; the stall rule did not fire, because every pause restarted its window (F149). Stopped with a key.
+
+    fill_test ended: aborted, 517 mL (flowmeter) in 763 s, P max 2.91 bar, 139 pause(s)
+    TEST|fill_test|11|FAIL|slot=11;label=a2;end=aborted;vol_ml=517;want_ml=1000;t_s=763;tgt=2.20;kp=200.0;ki=100.00;kd=100.0;slew=3;filt=0.0;pmax=2.91;pauses=139;paused_s=72;pw_end=6.7;ml_min=41;p_end=1.44
+
+Weight at the stop: 847 g (user). The flowmeter under-reads at this flow (F150).
+
+## Run 4: slot 11, 100 mL, 2.2 bar target, cap 3.2 bar (pause at 2.8 bar)
+
+An earlier check with the 3.2 bar cap, before the cap went to 3.6. Stopped by hand. Weight: 125 g for 8 mL counted (F150).
+
+    fill_test ended: aborted,  8 mL (flowmeter) in 758 s, P max 2.92 bar, 215 pause(s)
+    TEST|fill_test|11|FAIL|slot=11;label=a2;end=aborted;vol_ml= 8;want_ml=100;t_s=758;tgt=2.20;kp=200.0;ki=100.00;kd=100.0;slew=3;filt=0.0;pmax=2.92;pauses=215;paused_s=346;pw_end=6.6;ml_min= 1;p_end=1.94
+
+## Run 5: slot 11, 100 mL, target 3.0 bar, cap 3.6 bar (pause 3.35, resume 3.15), the filter already used in runs 3 and 4
+
+    fill_test volume=100 label=a2 quick
+    Pump 100 mL (flowmeter, UNCALIBRATED) at 3.00 bar. ...
+    Pauses at 3.35 bar (raw), resumes under 3.15 bar. ... Hard cap 3.60 bar.
+    window 60 s pumping:  8 mL (first  8 mL)
+    window 60 s pumping: 28 mL (first  8 mL)
+    window 60 s pumping:  9 mL (first  8 mL)
+    window 60 s pumping:  3 mL (first  8 mL)
+    window 60 s pumping:  1 mL (first  8 mL)  CLOG? below 30 % of the first window
+    Pump P1 stopped
+    fill_test ended: stalled, 49 mL (flowmeter) in 383 s, P max 3.51 bar, 366 pause(s)
+    TEST|fill_test|11|FAIL|slot=11;label=a2;end=stalled;vol_ml=49;want_ml=100;t_s=383;tgt=3.00;kp=200.0;ki=100.00;kd=100.0;slew=3;filt=0.0;pmax=3.51;pauses=366;paused_s=83;clog_warn=1;pw_end=11.4;ml_min= 8;p_end=2.13
+
+Notes: this filter is not new (runs 3 and 4). The run shows the stop working, not the flow. The pump paused 366 times at a 3.0 bar target (F151). The weight was not recorded.
+
+## Run 6: `actuator_home` before the runs
+
+    actuator_home: slot 11 aligned (error -1.06 deg) ...
+    TEST|actuator_home|home|PASS|slot=11;err_deg=-1.06;tol_deg=3.0;state=UNLOCKED
+
+## Summary
+
+| Run | Slot | Target | Result | Weight |
+|---|---|---|---|---|
+| 1 | 7 | 2.2 | PASS (1000 mL printed) | 1006 g |
+| 2 | 11 (new) | 2.2 | PASS (100 mL printed, 52 s) | not recorded, "perfect" (user) |
+| 3 | 11 (used) | 2.2 | aborted at 517 mL, 763 s | 847 g |
+| 4 | 11 (used) | 2.2 (cap 3.2) | aborted at 8 mL, 758 s | 125 g |
+| 5 | 11 (used) | 3.0 (cap 3.6) | stalled at 49 mL, 383 s | not recorded |
+
+S1-A pass (user, 2026-10-19): run 1 and run 2.

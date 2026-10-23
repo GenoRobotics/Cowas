@@ -1,0 +1,277 @@
+2026-10-23T18:08:12.784+02:00 ! open COM6 9600 baud, DTR/RTS low
+2026-10-23T18:08:26.350+02:00 > actuator_home
+2026-10-23T18:08:26.469+02:00 < > actuator_home
+2026-10-23T18:08:26.469+02:00 < === actuator_home ===
+2026-10-23T18:08:26.469+02:00 < actuator_home: slot 0 aligned (error -0.00 deg)
+2026-10-23T18:08:26.680+02:00 < actuator_home: overdrive lock to the physical stop, then unlock (x = abort)
+2026-10-23T18:08:41.468+02:00 < actuator_home: done, O-ring UNLOCKED (known)
+2026-10-23T18:08:41.683+02:00 < TEST|actuator_home|home|PASS|slot=0;err_deg=-0.00;tol_deg=3.0;state=UNLOCKED
+2026-10-23T18:08:41.706+02:00 < --- actuator_home summary ---
+2026-10-23T18:08:41.706+02:00 < id          | result | data
+2026-10-23T18:08:41.707+02:00 < home        | PASS   | slot=0;err_deg=-0.00;tol_deg=3.0;state=UNLOCKED
+2026-10-23T18:08:41.707+02:00 < TOTAL: 1 PASS, 0 FAIL, 0 SKIP -> PASS
+2026-10-23T18:08:41.917+02:00 < TEST|actuator_home|summary|PASS|pass=1;fail=0;skip=0
+2026-10-23T18:08:51.342+02:00 > session
+2026-10-23T18:08:51.474+02:00 < > session
+2026-10-23T18:08:51.474+02:00 < ASK | site  (type the answer + ENTER, x = cancel)
+2026-10-23T18:08:57.006+02:00 > boisChamblard
+2026-10-23T18:08:57.101+02:00 < ASK | date (YYYY-MM-DD)  (type the answer + ENTER, x = cancel)
+2026-10-23T18:09:03.006+02:00 > 2026-1°-23
+2026-10-23T18:09:03.141+02:00 < ASK | experiment name  (type the answer + ENTER, x = cancel)
+2026-10-23T18:09:05.887+02:00 > AirEau
+2026-10-23T18:09:06.042+02:00 < ASK | operator (optional)  (type the answer + ENTER, x = cancel)
+2026-10-23T18:09:07.202+02:00 > Felix
+2026-10-23T18:09:07.484+02:00 < META|session;site=boisChamblard;date=2026-1°-23;experiment=AirEau;operator=Felix
+2026-10-23T18:09:18.250+02:00 > runsample
+2026-10-23T18:09:18.333+02:00 < > runsample
+2026-10-23T18:09:21.684+02:00 > run_sample 11
+2026-10-23T18:09:21.878+02:00 < > run_sample 11
+2026-10-23T18:09:21.878+02:00 < ASK | sample name  (type the answer + ENTER, x = cancel)
+2026-10-23T18:09:32.739+02:00 > cloged filter1
+2026-10-23T18:09:32.854+02:00 < ASK | condition (e.g. control, blank, filter A)  (type the answer + ENTER, x = cancel)
+2026-10-23T18:09:46.150+02:00 > filter1
+2026-10-23T18:09:46.432+02:00 < ASK | time (HH:MM)  (type the answer + ENTER, x = cancel)
+2026-10-23T18:09:55.967+02:00 > 18:09
+2026-10-23T18:09:56.216+02:00 < ASK | notes (optional)  (type the answer + ENTER, x = cancel)
+2026-10-23T18:09:57.832+02:00 > 
+2026-10-23T18:09:58.098+02:00 < META|sample;slot=11;name=cloged filter1;condition=filter1;time=18:09;notes=;site=boisChamblard;date=2026-1°-23;experiment=AirEau
+2026-10-23T18:09:58.100+02:00 < === run_sample ===
+2026-10-23T18:09:58.100+02:00 < Step purge started
+2026-10-23T18:09:58.100+02:00 < Step purge: 100 mL, spool absent
+2026-10-23T18:10:05.833+02:00 < O-ring locked
+2026-10-23T18:10:05.833+02:00 < Valve V1 closed
+2026-10-23T18:10:05.833+02:00 < Valve V_manifold opened
+2026-10-23T18:10:06.881+02:00 < Flow sensor reset, CtrlPumpFlow
+2026-10-23T18:10:06.883+02:00 < Millil after reset: 0
+2026-10-23T18:10:06.883+02:00 < ctrl flow started
+2026-10-23T18:10:06.883+02:00 < Flow sensor reset, CtrlPumpFlow
+2026-10-23T18:10:07.097+02:00 < Millil after reset: 0
+2026-10-23T18:10:07.097+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:10:07.097+02:00 < Pressure bar : 0.04
+2026-10-23T18:10:07.097+02:00 < Flow measured : 0
+2026-10-23T18:10:10.000+02:00 < Pressure bar : 0.06
+2026-10-23T18:10:10.000+02:00 < Flow measured : 0
+2026-10-23T18:10:12.914+02:00 < Pressure bar : 0.05
+2026-10-23T18:10:12.914+02:00 < Flow measured : 0
+2026-10-23T18:10:16.021+02:00 < Pressure bar : 0.33
+2026-10-23T18:10:16.021+02:00 < Flow measured : 10
+2026-10-23T18:10:18.958+02:00 < Pressure bar : 0.58
+2026-10-23T18:10:18.958+02:00 < Flow measured : 38
+2026-10-23T18:10:21.880+02:00 < Pressure bar : 0.62
+2026-10-23T18:10:22.089+02:00 < Flow measured : 72
+2026-10-23T18:10:24.397+02:00 < End cond first met
+2026-10-23T18:10:24.397+02:00 < Pump control loop should stop now
+2026-10-23T18:10:25.025+02:00 < Pump P1 stopped
+2026-10-23T18:10:25.647+02:00 < {"t":"sample","fw":"S1-1b-dev","id":"auto-1","purpose":"purge","site":"boisChamblard","date":"2026-1°-23","condition":"filter1","slot":0,"start_ms":216264,"end_ms":234333,"target_ml":100.000,"vol_ml":101.000,"vol_trusted_ml":101.000,"purge_ml":101.000,"end_reason":"volume","p_mean_bar":0.295,"p_max_bar":0.627,"p_cap_bar":3.600,"lock_before":"UNLOCKED","lock_after":"LOCKED","shield_ml":null,"calib":{"flow_factor":77.000,"p_gain":1.041,"p_offset_bar":-0.031,"abp_full_scale_psi":60.000,"linear_act_locked_steps":210},"flags":["placeholder:ABP_FULL_SCALE_PSI","placeholder:STX_MAX_PRESSURE"]}
+2026-10-23T18:10:25.650+02:00 < Valve V1 closed
+2026-10-23T18:10:25.650+02:00 < Valve V_manifold closed
+2026-10-23T18:10:25.650+02:00 < Time to purge : 18616 ms (end=cond)
+2026-10-23T18:10:25.650+02:00 < Step purge ended
+2026-10-23T18:10:25.650+02:00 < Step sample through filter started
+2026-10-23T18:10:32.758+02:00 < O-ring unlocked
+2026-10-23T18:10:42.308+02:00 < O-ring locked
+2026-10-23T18:10:42.308+02:00 < Valve V1 closed
+2026-10-23T18:10:42.308+02:00 < Valve V_manifold opened
+2026-10-23T18:10:43.342+02:00 < Flow sensor reset, CtrlPumpFlow
+2026-10-23T18:10:43.342+02:00 < Millil after reset: 0
+2026-10-23T18:10:43.342+02:00 < Step sample: pumping water through sterivex
+2026-10-23T18:10:43.342+02:00 < Flow sensor reset, CtrlPumpFlow
+2026-10-23T18:10:43.342+02:00 < Millil after reset: 0
+2026-10-23T18:10:43.342+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:10:43.342+02:00 < Pressure bar : -0.05
+2026-10-23T18:10:43.548+02:00 < Flow measured : 0
+2026-10-23T18:10:46.439+02:00 < Pressure bar : 0.26
+2026-10-23T18:10:46.439+02:00 < Flow measured : 0
+2026-10-23T18:10:48.137+02:00 < Pump P1 stopped
+2026-10-23T18:10:48.137+02:00 < PAUSE at 3.36 bar (1): waiting for 3.15 bar
+2026-10-23T18:10:48.137+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:10:48.349+02:00 < RESUME at 2.49 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T18:10:49.397+02:00 < Pressure bar : 1.73
+2026-10-23T18:10:49.397+02:00 < Flow measured : 0
+2026-10-23T18:10:52.750+02:00 < Pump P1 stopped
+2026-10-23T18:10:52.750+02:00 < PAUSE at 3.35 bar (2): waiting for 3.15 bar
+2026-10-23T18:10:52.751+02:00 < Pressure bar : 3.35
+2026-10-23T18:10:52.751+02:00 < Flow measured : 1
+2026-10-23T18:10:52.751+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:10:52.968+02:00 < RESUME at 2.57 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T18:10:55.646+02:00 < Pressure bar : 2.04
+2026-10-23T18:10:55.646+02:00 < Flow measured : 1
+2026-10-23T18:10:56.687+02:00 < Pump P1 stopped
+2026-10-23T18:10:56.894+02:00 < PAUSE at 3.35 bar (3): waiting for 3.15 bar
+2026-10-23T18:10:56.896+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:10:56.896+02:00 < RESUME at 2.52 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T18:10:58.776+02:00 < Pressure bar : 1.53
+2026-10-23T18:10:58.782+02:00 < Flow measured : 1
+2026-10-23T18:11:00.867+02:00 < Pump P1 stopped
+2026-10-23T18:11:00.867+02:00 < PAUSE at 3.35 bar (4): waiting for 3.15 bar
+2026-10-23T18:11:00.867+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:11:00.867+02:00 < RESUME at 2.55 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T18:11:01.710+02:00 < Pressure bar : 1.98
+2026-10-23T18:11:01.714+02:00 < Flow measured : 1
+2026-10-23T18:11:04.847+02:00 < Pump P1 stopped
+2026-10-23T18:11:04.847+02:00 < PAUSE at 3.35 bar (5): waiting for 3.15 bar
+2026-10-23T18:11:04.847+02:00 < Pressure bar : 3.35
+2026-10-23T18:11:04.847+02:00 < Flow measured : 1
+2026-10-23T18:11:04.847+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:11:05.053+02:00 < RESUME at 2.56 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T18:11:07.769+02:00 < Pressure bar : 2.12
+2026-10-23T18:11:07.769+02:00 < Flow measured : 1
+2026-10-23T18:11:08.813+02:00 < Pump P1 stopped
+2026-10-23T18:11:08.815+02:00 < PAUSE at 3.35 bar (6): waiting for 3.15 bar
+2026-10-23T18:11:08.816+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:11:09.032+02:00 < RESUME at 2.56 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T18:11:10.915+02:00 < Pressure bar : 1.55
+2026-10-23T18:11:10.917+02:00 < Flow measured : 2
+2026-10-23T18:11:12.823+02:00 < Pump P1 stopped
+2026-10-23T18:11:12.823+02:00 < PAUSE at 3.36 bar (7): waiting for 3.15 bar
+2026-10-23T18:11:12.823+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:11:13.029+02:00 < RESUME at 2.57 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T18:11:13.863+02:00 < Pressure bar : 1.92
+2026-10-23T18:11:13.863+02:00 < Flow measured : 2
+2026-10-23T18:11:16.781+02:00 < Pump P1 stopped
+2026-10-23T18:11:16.783+02:00 < PAUSE at 3.36 bar (8): waiting for 3.15 bar
+2026-10-23T18:11:16.783+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:11:16.985+02:00 < RESUME at 2.58 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T18:11:16.985+02:00 < Pressure bar : 2.57
+2026-10-23T18:11:16.985+02:00 < Flow measured : 2
+2026-10-23T18:11:19.920+02:00 < Pressure bar : 2.42
+2026-10-23T18:11:19.920+02:00 < Flow measured : 2
+2026-10-23T18:11:20.756+02:00 < Pump P1 stopped
+2026-10-23T18:11:20.756+02:00 < PAUSE at 3.36 bar (9): waiting for 3.15 bar
+2026-10-23T18:11:20.756+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:11:20.756+02:00 < RESUME at 2.61 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T18:11:22.829+02:00 < Pressure bar : 1.56
+2026-10-23T18:11:22.829+02:00 < Flow measured : 2
+2026-10-23T18:11:24.697+02:00 < Pump P1 stopped
+2026-10-23T18:11:24.697+02:00 < PAUSE at 3.36 bar (10): waiting for 3.15 bar
+2026-10-23T18:11:24.699+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:11:24.699+02:00 < RESUME at 2.61 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T18:11:25.749+02:00 < Pressure bar : 1.89
+2026-10-23T18:11:25.959+02:00 < Flow measured : 2
+2026-10-23T18:11:28.463+02:00 < Pump P1 stopped
+2026-10-23T18:11:28.680+02:00 < PAUSE at 3.35 bar (11): waiting for 3.15 bar
+2026-10-23T18:11:28.680+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:11:28.680+02:00 < RESUME at 2.61 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T18:11:28.885+02:00 < Pressure bar : 2.43
+2026-10-23T18:11:28.885+02:00 < Flow measured : 3
+2026-10-23T18:11:31.816+02:00 < Pressure bar : 2.94
+2026-10-23T18:11:31.821+02:00 < Flow measured : 3
+2026-10-23T18:11:32.434+02:00 < Pump P1 stopped
+2026-10-23T18:11:32.434+02:00 < PAUSE at 3.37 bar (12): waiting for 3.15 bar
+2026-10-23T18:11:32.647+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:11:32.647+02:00 < RESUME at 2.62 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T18:11:34.742+02:00 < Pressure bar : 1.53
+2026-10-23T18:11:34.953+02:00 < Flow measured : 3
+2026-10-23T18:11:36.410+02:00 < Pump P1 stopped
+2026-10-23T18:11:36.413+02:00 < PAUSE at 3.36 bar (13): waiting for 3.15 bar
+2026-10-23T18:11:36.615+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:11:36.615+02:00 < RESUME at 2.63 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T18:11:37.866+02:00 < Pressure bar : 1.84
+2026-10-23T18:11:37.866+02:00 < Flow measured : 3
+2026-10-23T18:11:40.341+02:00 < Pump P1 stopped
+2026-10-23T18:11:40.343+02:00 < PAUSE at 3.36 bar (14): waiting for 3.15 bar
+2026-10-23T18:11:40.345+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:11:40.556+02:00 < RESUME at 2.63 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T18:11:40.767+02:00 < Pressure bar : 2.31
+2026-10-23T18:11:40.769+02:00 < Flow measured : 3
+2026-10-23T18:11:43.896+02:00 < Pressure bar : 3.31
+2026-10-23T18:11:43.896+02:00 < Flow measured : 3
+2026-10-23T18:11:44.737+02:00 < Pump P1 stopped
+2026-10-23T18:11:44.939+02:00 < PAUSE at 3.37 bar (15): waiting for 3.15 bar
+2026-10-23T18:11:44.939+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:11:44.939+02:00 < RESUME at 2.69 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T18:11:46.823+02:00 < Pressure bar : 1.67
+2026-10-23T18:11:46.823+02:00 < Flow measured : 3
+2026-10-23T18:11:49.312+02:00 < Pump P1 stopped
+2026-10-23T18:11:49.314+02:00 < PAUSE at 3.36 bar (16): waiting for 3.15 bar
+2026-10-23T18:11:49.524+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:11:49.524+02:00 < RESUME at 2.66 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T18:11:49.938+02:00 < Pressure bar : 2.35
+2026-10-23T18:11:49.938+02:00 < Flow measured : 4
+2026-10-23T18:11:52.858+02:00 < Pressure bar : 3.32
+2026-10-23T18:11:52.858+02:00 < Flow measured : 4
+2026-10-23T18:11:53.899+02:00 < Pump P1 stopped
+2026-10-23T18:11:53.899+02:00 < PAUSE at 3.36 bar (17): waiting for 3.15 bar
+2026-10-23T18:11:54.107+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:11:54.107+02:00 < RESUME at 2.65 bar, restart from 0 % (ramp 5.0 %/s)
+2026-10-23T18:11:54.311+02:00 <   window 60 s pumping:  4 mL (first  4 mL)
+2026-10-23T18:11:54.311+02:00 < STOP | filter clogged - stopping pump
+2026-10-23T18:11:54.718+02:00 < Pump P1 stopped
+2026-10-23T18:11:54.928+02:00 < pauses=17 paused_s=10
+2026-10-23T18:11:54.928+02:00 < Step sample ended: clogged, pauses 17
+2026-10-23T18:11:55.567+02:00 < {"t":"sample","fw":"S1-1b-dev","id":"cloged filter1","purpose":"sample","site":"boisChamblard","date":"2026-1°-23","condition":"filter1","slot":11,"start_ms":252623,"end_ms":324174,"target_ml":1000.000,"vol_ml":4.000,"vol_trusted_ml":0.000,"purge_ml":null,"end_reason":"clogged","p_mean_bar":1.931,"p_max_bar":3.365,"p_cap_bar":3.600,"lock_before":"LOCKED","lock_after":"LOCKED","shield_ml":null,"calib":{"flow_factor":77.000,"p_gain":1.041,"p_offset_bar":-0.031,"abp_full_scale_psi":60.000,"linear_act_locked_steps":210},"flags":["placeholder:ABP_FULL_SCALE_PSI","placeholder:STX_MAX_PRESSURE"]}
+2026-10-23T18:11:55.794+02:00 < Pump P1 stopped
+2026-10-23T18:11:55.794+02:00 < Valve V1 closed
+2026-10-23T18:11:56.011+02:00 < Valve V_manifold closed
+2026-10-23T18:11:56.011+02:00 < Vent: pump off, V1 and Vman closed for 20 s, then air vent V1 open for 5 s
+2026-10-23T18:12:15.844+02:00 < Valve V1 opened
+2026-10-23T18:12:20.804+02:00 < Valve V1 closed
+2026-10-23T18:12:21.012+02:00 < Vent: 1.68 bar before, 0.35 bar after the wait, 0.27 bar after the air vent (released)
+2026-10-23T18:12:21.012+02:00 < Valve V1 opened
+2026-10-23T18:12:21.012+02:00 < Valve V_manifold closed
+2026-10-23T18:12:28.073+02:00 < O-ring unlocked
+2026-10-23T18:12:37.437+02:00 < O-ring locked
+2026-10-23T18:12:37.437+02:00 < Step sample: emptying through purge
+2026-10-23T18:12:37.439+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:12:37.649+02:00 < End cond first met
+2026-10-23T18:12:37.649+02:00 < Pressure bar : 0.01
+2026-10-23T18:12:37.651+02:00 < Flow measured : 4
+2026-10-23T18:12:40.542+02:00 < Pressure bar : 0.03
+2026-10-23T18:12:40.542+02:00 < Flow measured : 4
+2026-10-23T18:12:43.455+02:00 < Pressure bar : 0.05
+2026-10-23T18:12:43.457+02:00 < Flow measured : 4
+2026-10-23T18:12:46.558+02:00 < Pressure bar : 0.11
+2026-10-23T18:12:46.560+02:00 < Flow measured : 4
+2026-10-23T18:12:49.481+02:00 < Pressure bar : 0.06
+2026-10-23T18:12:49.481+02:00 < Flow measured : 4
+2026-10-23T18:12:52.415+02:00 < Pressure bar : 0.06
+2026-10-23T18:12:52.415+02:00 < Flow measured : 4
+2026-10-23T18:12:55.537+02:00 < Pressure bar : 0.06
+2026-10-23T18:12:55.537+02:00 < Flow measured : 4
+2026-10-23T18:12:57.425+02:00 < Pump control loop should stop now
+2026-10-23T18:12:58.043+02:00 < Pump P1 stopped
+2026-10-23T18:13:05.150+02:00 < O-ring unlocked
+2026-10-23T18:13:14.505+02:00 < O-ring locked
+2026-10-23T18:13:14.715+02:00 < Step sample: emptying sterivex
+2026-10-23T18:13:14.715+02:00 < Pump P1 started at once with power 0
+2026-10-23T18:13:14.718+02:00 < End cond first met
+2026-10-23T18:13:14.718+02:00 < Pressure bar : 0.04
+2026-10-23T18:13:14.718+02:00 < Flow measured : 4
+2026-10-23T18:13:17.583+02:00 < Pressure bar : 0.08
+2026-10-23T18:13:17.583+02:00 < Flow measured : 4
+2026-10-23T18:13:20.542+02:00 < Pressure bar : 0.43
+2026-10-23T18:13:20.544+02:00 < Flow measured : 4
+2026-10-23T18:13:23.703+02:00 < Pressure bar : 0.66
+2026-10-23T18:13:23.705+02:00 < Flow measured : 4
+2026-10-23T18:13:26.616+02:00 < Pressure bar : 0.74
+2026-10-23T18:13:26.618+02:00 < Flow measured : 4
+2026-10-23T18:13:29.522+02:00 < Pressure bar : 0.76
+2026-10-23T18:13:29.745+02:00 < Flow measured : 4
+2026-10-23T18:13:32.623+02:00 < Pressure bar : 0.72
+2026-10-23T18:13:32.625+02:00 < Flow measured : 4
+2026-10-23T18:13:34.505+02:00 < Pump control loop should stop now
+2026-10-23T18:13:35.138+02:00 < Pump P1 stopped
+2026-10-23T18:13:35.138+02:00 < Valve V1 closed
+2026-10-23T18:13:35.138+02:00 < Time to sample water : 171837 ms
+2026-10-23T18:13:35.138+02:00 < Step sample through filter ended
+2026-10-23T18:13:35.138+02:00 < Step DNA-shield started
+2026-10-23T18:13:35.355+02:00 < Micro Pump DNA Shield pump started 
+2026-10-23T18:14:00.071+02:00 < Micro Pump DNA Shield pump stopped
+2026-10-23T18:14:00.279+02:00 < Step DNA-shield: micro pump ran 25036 ms (time-based, volume not measured)
+2026-10-23T18:14:00.682+02:00 < Valve V_manifold closed
+2026-10-23T18:14:00.682+02:00 < Valve V1 opened
+2026-10-23T18:14:05.069+02:00 < Pump P1 started with power 13
+2026-10-23T18:14:05.898+02:00 < Pump P1 stopped
+2026-10-23T18:14:05.900+02:00 < Step DNA-shield: air push ran 4800 ms at 13 %
+2026-10-23T18:14:13.636+02:00 < O-ring unlocked
+2026-10-23T18:14:22.988+02:00 < O-ring locked
+2026-10-23T18:14:22.988+02:00 < Valve V1 closed
+2026-10-23T18:14:22.988+02:00 < Step DNA-shield finished
+2026-10-23T18:14:30.042+02:00 < O-ring unlocked
+2026-10-23T18:14:30.463+02:00 < TEST|run_sample|11|PASS|slot=11;purge=y;shield=y;empty=y;volume_ml=1000;placeholders=purge_ml,shield_time,flow_factor;purge_ml=100;spool=absent;name=cloged filter1;condition=filter1;time=18:09;site=boisChamblard;experiment=AirEau;sampled_ml=4;trusted_ml= 0;sample_end=clogged;rule=clogged;empty_step=removed
+2026-10-23T18:14:30.477+02:00 < --- run_sample summary ---
+2026-10-23T18:14:30.480+02:00 < id          | result | data
+2026-10-23T18:14:30.692+02:00 < 11          | PASS   | slot=11;purge=y;shield=y;empty=y;volume_ml=1000;placeholders=purge_ml,shield_ti
+2026-10-23T18:14:30.694+02:00 < TOTAL: 1 PASS, 0 FAIL, 0 SKIP -> PASS
+2026-10-23T18:14:30.694+02:00 < TEST|run_sample|summary|PASS|pass=1;fail=0;skip=0
+2026-10-23T18:15:01.818+02:00 ! closed

@@ -1,0 +1,9 @@
+    return wanted;
+}
+
+float ramp_soft_limit(float target_bar, float overshoot_bar, float cap_bar, float cap_margin_bar)
+{
+    float limit = target_bar + overshoot_bar;
+    float ceiling = cap_bar - cap_margin_bar;
+    return (limit < ceiling) ? limit : ceiling;
+}

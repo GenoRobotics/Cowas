@@ -1,0 +1,28 @@
+static int read_checkpoint_grams(float &grams, uint32_t limit_ms)
+{
+    const uint32_t start = millis();
+    while (millis() - start < limit_ms)
+    {
+        if (Serial.available() <= 0)
+        {
+            delay(20);
+            continue;
+        }
+        String line = Serial.readStringUntil('\n');
+        line.trim();
+        if (line.equalsIgnoreCase("x"))
+        {
+            return 1;
+        }
+        if (line.toFloat() > 0.0f)
+        {
+            grams = line.toFloat();
+            return 0;
+        }
+        if (line.length() > 0)
+        {
+            Serial.println("type the grams as a number (for example 215), or x to end the run");
+        }
+    }
+    return 2;
+}

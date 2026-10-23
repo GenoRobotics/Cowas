@@ -1,0 +1,1614 @@
+2026-10-15T12:09:06 Serial initialized
+2026-10-15T12:09:06 LED status initiated
+2026-10-15T12:09:06 LED green initiated
+2026-10-15T12:09:06 Pressure sensor P1 initiated
+2026-10-15T12:09:06 Valve V1 closed
+2026-10-15T12:09:06 Valve V_23 on L way
+2026-10-15T12:09:06 Valve V_manifold closed
+2026-10-15T12:09:07 Pump P1 stopped
+2026-10-15T12:09:07 Pump P1 initiated
+2026-10-15T12:09:07 Micro Pump DNA Shield pump stopped
+2026-10-15T12:09:07 Micro Pump DNA Shield pump initiated
+2026-10-15T12:09:07 Encoder sensor no_ID initiated
+2026-10-15T12:09:07 Button B_left initiated
+2026-10-15T12:09:07 Button B_right initiated
+2026-10-15T12:09:07 Button B_start initiated
+2026-10-15T12:09:07 Button B_container initiated
+2026-10-15T12:09:07 Button B_=== Test menu READY: type a command + ENTER (`help` lists them) ===
+2026-10-15T12:10:18 > actuator_home
+2026-10-15T12:10:18 === actuator_home ===
+2026-10-15T12:10:18 actuator_home: slot 12 aligned (error -1.15 deg) - overdrive lock to the physical stop, then unlock
+2026-10-15T12:10:31 actuator_home: done, O-ring UNLOCKED (known)
+2026-10-15T12:10:31 TEST|actuator_home|home|PASS|slot=12;err_deg=-1.15;tol_deg=3.0;state=UNLOCKED
+2026-10-15T12:10:31 --- actuator_home summary ---
+2026-10-15T12:10:31 id          | result | data
+2026-10-15T12:10:31 home        | PASS   | slot=12;err_deg=-1.15;tol_deg=3.0;state=UNLOCKED
+2026-10-15T12:10:31 TOTAL: 1 PASS, 0 FAIL, 0 SKIP -> PASS
+2026-10-15T12:10:31 TEST|actuator_home|summary|PASS|pass=1;fail=0;skip=0
+2026-10-15T12:10:37 > slot12
+2026-10-15T12:10:37 Rotating to slot 12
+2026-10-15T12:10:44 O-ring locked
+2026-10-15T12:10:59 > pressure_ramp
+2026-10-15T12:10:59 === pressure_ramp: slot 12 ===
+2026-10-15T12:10:59 PID 200 / 100 / 100, output 0..60 %, start 15 %, steps 3 % per update
+2026-10-15T12:10:59 Setpoint 0 -> 2.80 bar at 0.050 bar/s (56 s), hold 20 s, then pump off and decay 30 s.
+2026-10-15T12:10:59 The pump stops by itself at 2.90 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T12:10:59 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T12:11:11 Aborted before start
+2026-10-15T12:11:16 > pressure
+2026-10-15T12:11:16 Pressure (ABP on SPI, pressure1: backs the pump cap and the PID loops): 0.013 bar (datasheet conversion -0.018 bar, gain 1.0413, zero offset -0.0311 bar)
+2026-10-15T12:11:36 > pressure_ramp target=1.0 hold=10 decay=20
+2026-10-15T12:11:36 === pressure_ramp: slot 12 ===
+2026-10-15T12:11:36 PID 200 / 100 / 100, output 0..60 %, start 15 %, steps 3 % per update
+2026-10-15T12:11:36 Setpoint 0 -> 1.00 bar at 0.050 bar/s (20 s), hold 10 s, then pump off and decay 20 s.
+2026-10-15T12:11:36 The pump stops by itself at 1.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T12:11:36 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T12:11:56 === pressure_ramp ===
+2026-10-15T12:11:56 Valve V1 closed
+2026-10-15T12:11:56 Valve V_manifold opened
+2026-10-15T12:12:01 Pump P1 started with power 15
+2026-10-15T12:12:01   t(s)  phase  setpoint  P(bar)  power(%)
+2026-10-15T12:12:01    0  RAMP  0.19  0.191  12
+2026-10-15T12:12:02    1  RAMP  0.24  0.225  20
+2026-10-15T12:12:03    2  RAMP  0.29  0.369   0
+2026-10-15T12:12:04    3  RAMP  0.34  0.289  17
+2026-10-15T12:12:05    4  RAMP  0.39  0.383   6
+2026-10-15T12:12:06    5  RAMP  0.44  0.496   6
+2026-10-15T12:12:07    6  RAMP  0.49  0.481  24
+2026-10-15T12:12:08    7  RAMP  0.54  0.459  18
+2026-10-15T12:12:09    8  RAMP  0.59  0.670  24
+2026-10-15T12:12:10    9  RAMP  0.64  0.549  18
+2026-10-15T12:12:11   10  RAMP  0.69  0.585  48
+2026-10-15T12:12:12   11  RAMP  0.74  1.072  30
+2026-10-15T12:12:13   12  RAMP  0.79  0.875   2
+2026-10-15T12:12:14   13  RAMP  0.84  0.743  28
+2026-10-15T12:12:15   14  RAMP  0.89  1.119  28
+2026-10-15T12:12:16   15  RAMP  0.94  0.877  13
+2026-10-15T12:12:17   16  RAMP  0.99  1.011  43
+2026-10-15T12:12:18 Pump P1 stopped
+2026-10-15T12:12:18 Valve V1 closed
+2026-10-15T12:12:18 Valve V_manifold closed
+2026-10-15T12:12:18 pressure_ramp ended: soft_limit, P max 1.152 bar at 16.2 s
+2026-10-15T12:12:18 TEST|pressure_ramp|12|FAIL|slot=12;label=;end=soft_limit;tgt=1.00;kp=200;ki=100;kd=100;slew=3;st=15;mp=60;pmax=1.15;tpmax=16.2;ovs=0.12;rise=10.7;err=0.00;rip=0.00;pw= 0;pwp2p= 0;rev=0;sat= 0;reached=no
+2026-10-15T12:12:18 The O-ring is left LOCKED (oring_unlock when the pressure is gone).
+2026-10-15T12:12:19 --- pressure_ramp summary ---
+2026-10-15T12:12:19 id          | result | data
+2026-10-15T12:12:19 12          | FAIL   | slot=12;label=;end=soft_limit;tgt=1.00;kp=200;ki=100;kd=100;slew=3;st=15;mp=60;
+2026-10-15T12:12:19 TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+2026-10-15T12:12:19 TEST|pressure_ramp|summary|FAIL|pass=0;fail=1;skip=0
+2026-10-15T12:12:52 > slot 10
+2026-10-15T12:12:52 Rotating to slot 10
+2026-10-15T12:12:58 O-ring unlocked
+2026-10-15T12:13:06 O-ring locked
+2026-10-15T12:13:09 > pressure_ramp target=2.0 rate=0 start=50 slew=0 maxpower=100 hold=20 decay=0 quick label=base
+2026-10-15T12:13:09 === pressure_ramp: slot 10, label base ===
+2026-10-15T12:13:09 PID 200 / 100 / 100, output 0..100 %, start 50 %, steps not limited (as production)
+2026-10-15T12:13:09 Setpoint STEP to 2.00 bar, hold 20 s.
+2026-10-15T12:13:09 The pump stops by itself at 2.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T12:13:09 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T12:13:12 === pressure_ramp ===
+2026-10-15T12:13:12 Valve V1 closed
+2026-10-15T12:13:12 Valve V_manifold opened
+2026-10-15T12:13:17 Pump P1 started with power 50
+2026-10-15T12:13:17   t(s)  phase  setpoint  P(bar)  power(%)
+2026-10-15T12:13:21    0  HOLD  2.00  0.514  100
+2026-10-15T12:13:25    4  HOLD  2.00  1.639   0
+2026-10-15T12:13:29    8  HOLD  2.00  -0.073  100
+2026-10-15T12:13:33   12  HOLD  2.00  1.519   0
+2026-10-15T12:13:37   16  HOLD  2.00  -0.076  100
+2026-10-15T12:13:37 Pump P1 stopped
+2026-10-15T12:13:37 Valve V1 closed
+2026-10-15T12:13:37 Valve V_manifold closed
+2026-10-15T12:13:37 pressure_ramp ended: completed, P max 1.639 bar at 4.0 s
+2026-10-15T12:13:38 TEST|pressure_ramp|10|FAIL|slot=10;label=base;end=completed;tgt=2.00;kp=200;ki=100;kd=100;slew=0;st=50;mp=100;pmax=1.64;tpmax=4.0;ovs=0.00;rise=-1.0;err=-1.28;rip=1.60;pw=50;pwp2p=100;rev=0;sat=50;reached=no
+2026-10-15T12:13:38 O-ring left LOCKED (oring_unlock when the pressure is gone).
+2026-10-15T12:13:38 --- pressure_ramp summary ---
+2026-10-15T12:13:38 id          | result | data
+2026-10-15T12:13:38 10          | FAIL   | slot=10;label=base;end=completed;tgt=2.00;kp=200;ki=100;kd=100;slew=0;st=50;mp=
+2026-10-15T12:13:38 TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+2026-10-15T12:13:38 TEST|pressure_ramp|summary|FAIL|pass=0;fail=1;skip=0
+2026-10-15T12:13:38 > x
+2026-10-15T12:22:16 > slot7
+2026-10-15T12:22:16 Rotating to slot 7
+2026-10-15T12:22:22 O-ring unlocked
+2026-10-15T12:22:30 O-ring locked
+2026-10-15T12:22:44 > pressure_ramp target=2.0 rate=0.05 start=15 slew=3 maxpower=100 hold=20 decay=30 quick label=base_slot7
+2026-10-15T12:22:44 === pressure_ramp: slot 7, label base_slot7 ===
+2026-10-15T12:22:44 PID 200 / 100 / 100, output 0..100 %, start 15 %, steps 3 % per update
+2026-10-15T12:22:44 Setpoint 0 -> 2.00 bar at 0.050 bar/s (40 s), hold 20 s, then pump off and decay 30 s.
+2026-10-15T12:22:44 The pump stops by itself at 2.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T12:22:44 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T12:22:49 === pressure_ramp ===
+2026-10-15T12:22:49 Valve V1 closed
+2026-10-15T12:22:49 Valve V_manifold opened
+2026-10-15T12:22:54 Pump P1 started with power 15
+2026-10-15T12:22:54   t(s)  phase  setpoint  P(bar)  power(%)
+2026-10-15T12:22:54    0  RAMP  0.06  0.061  12
+2026-10-15T12:22:55    1  RAMP  0.11  0.096  25
+2026-10-15T12:22:56    2  RAMP  0.16  0.153  37
+2026-10-15T12:22:57    3  RAMP  0.21  0.203  46
+2026-10-15T12:22:58    4  RAMP  0.26  0.250  51
+2026-10-15T12:22:59    5  RAMP  0.31  0.305  54
+2026-10-15T12:23:00    6  RAMP  0.36  0.353  58
+2026-10-15T12:23:01    7  RAMP  0.41  0.405  62
+2026-10-15T12:23:02    8  RAMP  0.46  0.466  64
+2026-10-15T12:23:03    9  RAMP  0.51  0.506  71
+2026-10-15T12:23:04   10  RAMP  0.56  0.534  77
+2026-10-15T12:23:05   11  RAMP  0.61  0.571  100
+2026-10-15T12:23:06   12  RAMP  0.66  0.541  100
+2026-10-15T12:23:07   13  RAMP  0.71  0.581  100
+2026-10-15T12:23:08   14  RAMP  0.76  0.582  100
+2026-10-15T12:23:09   15  RAMP  0.81  0.578  100
+2026-10-15T12:23:10   16  RAMP  0.86  0.577  100
+2026-10-15T12:23:11   17  RAMP  0.91  0.579  100
+2026-10-15T12:23:12   18  RAMP  0.96  0.577  100
+2026-10-15T12:23:13   19  RAMP  1.01  0.575  100
+2026-10-15T12:23:14   20  RAMP  1.06  0.585  100
+2026-10-15T12:23:15   21  RAMP  1.11  0.577  100
+2026-10-15T12:23:16   22  RAMP  1.16  0.583  100
+2026-10-15T12:23:17   23  RAMP  1.21  0.583  100
+2026-10-15T12:23:18   24  RAMP  1.26  0.580  100
+2026-10-15T12:23:19   25  RAMP  1.31  0.588  100
+2026-10-15T12:23:20   26  RAMP  1.36  0.582  100
+2026-10-15T12:23:21   27  RAMP  1.41  0.591  100
+2026-10-15T12:23:22 Pump P1 stopped
+2026-10-15T12:23:22 Valve V1 closed
+2026-10-15T12:23:22 Valve V_manifold closed
+2026-10-15T12:23:22 pressure_ramp ended: aborted, P max 0.593 bar at 24.9 s
+2026-10-15T12:23:22 TEST|pressure_ramp|7|FAIL|slot=7;label=base_slot7;end=aborted;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;mp=100;pmax=0.59;tpmax=24.9;ovs=0.00;rise=-1.0;err=0.00;rip=0.00;pw= 0;pwp2p= 0;rev=0;sat= 0;reached=no
+2026-10-15T12:23:22 The O-ring is left LOCKED (oring_unlock when the pressure is gone).
+2026-10-15T12:23:22 --- pressure_ramp summary ---
+2026-10-15T12:23:22 id          | result | data
+2026-10-15T12:23:22 7           | FAIL   | slot=7;label=base_slot7;end=aborted;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;
+2026-10-15T12:23:22 TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+2026-10-15T12:23:22 TEST|pressure_ramp|summary|FAIL|pass=0;fail=1;skip=0
+2026-10-15T12:27:13 > pressure_ramp target=2.0 rate=0.05 start=15 slew=3 maxpower=70 hold=20 decay=30 quick label=slot7_base
+2026-10-15T12:27:13 === pressure_ramp: slot 7, label slot7_base ===
+2026-10-15T12:27:13 PID 200 / 100 / 100, output 0..70 %, start 15 %, steps 3 % per update
+2026-10-15T12:27:13 Setpoint 0 -> 2.00 bar at 0.050 bar/s (40 s), hold 20 s, then pump off and decay 30 s.
+2026-10-15T12:27:13 The pump stops by itself at 2.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T12:27:13 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T12:27:15 === pressure_ramp ===
+2026-10-15T12:27:15 Valve V1 closed
+2026-10-15T12:27:15 Valve V_manifold opened
+2026-10-15T12:27:20 Pump P1 started with power 15
+2026-10-15T12:27:20   t(s)  phase  setpoint  P(bar)  power(%)
+2026-10-15T12:27:20    0  RAMP  0.03  0.031  12
+2026-10-15T12:27:21    1  RAMP  0.08  0.086  23
+2026-10-15T12:27:22    2  RAMP  0.13  0.123  35
+2026-10-15T12:27:23    3  RAMP  0.18  0.180  37
+2026-10-15T12:27:24    4  RAMP  0.23  0.215  48
+2026-10-15T12:27:25    5  RAMP  0.28  0.275  51
+2026-10-15T12:27:26    6  RAMP  0.33  0.322  54
+2026-10-15T12:27:27    7  RAMP  0.38  0.373  60
+2026-10-15T12:27:28    8  RAMP  0.43  0.433  60
+2026-10-15T12:27:29    9  RAMP  0.48  0.471  68
+2026-10-15T12:27:30   10  RAMP  0.53  0.514  70
+2026-10-15T12:27:31   11  RAMP  0.58  0.541  70
+2026-10-15T12:27:32   12  RAMP  0.63  0.540  70
+2026-10-15T12:27:33   13  RAMP  0.68  0.536  70
+2026-10-15T12:27:34   14  RAMP  0.73  0.539  70
+2026-10-15T12:27:35   15  RAMP  0.78  0.542  70
+2026-10-15T12:27:36   16  RAMP  0.83  0.538  70
+2026-10-15T12:27:37   17  RAMP  0.88  0.538  70
+2026-10-15T12:27:38   18  RAMP  0.93  0.543  70
+2026-10-15T12:27:39   19  RAMP  0.98  0.538  70
+2026-10-15T12:27:40   20  RAMP  1.03  0.540  70
+2026-10-15T12:27:41   21  RAMP  1.08  0.544  70
+2026-10-15T12:27:42   22  RAMP  1.13  0.536  70
+2026-10-15T12:27:43   23  RAMP  1.18  0.538  70
+2026-10-15T12:27:44   24  RAMP  1.23  0.536  70
+2026-10-15T12:27:45   25  RAMP  1.28  0.540  70
+2026-10-15T12:27:46   26  RAMP  1.33  0.540  70
+2026-10-15T12:27:47   27  RAMP  1.38  0.540  70
+2026-10-15T12:27:48   28  RAMP  1.43  0.540  70
+2026-10-15T12:27:49   29  RAMP  1.48  0.535  70
+2026-10-15T12:27:50   30  RAMP  1.53  0.540  70
+2026-10-15T12:27:51   31  RAMP  1.58  0.533  70
+2026-10-15T12:27:52   32  RAMP  1.63  0.539  70
+2026-10-15T12:27:53   33  RAMP  1.68  0.534  70
+2026-10-15T12:27:54   34  RAMP  1.73  0.539  70
+2026-10-15T12:27:55   35  RAMP  1.78  0.532  70
+2026-10-15T12:27:56   36  RAMP  1.83  0.537  70
+2026-10-15T12:27:57   37  RAMP  1.88  0.533  70
+2026-10-15T12:27:58   38  RAMP  1.93  0.536  70
+2026-10-15T12:27:59   39  RAMP  1.98  0.530  70
+2026-10-15T12:28:00   40  HOLD  2.00  0.537  70
+2026-10-15T12:28:01   41  HOLD  2.00  0.534  70
+2026-10-15T12:28:02   42  HOLD  2.00  0.535  70
+2026-10-15T12:28:03   43  HOLD  2.00  0.536  70
+2026-10-15T12:28:04   44  HOLD  2.00  0.532  70
+2026-10-15T12:28:05   45  HOLD  2.00  0.533  70
+2026-10-15T12:28:06   46  HOLD  2.00  0.528  70
+2026-10-15T12:28:07   47  HOLD  2.00  0.538  70
+2026-10-15T12:28:08   48  HOLD  2.00  0.534  70
+2026-10-15T12:28:09   49  HOLD  2.00  0.535  70
+2026-10-15T12:28:10   50  HOLD  2.00  0.534  70
+2026-10-15T12:28:11   51  HOLD  2.00  0.526  70
+2026-10-15T12:28:12   52  HOLD  2.00  0.535  70
+2026-10-15T12:28:13   53  HOLD  2.00  0.531  70
+2026-10-15T12:28:14   54  HOLD  2.00  0.535  70
+2026-10-15T12:28:15   55  HOLD  2.00  0.535  70
+2026-10-15T12:28:16   56  HOLD  2.00  0.525  70
+2026-10-15T12:28:17   57  HOLD  2.00  0.537  70
+2026-10-15T12:28:18   58  HOLD  2.00  0.530  70
+2026-10-15T12:28:19   59  HOLD  2.00  0.536  70
+2026-10-15T12:28:20 Pump P1 stopped
+2026-10-15T12:28:20 Pump off. Pressure decay for 30 s (any key stops the wait):
+2026-10-15T12:28:20   decay  0 s  P=-0.107 bar
+2026-10-15T12:28:21   decay  1 s  P=-0.060 bar
+2026-10-15T12:28:22   decay  2 s  P=-0.063 bar
+2026-10-15T12:28:23   decay  3 s  P=-0.064 bar
+2026-10-15T12:28:24   decay  4 s  P=-0.063 bar
+2026-10-15T12:28:25   decay  5 s  P=-0.063 bar
+2026-10-15T12:28:26   decay  6 s  P=-0.063 bar
+2026-10-15T12:28:27   decay  7 s  P=-0.064 bar
+2026-10-15T12:28:28   decay  8 s  P=-0.064 bar
+2026-10-15T12:28:29   decay  9 s  P=-0.063 bar
+2026-10-15T12:28:30   decay 10 s  P=-0.064 bar
+2026-10-15T12:28:31   decay 11 s  P=-0.065 bar
+2026-10-15T12:28:33   decay 12 s  P=-0.063 bar
+2026-10-15T12:28:33   decay 13 s  P=-0.063 bar
+2026-10-15T12:28:34   decay 14 s  P=-0.064 bar
+2026-10-15T12:28:35   decay 15 s  P=-0.064 bar
+2026-10-15T12:28:36   decay 16 s  P=-0.064 bar
+2026-10-15T12:28:37   decay 17 s  P=-0.063 bar
+2026-10-15T12:28:38   decay 18 s  P=-0.064 bar
+2026-10-15T12:28:39   decay 19 s  P=-0.063 bar
+2026-10-15T12:28:40   decay 20 s  P=-0.063 bar
+2026-10-15T12:28:41   decay 21 s  P=-0.063 bar
+2026-10-15T12:28:42   decay 22 s  P=-0.063 bar
+2026-10-15T12:28:43   decay 23 s  P=-0.065 bar
+2026-10-15T12:28:45   decay 24 s  P=-0.063 bar
+2026-10-15T12:28:45   decay 25 s  P=-0.063 bar
+2026-10-15T12:28:46   decay 26 s  P=-0.064 bar
+2026-10-15T12:28:47   decay 27 s  P=-0.065 bar
+2026-10-15T12:28:48   decay 28 s  P=-0.063 bar
+2026-10-15T12:28:50   decay 29 s  P=-0.063 bar
+2026-10-15T12:28:50 Valve V1 closed
+2026-10-15T12:28:51 Valve V_manifold closed
+2026-10-15T12:28:51 pressure_ramp ended: completed, P max 0.545 bar at 15.0 s
+2026-10-15T12:28:51 TEST|pressure_ramp|7|FAIL|slot=7;label=slot7_base;end=completed;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;mp=70;pmax=0.55;tpmax=15.0;ovs=0.00;rise=-1.0;err=-1.47;rip=0.02;pw=70;pwp2p= 0;rev=0;sat=100;reached=no;pstop=0.53;decay=0.596;decay_s=30
+2026-10-15T12:28:51 O-ring left LOCKED (oring_unlock when the pressure is gone).
+2026-10-15T12:28:51 --- pressure_ramp summary ---
+2026-10-15T12:28:51 id          | result | data
+2026-10-15T12:28:51 7           | FAIL   | slot=7;label=slot7_base;end=completed;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=1
+2026-10-15T12:28:51 TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+2026-10-15T12:28:51 TEST|pressure_ramp|summary|FAIL|pass=0;fail=1;skip=0
+2026-10-15T12:40:52 > __________________
+2026-10-15T12:40:53 > d
+2026-10-15T12:41:01 > pressure_ramp target=2.0 rate=0.05 start=15 slew=3 maxpower=70 hold=20 decay=30 quick label=slot7
+2026-10-15T12:41:01 === pressure_ramp: slot 7, label slot7 ===
+2026-10-15T12:41:01 PID 200 / 100 / 100, output 0..70 %, start 15 %, steps 3 % per update
+2026-10-15T12:41:02 Setpoint 0 -> 2.00 bar at 0.050 bar/s (40 s), hold 20 s, then pump off and decay 30 s.
+2026-10-15T12:41:02 The pump stops by itself at 2.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T12:41:02 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T12:41:07 === pressure_ramp ===
+2026-10-15T12:41:07 Valve V1 closed
+2026-10-15T12:41:07 Valve V_manifold opened
+2026-10-15T12:41:12 Pump P1 started with power 15
+2026-10-15T12:41:12   t(s)  phase  setpoint  P(bar)  power(%)
+2026-10-15T12:41:12    0  RAMP  0.03  0.034  12
+2026-10-15T12:41:13    1  RAMP  0.08  0.076  23
+2026-10-15T12:41:15    2  RAMP  0.13  0.129  29
+2026-10-15T12:41:15    3  RAMP  0.18  0.179  40
+2026-10-15T12:41:16    4  RAMP  0.23  0.221  48
+2026-10-15T12:41:17    5  RAMP  0.28  0.288  50
+2026-10-15T12:41:18    6  RAMP  0.33  0.326  55
+2026-10-15T12:41:20    7  RAMP  0.38  0.394  56
+2026-10-15T12:41:20    8  RAMP  0.43  0.429  63
+2026-10-15T12:41:21    9  RAMP  0.48  0.484  65
+2026-10-15T12:41:22   10  RAMP  0.53  0.511  70
+2026-10-15T12:41:23   11  RAMP  0.58  0.532  70
+2026-10-15T12:41:24   12  RAMP  0.63  0.530  70
+2026-10-15T12:41:25   13  RAMP  0.68  0.537  70
+2026-10-15T12:41:26   14  RAMP  0.73  0.523  70
+2026-10-15T12:41:27   15  RAMP  0.78  0.532  70
+2026-10-15T12:41:29   16  RAMP  0.83  0.540  70
+2026-10-15T12:41:29   17  RAMP  0.88  0.528  70
+2026-10-15T12:41:30   18  RAMP  0.93  0.531  70
+2026-10-15T12:41:31   19  RAMP  0.98  0.533  70
+2026-10-15T12:41:32   20  RAMP  1.03  0.535  70
+2026-10-15T12:41:33   21  RAMP  1.08  0.536  70
+2026-10-15T12:41:34   22  RAMP  1.13  0.521  70
+2026-10-15T12:41:36   23  RAMP  1.18  0.534  70
+2026-10-15T12:41:36   24  RAMP  1.23  0.533  70
+2026-10-15T12:41:37   25  RAMP  1.28  0.537  70
+2026-10-15T12:41:38   26  RAMP  1.33  0.539  70
+2026-10-15T12:41:39   27  RAMP  1.38  0.531  70
+2026-10-15T12:41:40   28  RAMP  1.43  0.539  70
+2026-10-15T12:41:41   29  RAMP  1.48  0.526  70
+2026-10-15T12:41:42   30  RAMP  1.53  0.536  70
+2026-10-15T12:41:43   31  RAMP  1.58  0.538  70
+2026-10-15T12:41:44   32  RAMP  1.63  0.533  70
+2026-10-15T12:41:45   33  RAMP  1.68  0.538  70
+2026-10-15T12:41:46   34  RAMP  1.73  0.525  70
+2026-10-15T12:41:47   35  RAMP  1.78  0.535  70
+2026-10-15T12:41:48   36  RAMP  1.83  0.533  70
+2026-10-15T12:41:49   37  RAMP  1.88  0.535  70
+2026-10-15T12:41:50   38  RAMP  1.93  0.534  70
+2026-10-15T12:41:52   39  RAMP  1.98  0.522  70
+2026-10-15T12:41:52   40  HOLD  2.00  0.534  70
+2026-10-15T12:41:53   41  HOLD  2.00  0.535  70
+2026-10-15T12:41:54   42  HOLD  2.00  0.535  70
+2026-10-15T12:41:56   43  HOLD  2.00  0.539  70
+2026-10-15T12:41:56   44  HOLD  2.00  0.522  70
+2026-10-15T12:41:57   45  HOLD  2.00  0.534  70
+2026-10-15T12:41:58   46  HOLD  2.00  0.526  70
+2026-10-15T12:42:00   47  HOLD  2.00  0.534  70
+2026-10-15T12:42:01   48  HOLD  2.00  0.530  70
+2026-10-15T12:42:01   49  HOLD  2.00  0.533  70
+2026-10-15T12:42:02   50  HOLD  2.00  0.538  70
+2026-10-15T12:42:03   51  HOLD  2.00  0.537  70
+2026-10-15T12:42:05   52  HOLD  2.00  0.541  70
+2026-10-15T12:42:05   53  HOLD  2.00  0.537  70
+2026-10-15T12:42:06   54  HOLD  2.00  0.534  70
+2026-10-15T12:42:07   55  HOLD  2.00  0.538  70
+2026-10-15T12:42:08   56  HOLD  2.00  0.528  70
+2026-10-15T12:42:10   57  HOLD  2.00  0.540  70
+2026-10-15T12:42:10   58  HOLD  2.00  0.538  70
+2026-10-15T12:42:11   59  HOLD  2.00  0.540  70
+2026-10-15T12:42:13 Pump P1 stopped
+2026-10-15T12:42:13 Pump off. Pressure decay for 30 s (any key stops the wait):
+2026-10-15T12:42:13   decay  0 s  P=-0.108 bar
+2026-10-15T12:42:14   decay  1 s  P=-0.061 bar
+2026-10-15T12:42:15   decay  2 s  P=-0.062 bar
+2026-10-15T12:42:16   decay  3 s  P=-0.063 bar
+2026-10-15T12:42:17   decay  4 s  P=-0.064 bar
+2026-10-15T12:42:18   decay  5 s  P=-0.063 bar
+2026-10-15T12:42:19   decay  6 s  P=-0.063 bar
+2026-10-15T12:42:20   decay  7 s  P=-0.064 bar
+2026-10-15T12:42:21   decay  8 s  P=-0.063 bar
+2026-10-15T12:42:22   decay  9 s  P=-0.063 bar
+2026-10-15T12:42:23   decay 10 s  P=-0.064 bar
+2026-10-15T12:42:24   decay 11 s  P=-0.064 bar
+2026-10-15T12:42:25   decay 12 s  P=-0.064 bar
+2026-10-15T12:42:26   decay 13 s  P=-0.063 bar
+2026-10-15T12:42:27   decay 14 s  P=-0.063 bar
+2026-10-15T12:42:28   decay 15 s  P=-0.063 bar
+2026-10-15T12:42:29   decay 16 s  P=-0.064 bar
+2026-10-15T12:42:30   decay 17 s  P=-0.064 bar
+2026-10-15T12:42:31   decay 18 s  P=-0.064 bar
+2026-10-15T12:42:32   decay 19 s  P=-0.064 bar
+2026-10-15T12:42:33   decay 20 s  P=-0.063 bar
+2026-10-15T12:42:34   decay 21 s  P=-0.063 bar
+2026-10-15T12:42:35   decay 22 s  P=-0.064 bar
+2026-10-15T12:42:36   decay 23 s  P=-0.064 bar
+2026-10-15T12:42:37   decay 24 s  P=-0.063 bar
+2026-10-15T12:42:38   decay 25 s  P=-0.062 bar
+2026-10-15T12:42:39   decay 26 s  P=-0.064 bar
+2026-10-15T12:42:40   decay 27 s  P=-0.063 bar
+2026-10-15T12:42:41   decay 28 s  P=-0.064 bar
+2026-10-15T12:42:42   decay 29 s  P=-0.064 bar
+2026-10-15T12:42:43 Valve V1 closed
+2026-10-15T12:42:43 Valve V_manifold closed
+2026-10-15T12:42:43 pressure_ramp ended: completed, P max 0.545 bar at 27.8 s
+2026-10-15T12:42:43 TEST|pressure_ramp|7|FAIL|slot=7;label=slot7;end=completed;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;mp=70;pmax=0.55;tpmax=27.8;ovs=0.00;rise=-1.0;err=-1.47;rip=0.02;pw=70;pwp2p= 0;rev=0;sat=100;reached=no;pstop=0.53;decay=0.597;decay_s=30
+2026-10-15T12:42:43 O-ring left LOCKED (oring_unlock when the pressure is gone).
+2026-10-15T12:42:43 --- pressure_ramp summary ---
+2026-10-15T12:42:43 id          | result | data
+2026-10-15T12:42:44 7           | FAIL   | slot=7;label=slot7;end=completed;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;mp=
+2026-10-15T12:42:44 TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+2026-10-15T12:42:44 TEST|pressure_ramp|summary|FAIL|pass=0;fail=1;skip=0
+2026-10-15T12:42:58 > pressure_ramp target=2.0 rate=0.05 start=15 slew=3 maxpower=70 hold=20 decay=30 quick label=slot<N>
+2026-10-15T12:42:58 === pressure_ramp: slot 7, label slot<N> ===
+2026-10-15T12:42:58 PID 200 / 100 / 100, output 0..70 %, start 15 %, steps 3 % per update
+2026-10-15T12:42:58 Setpoint 0 -> 2.00 bar at 0.050 bar/s (40 s), hold 20 s, then pump off and decay 30 s.
+2026-10-15T12:42:58 The pump stops by itself at 2.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T12:42:58 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T12:43:04 === pressure_ramp ===
+2026-10-15T12:43:04 Valve V1 closed
+2026-10-15T12:43:04 Valve V_manifold opened
+2026-10-15T12:43:09 Pump P1 started with power 15
+2026-10-15T12:43:09   t(s)  phase  setpoint  P(bar)  power(%)
+2026-10-15T12:43:09    0  RAMP  0.00  -0.020  12
+2026-10-15T12:43:10    1  RAMP  0.05  0.045  23
+2026-10-15T12:43:11    2  RAMP  0.10  0.094  31
+2026-10-15T12:43:12    3  RAMP  0.15  0.144  37
+2026-10-15T12:43:13    4  RAMP  0.20  0.193  42
+2026-10-15T12:43:14    5  RAMP  0.25  0.238  48
+2026-10-15T12:43:15    6  RAMP  0.30  0.307  48
+2026-10-15T12:43:16    7  RAMP  0.35  0.329  57
+2026-10-15T12:43:17    8  RAMP  0.40  0.396  60
+2026-10-15T12:43:18    9  RAMP  0.45  0.444  65
+2026-10-15T12:43:19   10  RAMP  0.50  0.499  68
+2026-10-15T12:43:20   11  RAMP  0.55  0.524  70
+2026-10-15T12:43:21   12  RAMP  0.60  0.530  70
+2026-10-15T12:43:22   13  RAMP  0.65  0.540  70
+2026-10-15T12:43:23   14  RAMP  0.70  0.531  70
+2026-10-15T12:43:24   15  RAMP  0.75  0.543  70
+2026-10-15T12:43:25   16  RAMP  0.80  0.537  70
+2026-10-15T12:43:26   17  RAMP  0.85  0.547  70
+2026-10-15T12:43:27   18  RAMP  0.90  0.543  70
+2026-10-15T12:43:28   19  RAMP  0.95  0.536  70
+2026-10-15T12:43:29   20  RAMP  1.00  0.538  70
+2026-10-15T12:43:30   21  RAMP  1.05  0.531  70
+2026-10-15T12:43:31   22  RAMP  1.10  0.547  70
+2026-10-15T12:43:32   23  RAMP  1.15  0.540  70
+2026-10-15T12:43:33   24  RAMP  1.20  0.536  70
+2026-10-15T12:43:34   25  RAMP  1.25  0.539  70
+2026-10-15T12:43:35   26  RAMP  1.30  0.537  70
+2026-10-15T12:43:36   27  RAMP  1.35  0.546  70
+2026-10-15T12:43:37   28  RAMP  1.40  0.540  70
+2026-10-15T12:43:38   29  RAMP  1.45  0.533  70
+2026-10-15T12:43:39   30  RAMP  1.50  0.548  70
+2026-10-15T12:43:40   31  RAMP  1.55  0.540  70
+2026-10-15T12:43:41   32  RAMP  1.60  0.533  70
+2026-10-15T12:43:42   33  RAMP  1.65  0.549  70
+2026-10-15T12:43:43   34  RAMP  1.70  0.540  70
+2026-10-15T12:43:44   35  RAMP  1.75  0.530  70
+2026-10-15T12:43:45   36  RAMP  1.80  0.546  70
+2026-10-15T12:43:46   37  RAMP  1.85  0.540  70
+2026-10-15T12:43:47   38  RAMP  1.90  0.540  70
+2026-10-15T12:43:48   39  RAMP  1.95  0.536  70
+2026-10-15T12:43:49   40  HOLD  2.00  0.543  70
+2026-10-15T12:43:50   41  HOLD  2.00  0.544  70
+2026-10-15T12:43:51   42  HOLD  2.00  0.533  70
+2026-10-15T12:43:52   43  HOLD  2.00  0.551  70
+2026-10-15T12:43:53   44  HOLD  2.00  0.540  70
+2026-10-15T12:43:54   45  HOLD  2.00  0.540  70
+2026-10-15T12:43:55   46  HOLD  2.00  0.526  70
+2026-10-15T12:43:56   47  HOLD  2.00  0.546  70
+2026-10-15T12:43:57   48  HOLD  2.00  0.545  70
+2026-10-15T12:43:58   49  HOLD  2.00  0.538  70
+2026-10-15T12:43:59   50  HOLD  2.00  0.547  70
+2026-10-15T12:44:00   51  HOLD  2.00  0.545  70
+2026-10-15T12:44:01   52  HOLD  2.00  0.546  70
+2026-10-15T12:44:02   53  HOLD  2.00  0.537  70
+2026-10-15T12:44:03   54  HOLD  2.00  0.552  70
+2026-10-15T12:44:04   55  HOLD  2.00  0.545  70
+2026-10-15T12:44:05   56  HOLD  2.00  0.547  70
+2026-10-15T12:44:06   57  HOLD  2.00  0.539  70
+2026-10-15T12:44:07   58  HOLD  2.00  0.547  70
+2026-10-15T12:44:08   59  HOLD  2.00  0.548  70
+2026-10-15T12:44:09 Pump P1 stopped
+2026-10-15T12:44:10 Pump off. Pressure decay for 30 s (any key stops the wait):
+2026-10-15T12:44:10   decay  0 s  P=-0.109 bar
+2026-10-15T12:44:10   decay  1 s  P=-0.060 bar
+2026-10-15T12:44:11   decay  2 s  P=-0.064 bar
+2026-10-15T12:44:12   decay  3 s  P=-0.063 bar
+2026-10-15T12:44:13   decay  4 s  P=-0.063 bar
+2026-10-15T12:44:14   decay  5 s  P=-0.063 bar
+2026-10-15T12:44:15   decay  6 s  P=-0.063 bar
+2026-10-15T12:44:16   decay  7 s  P=-0.063 bar
+2026-10-15T12:44:17   decay  8 s  P=-0.063 bar
+2026-10-15T12:44:18   decay  9 s  P=-0.063 bar
+2026-10-15T12:44:19   decay 10 s  P=-0.064 bar
+2026-10-15T12:44:20   decay 11 s  P=-0.063 bar
+2026-10-15T12:44:21   decay 12 s  P=-0.063 bar
+2026-10-15T12:44:22   decay 13 s  P=-0.064 bar
+2026-10-15T12:44:23   decay 14 s  P=-0.062 bar
+2026-10-15T12:44:25   decay 15 s  P=-0.063 bar
+2026-10-15T12:44:25   decay 16 s  P=-0.063 bar
+2026-10-15T12:44:26   decay 17 s  P=-0.063 bar
+2026-10-15T12:44:27   decay 18 s  P=-0.063 bar
+2026-10-15T12:44:28   decay 19 s  P=-0.063 bar
+2026-10-15T12:44:30   decay 20 s  P=-0.064 bar
+2026-10-15T12:44:30   decay 21 s  P=-0.063 bar
+2026-10-15T12:44:31   decay 22 s  P=-0.063 bar
+2026-10-15T12:44:32   decay 23 s  P=-0.063 bar
+2026-10-15T12:44:33   decay 24 s  P=-0.064 bar
+2026-10-15T12:44:34   decay 25 s  P=-0.063 bar
+2026-10-15T12:44:35   decay 26 s  P=-0.064 bar
+2026-10-15T12:44:36   decay 27 s  P=-0.064 bar
+2026-10-15T12:44:37   decay 28 s  P=-0.064 bar
+2026-10-15T12:44:38   decay 29 s  P=-0.063 bar
+2026-10-15T12:44:40 Valve V1 closed
+2026-10-15T12:44:40 Valve V_manifold closed
+2026-10-15T12:44:40 pressure_ramp ended: completed, P max 0.558 bar at 53.7 s
+2026-10-15T12:44:40 TEST|pressure_ramp|7|FAIL|slot=7;label=slot<N>;end=completed;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;mp=70;pmax=0.56;tpmax=53.7;ovs=0.00;rise=-1.0;err=-1.45;rip=0.02;pw=70;pwp2p= 0;rev=0;sat=100;reached=no;pstop=0.55;decay=0.612;decay_s=30
+2026-10-15T12:44:40 O-ring left LOCKED (oring_unlock when the pressure is gone).
+2026-10-15T12:44:40 --- pressure_ramp summary ---
+2026-10-15T12:44:40 id          | result | data
+2026-10-15T12:44:40 7           | FAIL   | slot=7;label=slot<N>;end=completed;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;m
+2026-10-15T12:44:40 TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+2026-10-15T12:44:40 TEST|pressure_ramp|summary|FAIL|pass=0;fail=1;skip=0
+2026-10-15T12:44:47 > slot10
+2026-10-15T12:44:47 Rotating to slot 10
+2026-10-15T12:44:53 O-ring unlocked
+2026-10-15T12:45:01 O-ring locked
+2026-10-15T12:45:15 > pressure_ramp target=2.0 rate=0.05 start=15 slew=3 maxpower=70 hold=20 decay=30 quick label=slot10
+2026-10-15T12:45:15 === pressure_ramp: slot 10, label slot10 ===
+2026-10-15T12:45:15 PID 200 / 100 / 100, output 0..70 %, start 15 %, steps 3 % per update
+2026-10-15T12:45:15 Setpoint 0 -> 2.00 bar at 0.050 bar/s (40 s), hold 20 s, then pump off and decay 30 s.
+2026-10-15T12:45:15 The pump stops by itself at 2.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T12:45:15 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T12:45:17 === pressure_ramp ===
+2026-10-15T12:45:17 Valve V1 closed
+2026-10-15T12:45:17 Valve V_manifold opened
+2026-10-15T12:45:22 Pump P1 started with power 15
+2026-10-15T12:45:22   t(s)  phase  setpoint  P(bar)  power(%)
+2026-10-15T12:45:22    0  RAMP  0.06  0.055  12
+2026-10-15T12:45:23    1  RAMP  0.11  0.113  16
+2026-10-15T12:45:24    2  RAMP  0.16  0.147  21
+2026-10-15T12:45:25    3  RAMP  0.21  0.202  23
+2026-10-15T12:45:26    4  RAMP  0.26  0.238  31
+2026-10-15T12:45:27    5  RAMP  0.31  0.306  28
+2026-10-15T12:45:28    6  RAMP  0.36  0.354  33
+2026-10-15T12:45:29    7  RAMP  0.41  0.408  35
+2026-10-15T12:45:30    8  RAMP  0.46  0.447  39
+2026-10-15T12:45:31    9  RAMP  0.51  0.497  40
+2026-10-15T12:45:32   10  RAMP  0.56  0.540  41
+2026-10-15T12:45:33   11  RAMP  0.61  0.599  44
+2026-10-15T12:45:34   12  RAMP  0.66  0.652  45
+2026-10-15T12:45:35   13  RAMP  0.71  0.697  46
+2026-10-15T12:45:36   14  RAMP  0.76  0.765  45
+2026-10-15T12:45:37   15  RAMP  0.81  0.801  50
+2026-10-15T12:45:38   16  RAMP  0.86  0.838  52
+2026-10-15T12:45:39   17  RAMP  0.91  0.924  52
+2026-10-15T12:45:40   18  RAMP  0.96  0.950  52
+2026-10-15T12:45:41   19  RAMP  1.01  0.993  55
+2026-10-15T12:45:42   20  RAMP  1.06  1.046  61
+2026-10-15T12:45:43   21  RAMP  1.11  1.119  57
+2026-10-15T12:45:44   22  RAMP  1.16  1.122  63
+2026-10-15T12:45:45   23  RAMP  1.21  1.186  62
+2026-10-15T12:45:46   24  RAMP  1.26  1.304  64
+2026-10-15T12:45:47   25  RAMP  1.31  1.314  63
+2026-10-15T12:45:48   26  RAMP  1.36  1.314  66
+2026-10-15T12:45:49   27  RAMP  1.41  1.389  68
+2026-10-15T12:45:50   28  RAMP  1.46  1.434  70
+2026-10-15T12:45:51   29  RAMP  1.51  1.494  70
+2026-10-15T12:45:52   30  RAMP  1.56  1.475  70
+2026-10-15T12:45:53   31  RAMP  1.61  1.501  70
+2026-10-15T12:45:54   32  RAMP  1.66  1.505  70
+2026-10-15T12:45:55   33  RAMP  1.71  1.522  70
+2026-10-15T12:45:56   34  RAMP  1.76  1.512  70
+2026-10-15T12:45:57   35  RAMP  1.81  1.485  70
+2026-10-15T12:45:58   36  RAMP  1.86  1.523  70
+2026-10-15T12:45:59   37  RAMP  1.91  1.496  70
+2026-10-15T12:46:00   38  RAMP  1.96  1.523  70
+2026-10-15T12:46:01   39  RAMP  2.00  1.507  70
+2026-10-15T12:46:02   40  HOLD  2.00  1.495  70
+2026-10-15T12:46:03   41  HOLD  2.00  1.529  70
+2026-10-15T12:46:04   42  HOLD  2.00  1.498  70
+2026-10-15T12:46:05   43  HOLD  2.00  1.523  70
+2026-10-15T12:46:06   44  HOLD  2.00  1.515  70
+2026-10-15T12:46:07   45  HOLD  2.00  1.503  70
+2026-10-15T12:46:08   46  HOLD  2.00  1.537  70
+2026-10-15T12:46:09   47  HOLD  2.00  1.508  70
+2026-10-15T12:46:10   48  HOLD  2.00  1.535  70
+2026-10-15T12:46:11   49  HOLD  2.00  1.531  70
+2026-10-15T12:46:12   50  HOLD  2.00  1.530  70
+2026-10-15T12:46:13   51  HOLD  2.00  1.541  70
+2026-10-15T12:46:14   52  HOLD  2.00  1.512  70
+2026-10-15T12:46:15   53  HOLD  2.00  1.545  70
+2026-10-15T12:46:16   54  HOLD  2.00  1.527  70
+2026-10-15T12:46:17   55  HOLD  2.00  1.545  70
+2026-10-15T12:46:18   56  HOLD  2.00  1.522  70
+2026-10-15T12:46:19   57  HOLD  2.00  1.502  70
+2026-10-15T12:46:20   58  HOLD  2.00  1.535  70
+2026-10-15T12:46:21   59  HOLD  2.00  1.511  70
+2026-10-15T12:46:23 Pump P1 stopped
+2026-10-15T12:46:23 Pump off. Pressure decay for 30 s (any key stops the wait):
+2026-10-15T12:46:23   decay  0 s  P=-0.020 bar
+2026-10-15T12:46:24   decay  1 s  P=-0.063 bar
+2026-10-15T12:46:25   decay  2 s  P=-0.062 bar
+2026-10-15T12:46:26   decay  3 s  P=-0.062 bar
+2026-10-15T12:46:27   decay  4 s  P=-0.064 bar
+2026-10-15T12:46:28   decay  5 s  P=-0.064 bar
+2026-10-15T12:46:29   decay  6 s  P=-0.062 bar
+2026-10-15T12:46:30   decay  7 s  P=-0.063 bar
+2026-10-15T12:46:31   decay  8 s  P=-0.062 bar
+2026-10-15T12:46:32   decay  9 s  P=-0.062 bar
+2026-10-15T12:46:33   decay 10 s  P=-0.062 bar
+2026-10-15T12:46:34   decay 11 s  P=-0.063 bar
+2026-10-15T12:46:35   decay 12 s  P=-0.062 bar
+2026-10-15T12:46:36   decay 13 s  P=-0.062 bar
+2026-10-15T12:46:37   decay 14 s  P=-0.062 bar
+2026-10-15T12:46:38   decay 15 s  P=-0.063 bar
+2026-10-15T12:46:39   decay 16 s  P=-0.063 bar
+2026-10-15T12:46:40   decay 17 s  P=-0.062 bar
+2026-10-15T12:46:41   decay 18 s  P=-0.062 bar
+2026-10-15T12:46:42   decay 19 s  P=-0.063 bar
+2026-10-15T12:46:43   decay 20 s  P=-0.062 bar
+2026-10-15T12:46:44   decay 21 s  P=-0.062 bar
+2026-10-15T12:46:45   decay 22 s  P=-0.062 bar
+2026-10-15T12:46:46   decay 23 s  P=-0.063 bar
+2026-10-15T12:46:47   decay 24 s  P=-0.062 bar
+2026-10-15T12:46:48   decay 25 s  P=-0.062 bar
+2026-10-15T12:46:49   decay 26 s  P=-0.063 bar
+2026-10-15T12:46:50   decay 27 s  P=-0.063 bar
+2026-10-15T12:46:51   decay 28 s  P=-0.063 bar
+2026-10-15T12:46:52   decay 29 s  P=-0.062 bar
+2026-10-15T12:46:53 Valve V1 closed
+2026-10-15T12:46:53 Valve V_manifold closed
+2026-10-15T12:46:53 pressure_ramp ended: completed, P max 1.553 bar at 57.4 s
+2026-10-15T12:46:53 TEST|pressure_ramp|10|FAIL|slot=10;label=slot10;end=completed;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;mp=70;pmax=1.55;tpmax=57.4;ovs=0.00;rise=-1.0;err=-0.47;rip=0.05;pw=70;pwp2p= 0;rev=0;sat=100;reached=no;pstop=1.55;decay=1.609;decay_s=30
+2026-10-15T12:46:53 O-ring left LOCKED (oring_unlock when the pressure is gone).
+2026-10-15T12:46:53 --- pressure_ramp summary ---
+2026-10-15T12:46:53 id          | result | data
+2026-10-15T12:46:53 10          | FAIL   | slot=10;label=slot10;end=completed;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;m
+2026-10-15T12:46:53 TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+2026-10-15T12:46:53 TEST|pressure_ramp|summary|FAIL|pass=0;fail=1;skip=0
+2026-10-15T12:47:00 > pressure_ramp target=2.0 rate=0.05 start=15 slew=3 maxpower=70 hold=20 decay=30 quick label=slot10
+2026-10-15T12:47:00 === pressure_ramp: slot 10, label slot10 ===
+2026-10-15T12:47:00 PID 200 / 100 / 100, output 0..70 %, start 15 %, steps 3 % per update
+2026-10-15T12:47:00 Setpoint 0 -> 2.00 bar at 0.050 bar/s (40 s), hold 20 s, then pump off and decay 30 s.
+2026-10-15T12:47:00 The pump stops by itself at 2.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T12:47:00 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T12:47:02 === pressure_ramp ===
+2026-10-15T12:47:02 Valve V1 closed
+2026-10-15T12:47:02 Valve V_manifold opened
+2026-10-15T12:47:07 Pump P1 started with power 15
+2026-10-15T12:47:07   t(s)  phase  setpoint  P(bar)  power(%)
+2026-10-15T12:47:07    0  RAMP  0.02  0.018  12
+2026-10-15T12:47:08    1  RAMP  0.07  0.075  18
+2026-10-15T12:47:09    2  RAMP  0.12  0.107  22
+2026-10-15T12:47:10    3  RAMP  0.17  0.174  23
+2026-10-15T12:47:11    4  RAMP  0.22  0.212  29
+2026-10-15T12:47:12    5  RAMP  0.27  0.255  33
+2026-10-15T12:47:13    6  RAMP  0.32  0.316  31
+2026-10-15T12:47:14    7  RAMP  0.37  0.362  34
+2026-10-15T12:47:15    8  RAMP  0.42  0.418  36
+2026-10-15T12:47:16    9  RAMP  0.47  0.451  41
+2026-10-15T12:47:17   10  RAMP  0.52  0.504  43
+2026-10-15T12:47:18   11  RAMP  0.57  0.571  43
+2026-10-15T12:47:19   12  RAMP  0.62  0.614  42
+2026-10-15T12:47:20   13  RAMP  0.67  0.674  45
+2026-10-15T12:47:21   14  RAMP  0.72  0.707  48
+2026-10-15T12:47:22   15  RAMP  0.77  0.752  50
+2026-10-15T12:47:23   16  RAMP  0.82  0.802  51
+2026-10-15T12:47:24   17  RAMP  0.87  0.875  50
+2026-10-15T12:47:25   18  RAMP  0.92  0.932  52
+2026-10-15T12:47:26   19  RAMP  0.97  0.958  56
+2026-10-15T12:47:27   20  RAMP  1.02  1.045  55
+2026-10-15T12:47:28   21  RAMP  1.07  1.078  59
+2026-10-15T12:47:29   22  RAMP  1.12  1.141  59
+2026-10-15T12:47:30   23  RAMP  1.17  1.122  61
+2026-10-15T12:47:31   24  RAMP  1.22  1.208  64
+2026-10-15T12:47:32   25  RAMP  1.27  1.256  66
+2026-10-15T12:47:33   26  RAMP  1.32  1.280  65
+2026-10-15T12:47:34   27  RAMP  1.37  1.321  67
+2026-10-15T12:47:35   28  RAMP  1.42  1.395  69
+2026-10-15T12:47:36   29  RAMP  1.47  1.471  67
+2026-10-15T12:47:37   30  RAMP  1.52  1.453  70
+2026-10-15T12:47:38   31  RAMP  1.57  1.493  70
+2026-10-15T12:47:39   32  RAMP  1.62  1.480  70
+2026-10-15T12:47:40   33  RAMP  1.67  1.506  70
+2026-10-15T12:47:41   34  RAMP  1.72  1.486  70
+2026-10-15T12:47:42   35  RAMP  1.77  1.459  70
+2026-10-15T12:47:43   36  RAMP  1.82  1.496  70
+2026-10-15T12:47:44   37  RAMP  1.87  1.479  70
+2026-10-15T12:47:45   38  RAMP  1.92  1.503  70
+2026-10-15T12:47:46   39  RAMP  1.97  1.485  70
+2026-10-15T12:47:47   40  HOLD  2.00  1.467  70
+2026-10-15T12:47:48   41  HOLD  2.00  1.503  70
+2026-10-15T12:47:49   42  HOLD  2.00  1.488  70
+2026-10-15T12:47:50   43  HOLD  2.00  1.516  70
+2026-10-15T12:47:51   44  HOLD  2.00  1.497  70
+2026-10-15T12:47:52   45  HOLD  2.00  1.477  70
+2026-10-15T12:47:53   46  HOLD  2.00  1.512  70
+2026-10-15T12:47:54   47  HOLD  2.00  1.509  70
+2026-10-15T12:47:55   48  HOLD  2.00  1.515  70
+2026-10-15T12:47:56   49  HOLD  2.00  1.524  70
+2026-10-15T12:47:57   50  HOLD  2.00  1.494  70
+2026-10-15T12:47:58   51  HOLD  2.00  1.507  70
+2026-10-15T12:47:59   52  HOLD  2.00  1.500  70
+2026-10-15T12:48:00   53  HOLD  2.00  1.486  70
+2026-10-15T12:48:01   54  HOLD  2.00  1.517  70
+2026-10-15T12:48:02   55  HOLD  2.00  1.510  70
+2026-10-15T12:48:03   56  HOLD  2.00  1.524  70
+2026-10-15T12:48:04   57  HOLD  2.00  1.517  70
+2026-10-15T12:48:05   58  HOLD  2.00  1.499  70
+2026-10-15T12:48:06   59  HOLD  2.00  1.535  70
+2026-10-15T12:48:07 Pump P1 stopped
+2026-10-15T12:48:07 Pump off. Pressure decay for 30 s (any key stops the wait):
+2026-10-15T12:48:07   decay  0 s  P=-0.025 bar
+2026-10-15T12:48:08   decay  1 s  P=-0.063 bar
+2026-10-15T12:48:09   decay  2 s  P=-0.064 bar
+2026-10-15T12:48:10   decay  3 s  P=-0.064 bar
+2026-10-15T12:48:11   decay  4 s  P=-0.062 bar
+2026-10-15T12:48:12   decay  5 s  P=-0.064 bar
+2026-10-15T12:48:13   decay  6 s  P=-0.064 bar
+2026-10-15T12:48:14   decay  7 s  P=-0.063 bar
+2026-10-15T12:48:15   decay  8 s  P=-0.064 bar
+2026-10-15T12:48:16   decay  9 s  P=-0.064 bar
+2026-10-15T12:48:17   decay 10 s  P=-0.064 bar
+2026-10-15T12:48:18   decay 11 s  P=-0.063 bar
+2026-10-15T12:48:19   decay 12 s  P=-0.065 bar
+2026-10-15T12:48:20   decay 13 s  P=-0.064 bar
+2026-10-15T12:48:21   decay 14 s  P=-0.064 bar
+2026-10-15T12:48:22   decay 15 s  P=-0.063 bar
+2026-10-15T12:48:23   decay 16 s  P=-0.064 bar
+2026-10-15T12:48:24   decay 17 s  P=-0.064 bar
+2026-10-15T12:48:25   decay 18 s  P=-0.063 bar
+2026-10-15T12:48:26   decay 19 s  P=-0.063 bar
+2026-10-15T12:48:27   decay 20 s  P=-0.064 bar
+2026-10-15T12:48:28   decay 21 s  P=-0.064 bar
+2026-10-15T12:48:29   decay 22 s  P=-0.064 bar
+2026-10-15T12:48:30   decay 23 s  P=-0.063 bar
+2026-10-15T12:48:31   decay 24 s  P=-0.064 bar
+2026-10-15T12:48:32   decay 25 s  P=-0.063 bar
+2026-10-15T12:48:33   decay 26 s  P=-0.063 bar
+2026-10-15T12:48:34   decay 27 s  P=-0.064 bar
+2026-10-15T12:48:35   decay 28 s  P=-0.064 bar
+2026-10-15T12:48:36   decay 29 s  P=-0.063 bar
+2026-10-15T12:48:37 Valve V1 closed
+2026-10-15T12:48:37 Valve V_manifold closed
+2026-10-15T12:48:37 pressure_ramp ended: completed, P max 1.536 bar at 59.6 s
+2026-10-15T12:48:38 TEST|pressure_ramp|10|FAIL|slot=10;label=slot10;end=completed;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;mp=70;pmax=1.54;tpmax=59.6;ovs=0.00;rise=-1.0;err=-0.49;rip=0.06;pw=70;pwp2p= 0;rev=0;sat=100;reached=no;pstop=1.53;decay=1.588;decay_s=30
+2026-10-15T12:48:38 O-ring left LOCKED (oring_unlock when the pressure is gone).
+2026-10-15T12:48:38 --- pressure_ramp summary ---
+2026-10-15T12:48:38 id          | result | data
+2026-10-15T12:48:38 10          | FAIL   | slot=10;label=slot10;end=completed;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;m
+2026-10-15T12:48:38 TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+2026-10-15T12:48:38 TEST|pressure_ramp|summary|FAIL|pass=0;fail=1;skip=0
+2026-10-15T12:48:43 > slot11
+2026-10-15T12:48:43 Rotating to slot 11
+2026-10-15T12:48:50 O-ring unlocked
+2026-10-15T12:48:57 O-ring locked
+2026-10-15T12:49:06 > pressure_ramp target=2.0 rate=0.05 start=15 slew=3 maxpower=70 hold=20 decay=30 quick label=slot<N>
+2026-10-15T12:49:06 === pressure_ramp: slot 11, label slot<N> ===
+2026-10-15T12:49:06 PID 200 / 100 / 100, output 0..70 %, start 15 %, steps 3 % per update
+2026-10-15T12:49:06 Setpoint 0 -> 2.00 bar at 0.050 bar/s (40 s), hold 20 s, then pump off and decay 30 s.
+2026-10-15T12:49:06 The pump stops by itself at 2.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T12:49:06 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T12:49:09 Aborted before start
+2026-10-15T12:49:13 > pressure_ramp target=2.0 rate=0.05 start=15 slew=3 maxpower=70 hold=20 decay=30 quick label=slot11
+2026-10-15T12:49:13 === pressure_ramp: slot 11, label slot11 ===
+2026-10-15T12:49:13 PID 200 / 100 / 100, output 0..70 %, start 15 %, steps 3 % per update
+2026-10-15T12:49:13 Setpoint 0 -> 2.00 bar at 0.050 bar/s (40 s), hold 20 s, then pump off and decay 30 s.
+2026-10-15T12:49:13 The pump stops by itself at 2.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T12:49:13 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T12:49:29 === pressure_ramp ===
+2026-10-15T12:49:29 Valve V1 closed
+2026-10-15T12:49:29 Valve V_manifold opened
+2026-10-15T12:49:34 ERROR | P1: pressure reading not trusted (fault, last frame stuck_low) - check wiring/CS; the pump can't run
+2026-10-15T12:49:34 SAFETY | implausible pressure reading (-99.00 bar) - pump P1 force-stopped
+2026-10-15T12:49:34 Pump P1 stopped
+2026-10-15T12:49:34   t(s)  phase  setpoint  P(bar)  power(%)
+2026-10-15T12:49:34 Valve V1 closed
+2026-10-15T12:49:34 Valve V_manifold closed
+2026-10-15T12:49:35 pressure_ramp ended: start_refused, P max 0.008 bar at 0.0 s
+2026-10-15T12:49:35 TEST|pressure_ramp|11|FAIL|slot=11;label=slot11;end=start_refused;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;mp=70;pmax=0.01;tpmax=0.0;ovs=0.00;rise=-1.0;err=0.00;rip=0.00;pw= 0;pwp2p= 0;rev=0;sat= 0;reached=no
+2026-10-15T12:49:35 The O-ring is left LOCKED (oring_unlock when the pressure is gone).
+2026-10-15T12:49:35 --- pressure_ramp summary ---
+2026-10-15T12:49:35 id          | result | data
+2026-10-15T12:49:35 11          | FAIL   | slot=11;label=slot11;end=start_refused;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=
+2026-10-15T12:49:35 TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+2026-10-15T12:49:35 TEST|pressure_ramp|summary|FAIL|pass=0;fail=1;skip=0
+2026-10-15T12:50:03 > slot11
+2026-10-15T12:50:03 Rotating to slot 11
+2026-10-15T12:50:10 O-ring unlocked
+2026-10-15T12:50:17 O-ring locked
+2026-10-15T12:50:25 > pressure_ramp target=2.0 rate=0.05 start=15 slew=3 maxpower=70 hold=20 decay=30 quick label=slot11
+2026-10-15T12:50:25 === pressure_ramp: slot 11, label slot11 ===
+2026-10-15T12:50:25 PID 200 / 100 / 100, output 0..70 %, start 15 %, steps 3 % per update
+2026-10-15T12:50:25 Setpoint 0 -> 2.00 bar at 0.050 bar/s (40 s), hold 20 s, then pump off and decay 30 s.
+2026-10-15T12:50:25 The pump stops by itself at 2.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T12:50:25 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T12:50:26 === pressure_ramp ===
+2026-10-15T12:50:26 Valve V1 closed
+2026-10-15T12:50:26 Valve V_manifold opened
+2026-10-15T12:50:31 Pump P1 started with power 15
+2026-10-15T12:50:31   t(s)  phase  setpoint  P(bar)  power(%)
+2026-10-15T12:50:31    0  RAMP  0.07  0.067  12
+2026-10-15T12:50:33    1  RAMP  0.12  0.238  11
+2026-10-15T12:50:34    2  RAMP  0.17  0.146   8
+2026-10-15T12:50:34    3  RAMP  0.22  0.258   3
+2026-10-15T12:50:35    4  RAMP  0.27  0.316   1
+2026-10-15T12:50:36    5  RAMP  0.32  0.509   6
+2026-10-15T12:50:37    6  RAMP  0.37  0.425  10
+2026-10-15T12:50:39    7  RAMP  0.42  0.316  15
+2026-10-15T12:50:39    8  RAMP  0.47  0.446  17
+2026-10-15T12:50:40    9  RAMP  0.52  0.464  20
+2026-10-15T12:50:41   10  RAMP  0.57  0.559  10
+2026-10-15T12:50:42   11  RAMP  0.62  0.537  16
+2026-10-15T12:50:44   12  RAMP  0.67  0.797  16
+2026-10-15T12:50:44   13  RAMP  0.72  0.956  10
+2026-10-15T12:50:45   14  RAMP  0.77  0.752  15
+2026-10-15T12:50:46   15  RAMP  0.82  1.065  15
+2026-10-15T12:50:47   16  RAMP  0.87  1.145   9
+2026-10-15T12:50:49   17  RAMP  0.92  0.849  15
+2026-10-15T12:50:50   18  RAMP  0.97  0.911  21
+2026-10-15T12:50:50   19  RAMP  1.02  1.185  15
+2026-10-15T12:50:51   20  RAMP  1.07  1.500  15
+2026-10-15T12:50:52   21  RAMP  1.12  1.397  13
+2026-10-15T12:50:54   22  RAMP  1.17  1.098  14
+2026-10-15T12:50:54   23  RAMP  1.22  1.135  20
+2026-10-15T12:50:55   24  RAMP  1.27  1.243  21
+2026-10-15T12:50:56   25  RAMP  1.32  1.374  13
+2026-10-15T12:50:57   26  RAMP  1.37  1.480  17
+2026-10-15T12:50:59   27  RAMP  1.42  1.506  11
+2026-10-15T12:50:59   28  RAMP  1.47  1.455  17
+2026-10-15T12:51:00   29  RAMP  1.52  1.488  17
+2026-10-15T12:51:01   30  RAMP  1.57  1.490  22
+2026-10-15T12:51:03   31  RAMP  1.62  1.548  16
+2026-10-15T12:51:03   32  RAMP  1.67  1.732  22
+2026-10-15T12:51:04   33  RAMP  1.72  1.747  16
+2026-10-15T12:51:05   34  RAMP  1.77  1.787  18
+2026-10-15T12:51:06   35  RAMP  1.82  1.968  20
+2026-10-15T12:51:08   36  RAMP  1.87  2.017  20
+2026-10-15T12:51:08   37  RAMP  1.92  1.894  20
+2026-10-15T12:51:09   38  RAMP  1.97  2.080  20
+2026-10-15T12:51:10 Pump P1 stopped
+2026-10-15T12:51:10 Valve V1 closed
+2026-10-15T12:51:10 Valve V_manifold closed
+2026-10-15T12:51:10 pressure_ramp ended: soft_limit, P max 2.151 bar at 38.0 s
+2026-10-15T12:51:10 TEST|pressure_ramp|11|FAIL|slot=11;label=slot11;end=soft_limit;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;mp=70;pmax=2.15;tpmax=38.0;ovs=0.13;rise=32.1;err=0.00;rip=0.00;pw= 0;pwp2p= 0;rev=0;sat= 0;reached=no
+2026-10-15T12:51:10 The O-ring is left LOCKED (oring_unlock when the pressure is gone).
+2026-10-15T12:51:10 --- pressure_ramp summary ---
+2026-10-15T12:51:10 id          | result | data
+2026-10-15T12:51:10 11          | FAIL   | slot=11;label=slot11;end=soft_limit;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;
+2026-10-15T12:51:11 TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+2026-10-15T12:51:11 TEST|pressure_ramp|summary|FAIL|pass=0;fail=1;skip=0
+2026-10-15T12:51:29 > pressure_ramp target=2.0 rate=0.05 start=15 slew=3 maxpower=70 hold=20 decay=30 quick label=slot11
+2026-10-15T12:51:29 === pressure_ramp: slot 11, label slot11 ===
+2026-10-15T12:51:29 PID 200 / 100 / 100, output 0..70 %, start 15 %, steps 3 % per update
+2026-10-15T12:51:30 Setpoint 0 -> 2.00 bar at 0.050 bar/s (40 s), hold 20 s, then pump off and decay 30 s.
+2026-10-15T12:51:30 The pump stops by itself at 2.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T12:51:30 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T12:51:42 === pressure_ramp ===
+2026-10-15T12:51:42 Valve V1 closed
+2026-10-15T12:51:42 Valve V_manifold opened
+2026-10-15T12:51:47 Pump P1 started with power 15
+2026-10-15T12:51:47   t(s)  phase  setpoint  P(bar)  power(%)
+2026-10-15T12:51:47    0  RAMP  0.25  0.248  12
+2026-10-15T12:51:48    1  RAMP  0.30  0.277  19
+2026-10-15T12:51:49    2  RAMP  0.35  0.333  10
+2026-10-15T12:51:50    3  RAMP  0.40  0.320  16
+2026-10-15T12:51:51    4  RAMP  0.45  0.544   4
+2026-10-15T12:51:52    5  RAMP  0.50  0.853  11
+2026-10-15T12:51:53    6  RAMP  0.55  0.700  17
+2026-10-15T12:51:54    7  RAMP  0.60  0.756  11
+2026-10-15T12:51:55    8  RAMP  0.65  0.590  17
+2026-10-15T12:51:56    9  RAMP  0.70  0.734  11
+2026-10-15T12:51:57   10  RAMP  0.75  0.755  20
+2026-10-15T12:51:58   11  RAMP  0.80  0.985   8
+2026-10-15T12:51:59   12  RAMP  0.85  0.843  14
+2026-10-15T12:52:00   13  RAMP  0.90  1.072   9
+2026-10-15T12:52:01   14  RAMP  0.95  0.985  15
+2026-10-15T12:52:02   15  RAMP  1.00  1.182  13
+2026-10-15T12:52:03   16  RAMP  1.05  1.067  11
+2026-10-15T12:52:04   17  RAMP  1.10  1.089  21
+2026-10-15T12:52:05   18  RAMP  1.15  1.461  15
+2026-10-15T12:52:06   19  RAMP  1.20  1.436   9
+2026-10-15T12:52:07   20  RAMP  1.25  1.065  15
+2026-10-15T12:52:08   21  RAMP  1.30  1.144  21
+2026-10-15T12:52:09   22  RAMP  1.35  1.605  14
+2026-10-15T12:52:10   23  RAMP  1.40  1.350  20
+2026-10-15T12:52:11   24  RAMP  1.45  1.477  14
+2026-10-15T12:52:12   25  RAMP  1.50  1.481  17
+2026-10-15T12:52:13   26  RAMP  1.55  1.631  11
+2026-10-15T12:52:14   27  RAMP  1.60  1.617  16
+2026-10-15T12:52:15   28  RAMP  1.65  1.627  16
+2026-10-15T12:52:16   29  RAMP  1.70  1.797  16
+2026-10-15T12:52:17   30  RAMP  1.75  1.638  18
+2026-10-15T12:52:18   31  RAMP  1.80  1.872  16
+2026-10-15T12:52:19   32  RAMP  1.85  1.768  16
+2026-10-15T12:52:20   33  RAMP  1.90  1.816  17
+2026-10-15T12:52:21   34  RAMP  1.95  1.921  20
+2026-10-15T12:52:22   35  RAMP  2.00  2.000  18
+2026-10-15T12:52:23 Pump P1 stopped
+2026-10-15T12:52:23 Valve V1 closed
+2026-10-15T12:52:23 Valve V_manifold closed
+2026-10-15T12:52:23 pressure_ramp ended: soft_limit, P max 2.162 bar at 35.4 s
+2026-10-15T12:52:23 TEST|pressure_ramp|11|FAIL|slot=11;label=slot11;end=soft_limit;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;mp=70;pmax=2.16;tpmax=35.4;ovs=0.11;rise=30.2;err=0.00;rip=0.00;pw= 0;pwp2p= 0;rev=0;sat= 0;reached=no
+2026-10-15T12:52:23 The O-ring is left LOCKED (oring_unlock when the pressure is gone).
+2026-10-15T12:52:24 --- pressure_ramp summary ---
+2026-10-15T12:52:24 id          | result | data
+2026-10-15T12:52:24 11          | FAIL   | slot=11;label=slot11;end=soft_limit;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;
+2026-10-15T12:52:24 TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+2026-10-15T12:52:24 TEST|pressure_ramp|summary|FAIL|pass=0;fail=1;skip=0
+2026-10-15T12:53:16 > slot12
+2026-10-15T12:53:16 Rotating to slot 12
+2026-10-15T12:53:23 O-ring unlocked
+2026-10-15T12:53:30 O-ring locked
+2026-10-15T12:53:35 > pressure_ramp target=2.0 rate=0.05 start=15 slew=3 maxpower=70 hold=20 decay=30 quick label=slot12
+2026-10-15T12:53:35 === pressure_ramp: slot 12, label slot12 ===
+2026-10-15T12:53:35 PID 200 / 100 / 100, output 0..70 %, start 15 %, steps 3 % per update
+2026-10-15T12:53:35 Setpoint 0 -> 2.00 bar at 0.050 bar/s (40 s), hold 20 s, then pump off and decay 30 s.
+2026-10-15T12:53:35 The pump stops by itself at 2.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T12:53:35 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T12:53:36 === pressure_ramp ===
+2026-10-15T12:53:36 Valve V1 closed
+2026-10-15T12:53:36 Valve V_manifold opened
+2026-10-15T12:53:41 Pump P1 started with power 15
+2026-10-15T12:53:41   t(s)  phase  setpoint  P(bar)  power(%)
+2026-10-15T12:53:41    0  RAMP  0.30  0.302  12
+2026-10-15T12:53:42    1  RAMP  0.35  0.318   8
+2026-10-15T12:53:43    2  RAMP  0.40  0.493   2
+2026-10-15T12:53:44    3  RAMP  0.45  0.487  13
+2026-10-15T12:53:45    4  RAMP  0.50  0.465   8
+2026-10-15T12:53:46    5  RAMP  0.55  0.618   2
+2026-10-15T12:53:47    6  RAMP  0.60  0.816   8
+2026-10-15T12:53:48    7  RAMP  0.65  0.557  18
+2026-10-15T12:53:49    8  RAMP  0.70  0.690  12
+2026-10-15T12:53:50    9  RAMP  0.75  0.826   3
+2026-10-15T12:53:51   10  RAMP  0.80  1.006   3
+2026-10-15T12:53:52   11  RAMP  0.85  0.892   4
+2026-10-15T12:53:53   12  RAMP  0.90  1.197   4
+2026-10-15T12:53:54   13  RAMP  0.95  1.187  18
+2026-10-15T12:53:55   14  RAMP  1.00  0.935   9
+2026-10-15T12:53:56   15  RAMP  1.05  1.377   3
+2026-10-15T12:53:57   16  RAMP  1.10  1.219   9
+2026-10-15T12:53:58   17  RAMP  1.15  1.066  15
+2026-10-15T12:53:59   18  RAMP  1.20  1.219  21
+2026-10-15T12:54:00   19  RAMP  1.25  1.077  14
+2026-10-15T12:54:01   20  RAMP  1.30  1.199  17
+2026-10-15T12:54:02   21  RAMP  1.35  1.827  11
+2026-10-15T12:54:03   22  RAMP  1.40  1.181  16
+2026-10-15T12:54:04   23  RAMP  1.45  1.543  12
+2026-10-15T12:54:05   24  RAMP  1.50  1.442  20
+2026-10-15T12:54:06   25  RAMP  1.55  1.712   9
+2026-10-15T12:54:07   26  RAMP  1.60  1.459  14
+2026-10-15T12:54:08   27  RAMP  1.65  1.577  20
+2026-10-15T12:54:09   28  RAMP  1.70  2.030  14
+2026-10-15T12:54:10   29  RAMP  1.75  1.777  12
+2026-10-15T12:54:11   30  RAMP  1.80  1.469  18
+2026-10-15T12:54:12 Pump P1 stopped
+2026-10-15T12:54:12 Valve V1 closed
+2026-10-15T12:54:12 Valve V_manifold closed
+2026-10-15T12:54:12 pressure_ramp ended: soft_limit, P max 2.152 bar at 30.3 s
+2026-10-15T12:54:12 TEST|pressure_ramp|12|FAIL|slot=12;label=slot12;end=soft_limit;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;mp=70;pmax=2.15;tpmax=30.3;ovs=0.12;rise=21.0;err=0.00;rip=0.00;pw= 0;pwp2p= 0;rev=0;sat= 0;reached=no
+2026-10-15T12:54:12 The O-ring is left LOCKED (oring_unlock when the pressure is gone).
+2026-10-15T12:54:12 --- pressure_ramp summary ---
+2026-10-15T12:54:12 id          | result | data
+2026-10-15T12:54:12 12          | FAIL   | slot=12;label=slot12;end=soft_limit;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;
+2026-10-15T12:54:12 TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+2026-10-15T12:54:12 TEST|pressure_ramp|summary|FAIL|pass=0;fail=1;skip=0
+2026-10-15T12:54:47 > pressure_ramp target=2.0 rate=0.05 start=15 slew=3 maxpower=70 hold=20 decay=30 quick label=slot12
+2026-10-15T12:54:47 === pressure_ramp: slot 12, label slot12 ===
+2026-10-15T12:54:47 PID 200 / 100 / 100, output 0..70 %, start 15 %, steps 3 % per update
+2026-10-15T12:54:47 Setpoint 0 -> 2.00 bar at 0.050 bar/s (40 s), hold 20 s, then pump off and decay 30 s.
+2026-10-15T12:54:47 The pump stops by itself at 2.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T12:54:47 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T12:54:49 === pressure_ramp ===
+2026-10-15T12:54:49 Valve V1 closed
+2026-10-15T12:54:49 Valve V_manifold opened
+2026-10-15T12:54:54 Pump P1 started with power 15
+2026-10-15T12:54:54   t(s)  phase  setpoint  P(bar)  power(%)
+2026-10-15T12:54:54    0  RAMP  0.31  0.313  12
+2026-10-15T12:54:55    1  RAMP  0.36  0.332   8
+2026-10-15T12:54:56    2  RAMP  0.41  0.516   0
+2026-10-15T12:54:57    3  RAMP  0.46  0.499  13
+2026-10-15T12:54:58    4  RAMP  0.51  0.484   9
+2026-10-15T12:54:59    5  RAMP  0.56  0.715   0
+2026-10-15T12:55:00    6  RAMP  0.61  0.842  12
+2026-10-15T12:55:01    7  RAMP  0.66  0.631   9
+2026-10-15T12:55:02    8  RAMP  0.71  0.818   0
+2026-10-15T12:55:03    9  RAMP  0.76  1.052   6
+2026-10-15T12:55:04   10  RAMP  0.81  0.818  20
+2026-10-15T12:55:05   11  RAMP  0.86  0.893   6
+2026-10-15T12:55:06   12  RAMP  0.91  1.024   0
+2026-10-15T12:55:07   13  RAMP  0.96  1.513  12
+2026-10-15T12:55:08   14  RAMP  1.01  0.891  18
+2026-10-15T12:55:09   15  RAMP  1.06  1.332  12
+2026-10-15T12:55:10   16  RAMP  1.11  1.286  12
+2026-10-15T12:55:11   17  RAMP  1.16  1.461   7
+2026-10-15T12:55:12   18  RAMP  1.21  1.245  13
+2026-10-15T12:55:13   19  RAMP  1.26  1.117  16
+2026-10-15T12:55:14   20  RAMP  1.31  1.342  21
+2026-10-15T12:55:15   21  RAMP  1.36  1.458  15
+2026-10-15T12:55:16   22  RAMP  1.41  1.869  15
+2026-10-15T12:55:17   23  RAMP  1.46  1.670   9
+2026-10-15T12:55:18   24  RAMP  1.51  1.519  14
+2026-10-15T12:55:19   25  RAMP  1.56  1.886   8
+2026-10-15T12:55:20   26  RAMP  1.61  1.511  21
+2026-10-15T12:55:21   27  RAMP  1.66  1.530  21
+2026-10-15T12:55:22   28  RAMP  1.71  1.534  21
+2026-10-15T12:55:23 Pump P1 stopped
+2026-10-15T12:55:24 Valve V1 closed
+2026-10-15T12:55:24 Valve V_manifold closed
+2026-10-15T12:55:24 pressure_ramp ended: soft_limit, P max 2.158 bar at 28.9 s
+2026-10-15T12:55:24 TEST|pressure_ramp|12|FAIL|slot=12;label=slot12;end=soft_limit;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;mp=70;pmax=2.16;tpmax=28.9;ovs=0.11;rise=20.2;err=0.00;rip=0.00;pw= 0;pwp2p= 0;rev=0;sat= 0;reached=no
+2026-10-15T12:55:24 The O-ring is left LOCKED (oring_unlock when the pressure is gone).
+2026-10-15T12:55:24 --- pressure_ramp summary ---
+2026-10-15T12:55:24 id          | result | data
+2026-10-15T12:55:24 12          | FAIL   | slot=12;label=slot12;end=soft_limit;tgt=2.00;kp=200;ki=100;kd=100;slew=3;st=15;
+2026-10-15T12:55:24 TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+2026-10-15T12:55:24 TEST|pressure_ramp|summary|FAIL|pass=0;fail=1;skip=0
+2026-10-15T13:36:02 > slot11
+2026-10-15T13:36:02 Rotating to slot 11
+2026-10-15T13:36:08 O-ring unlocked
+2026-10-15T13:36:16 O-ring locked
+2026-10-15T13:36:16 > x
+2026-10-15T13:36:18 > slot
+2026-10-15T13:36:18 Usage: slot<N>, N = 1 to 14 (use plain 'slot0' for purge), e.g. slot5
+2026-10-15T13:36:19 > slot11
+2026-10-15T13:36:19 Rotating to slot 11
+2026-10-15T13:36:26 O-ring unlocked
+2026-10-15T13:36:33 O-ring locked
+2026-10-15T13:41:34 > pressure_ramp target=2.0 rate=0.05 start=15 slew=3 maxpower=70 hold=20 decay=0 quick kp=100 ki=50 kd=50 label=kp100_s11_r1
+2026-10-15T13:41:34 === pressure_ramp: slot 11, label kp100_s11_r1 ===
+2026-10-15T13:41:34 PID 100 / 50 / 50, output 0..70 %, start 15 %, steps 3 % per update
+2026-10-15T13:41:34 Setpoint 0 -> 2.00 bar at 0.050 bar/s (40 s), hold 20 s.
+2026-10-15T13:41:34 The pump stops by itself at 2.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T13:41:34 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T13:41:35 === pressure_ramp ===
+2026-10-15T13:41:35 Valve V1 closed
+2026-10-15T13:41:35 Valve V_manifold opened
+2026-10-15T13:41:40 Pump P1 started with power 15
+2026-10-15T13:41:40   t(s)  phase  setpoint  P(bar)  power(%)
+2026-10-15T13:41:40    0  RAMP  0.35  0.346  12
+2026-10-15T13:41:41    1  RAMP  0.40  0.294  16
+2026-10-15T13:41:42    2  RAMP  0.45  0.379  18
+2026-10-15T13:41:43    3  RAMP  0.50  0.469   6
+2026-10-15T13:41:44    4  RAMP  0.55  0.636   7
+2026-10-15T13:41:45    5  RAMP  0.60  0.579   9
+2026-10-15T13:41:46    6  RAMP  0.65  0.652  10
+2026-10-15T13:41:47    7  RAMP  0.70  0.787  15
+2026-10-15T13:41:48    8  RAMP  0.75  0.713  18
+2026-10-15T13:41:49    9  RAMP  0.80  0.596  14
+2026-10-15T13:41:50   10  RAMP  0.85  1.007  13
+2026-10-15T13:41:51   11  RAMP  0.90  0.806  13
+2026-10-15T13:41:52   12  RAMP  0.95  0.960  13
+2026-10-15T13:41:53   13  RAMP  1.00  1.236   7
+2026-10-15T13:41:54   14  RAMP  1.05  0.971  21
+2026-10-15T13:41:55   15  RAMP  1.10  1.201  11
+2026-10-15T13:41:56   16  RAMP  1.15  1.363   6
+2026-10-15T13:41:57   17  RAMP  1.20  1.477  13
+2026-10-15T13:41:58   18  RAMP  1.25  1.517  10
+2026-10-15T13:41:59   19  RAMP  1.30  1.173  19
+2026-10-15T13:42:00   20  RAMP  1.35  1.511  12
+2026-10-15T13:42:01   21  RAMP  1.40  1.482  12
+2026-10-15T13:42:02   22  RAMP  1.45  1.213  18
+2026-10-15T13:42:03   23  RAMP  1.50  1.576  21
+2026-10-15T13:42:04   24  RAMP  1.55  1.414  21
+2026-10-15T13:42:05 Pump P1 stopped
+2026-10-15T13:42:05 Valve V1 closed
+2026-10-15T13:42:05 Valve V_manifold closed
+2026-10-15T13:42:05 pressure_ramp ended: soft_limit, P max 2.170 bar at 24.3 s
+2026-10-15T13:42:05 TEST|pressure_ramp|11|FAIL|slot=11;label=kp100_s11_r1;end=soft_limit;tgt=2.00;kp=100;ki=50;kd=50;slew=3;st=15;mp=70;pmax=2.17;tpmax=24.3;ovs=0.12;rise=19.4;err=0.00;rip=0.00;pw= 0;pwp2p= 0;rev=0;sat= 0;reached=no
+2026-10-15T13:42:05 The O-ring is left LOCKED (oring_unlock when the pressure is gone).
+2026-10-15T13:42:05 --- pressure_ramp summary ---
+2026-10-15T13:42:05 id          | result | data
+2026-10-15T13:42:06 11          | FAIL   | slot=11;label=kp100_s11_r1;end=soft_limit;tgt=2.00;kp=100;ki=50;kd=50;slew=3;st
+2026-10-15T13:42:06 TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+2026-10-15T13:42:06 TEST|pressure_ramp|summary|FAIL|pass=0;fail=1;skip=0
+2026-10-15T13:42:13 > pressure_ramp target=2.0 rate=0.05 start=15 slew=3 maxpower=70 hold=20 decay=0 quick kp=100 ki=50 kd=50 label=kp100_s11_r2
+2026-10-15T13:42:13 === pressure_ramp: slot 11, label kp100_s11_r2 ===
+2026-10-15T13:42:13 PID 100 / 50 / 50, output 0..70 %, start 15 %, steps 3 % per update
+2026-10-15T13:42:14 Setpoint 0 -> 2.00 bar at 0.050 bar/s (40 s), hold 20 s.
+2026-10-15T13:42:14 The pump stops by itself at 2.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T13:42:14 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T13:42:15 === pressure_ramp ===
+2026-10-15T13:42:15 Valve V1 closed
+2026-10-15T13:42:15 Valve V_manifold opened
+2026-10-15T13:42:20 Pump P1 started with power 15
+2026-10-15T13:42:20   t(s)  phase  setpoint  P(bar)  power(%)
+2026-10-15T13:42:20    0  RAMP  0.25  0.252  12
+2026-10-15T13:42:21    1  RAMP  0.30  0.224  12
+2026-10-15T13:42:22    2  RAMP  0.35  0.432   2
+2026-10-15T13:42:22    3  RAMP  0.40  0.527  11
+2026-10-15T13:42:24    4  RAMP  0.45  0.351  17
+2026-10-15T13:42:25    5  RAMP  0.50  0.408  15
+2026-10-15T13:42:26    6  RAMP  0.55  0.532   7
+2026-10-15T13:42:27    7  RAMP  0.60  0.550  15
+2026-10-15T13:42:27    8  RAMP  0.65  0.868  12
+2026-10-15T13:42:29    9  RAMP  0.70  0.533  17
+2026-10-15T13:42:30   10  RAMP  0.75  0.731   5
+2026-10-15T13:42:31   11  RAMP  0.80  1.088   7
+2026-10-15T13:42:32   12  RAMP  0.85  1.254  15
+2026-10-15T13:42:33   13  RAMP  0.90  0.678  15
+2026-10-15T13:42:33   14  RAMP  0.95  1.130  12
+2026-10-15T13:42:34   15  RAMP  1.00  1.156   8
+2026-10-15T13:42:36   16  RAMP  1.05  1.048  15
+2026-10-15T13:42:37   17  RAMP  1.10  1.466  15
+2026-10-15T13:42:38   18  RAMP  1.15  1.349   9
+2026-10-15T13:42:39   19  RAMP  1.20  0.979  17
+2026-10-15T13:42:40   20  RAMP  1.25  1.406  11
+2026-10-15T13:42:41   21  RAMP  1.30  1.389  11
+2026-10-15T13:42:41   22  RAMP  1.35  1.149  17
+2026-10-15T13:42:43   23  RAMP  1.40  1.583  17
+2026-10-15T13:42:44   24  RAMP  1.45  1.786  11
+2026-10-15T13:42:45   25  RAMP  1.50  1.937   9
+2026-10-15T13:42:46   26  RAMP  1.55  1.679  13
+2026-10-15T13:42:47   27  RAMP  1.60  1.872  13
+2026-10-15T13:42:48   28  RAMP  1.65  1.502  19
+2026-10-15T13:42:48   29  RAMP  1.70  1.745  13
+2026-10-15T13:42:50   30  RAMP  1.75  1.946  13
+2026-10-15T13:42:51   31  RAMP  1.80  1.643  19
+2026-10-15T13:42:52   32  RAMP  1.85  1.923  14
+2026-10-15T13:42:52 Pump P1 stopped
+2026-10-15T13:42:52 Valve V1 closed
+2026-10-15T13:42:52 Valve V_manifold closed
+2026-10-15T13:42:52 pressure_ramp ended: soft_limit, P max 2.157 bar at 32.4 s
+2026-10-15T13:42:53 TEST|pressure_ramp|11|FAIL|slot=11;label=kp100_s11_r2;end=soft_limit;tgt=2.00;kp=100;ki=50;kd=50;slew=3;st=15;mp=70;pmax=2.16;tpmax=32.4;ovs=0.07;rise=24.7;err=0.00;rip=0.00;pw= 0;pwp2p= 0;rev=0;sat= 0;reached=no
+2026-10-15T13:42:53 The O-ring is left LOCKED (oring_unlock when the pressure is gone).
+2026-10-15T13:42:53 --- pressure_ramp summary ---
+2026-10-15T13:42:53 id          | result | data
+2026-10-15T13:42:53 11          | FAIL   | slot=11;label=kp100_s11_r2;end=soft_limit;tgt=2.00;kp=100;ki=50;kd=50;slew=3;st
+2026-10-15T13:42:53 TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+2026-10-15T13:42:53 TEST|pressure_ramp|summary|FAIL|pass=0;fail=1;skip=0
+2026-10-15T13:43:16 > slot10
+2026-10-15T13:43:16 Rotating to slot 10
+2026-10-15T13:43:23 O-ring unlocked
+2026-10-15T13:43:30 O-ring locked
+2026-10-15T13:43:30 > slot12
+2026-10-15T13:43:30 Rotating to slot 12
+2026-10-15T13:43:36 O-ring unlocked
+2026-10-15T13:43:44 O-ring locked
+2026-10-15T13:43:53 > pressure_ramp target=2.0 rate=0.05 start=15 slew=3 maxpower=70 hold=20 decay=0 quick kp=100 ki=50 kd=50 label=kp100_s12_r1
+2026-10-15T13:43:53 === pressure_ramp: slot 12, label kp100_s12_r1 ===
+2026-10-15T13:43:53 PID 100 / 50 / 50, output 0..70 %, start 15 %, steps 3 % per update
+2026-10-15T13:43:53 Setpoint 0 -> 2.00 bar at 0.050 bar/s (40 s), hold 20 s.
+2026-10-15T13:43:53 The pump stops by itself at 2.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T13:43:53 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T13:44:33 === pressure_ramp ===
+2026-10-15T13:44:33 Valve V1 closed
+2026-10-15T13:44:33 Valve V_manifold opened
+2026-10-15T13:44:38 Pump P1 started with power 15
+2026-10-15T13:44:38   t(s)  phase  setpoint  P(bar)  power(%)
+2026-10-15T13:44:38    0  RAMP  0.28  0.280  12
+2026-10-15T13:44:39    1  RAMP  0.33  0.310   3
+2026-10-15T13:44:40    2  RAMP  0.38  0.515   2
+2026-10-15T13:44:41    3  RAMP  0.43  0.389   8
+2026-10-15T13:44:42    4  RAMP  0.48  0.563   0
+2026-10-15T13:44:43    5  RAMP  0.53  0.556  13
+2026-10-15T13:44:44    6  RAMP  0.58  0.519  10
+2026-10-15T13:44:45    7  RAMP  0.63  0.621   3
+2026-10-15T13:44:46    8  RAMP  0.68  0.879   3
+2026-10-15T13:44:47    9  RAMP  0.73  0.784  14
+2026-10-15T13:44:48   10  RAMP  0.78  0.671  14
+2026-10-15T13:44:49   11  RAMP  0.83  0.748  13
+2026-10-15T13:44:50   12  RAMP  0.88  0.777  18
+2026-10-15T13:44:51   13  RAMP  0.93  0.831  12
+2026-10-15T13:44:52   14  RAMP  0.98  1.079   0
+2026-10-15T13:44:53   15  RAMP  1.03  1.620  12
+2026-10-15T13:44:54   16  RAMP  1.08  0.910  13
+2026-10-15T13:44:55   17  RAMP  1.13  1.113  14
+2026-10-15T13:44:56   18  RAMP  1.18  1.184  14
+2026-10-15T13:44:57   19  RAMP  1.23  1.214  17
+2026-10-15T13:44:58   20  RAMP  1.28  1.392  11
+2026-10-15T13:44:59   21  RAMP  1.33  1.501  11
+2026-10-15T13:45:00   22  RAMP  1.38  1.268  17
+2026-10-15T13:45:01   23  RAMP  1.43  1.573  12
+2026-10-15T13:45:02   24  RAMP  1.48  1.255  18
+2026-10-15T13:45:03   25  RAMP  1.53  1.571  13
+2026-10-15T13:45:04   26  RAMP  1.58  1.918   8
+2026-10-15T13:45:05   27  RAMP  1.63  1.521  20
+2026-10-15T13:45:06   28  RAMP  1.68  2.065  14
+2026-10-15T13:45:07 Pump P1 stopped
+2026-10-15T13:45:07 Valve V1 closed
+2026-10-15T13:45:07 Valve V_manifold closed
+2026-10-15T13:45:07 pressure_ramp ended: soft_limit, P max 2.163 bar at 28.8 s
+2026-10-15T13:45:08 TEST|pressure_ramp|12|FAIL|slot=12;label=kp100_s12_r1;end=soft_limit;tgt=2.00;kp=100;ki=50;kd=50;slew=3;st=15;mp=70;pmax=2.16;tpmax=28.8;ovs=0.13;rise=24.3;err=0.00;rip=0.00;pw= 0;pwp2p= 0;rev=0;sat= 0;reached=no
+2026-10-15T13:45:08 The O-ring is left LOCKED (oring_unlock when the pressure is gone).
+2026-10-15T13:45:08 --- pressure_ramp summary ---
+2026-10-15T13:45:08 id          | result | data
+2026-10-15T13:45:08 12          | FAIL   | slot=12;label=kp100_s12_r1;end=soft_limit;tgt=2.00;kp=100;ki=50;kd=50;slew=3;st
+2026-10-15T13:45:08 TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+2026-10-15T13:45:08 TEST|pressure_ramp|summary|FAIL|pass=0;fail=1;skip=0
+2026-10-15T13:47:58 > pressure_ramp target=2.0 rate=0.05 start=15 slew=3 maxpower=70 hold=20 decay=0 quick kp=100 ki=50 kd=50 label=kp100_s12_r2pressure_ramp target=2.0 rate=0.05 start=15 slew=3 maxpower=70 hold=20 decay=0 quick kp=100 ki=50 kd=50 label=kp100_s12_r2
+2026-10-15T13:47:58 Bad arguments: argument too long - see `help`
+2026-10-15T13:48:05 > slot11
+2026-10-15T13:48:05 Rotating to slot 11
+2026-10-15T13:48:11 O-ring unlocked
+2026-10-15T13:48:18 O-ring locked
+2026-10-15T13:48:21 > pressure_ramp target=2.0 rate=0.01 start=15 slew=3 maxpower=70 hold=20 decay=0 quick kp=100 ki=50 kd=50 label=kp100_rate0.01_s11
+2026-10-15T13:48:21 === pressure_ramp: slot 11, label kp100_rate0.01_ ===
+2026-10-15T13:48:21 PID 100 / 50 / 50, output 0..70 %, start 15 %, steps 3 % per update
+2026-10-15T13:48:21 Setpoint 0 -> 2.00 bar at 0.010 bar/s (200 s), hold 20 s.
+2026-10-15T13:48:21 The pump stops by itself at 2.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T13:48:21 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T13:48:22 === pressure_ramp ===
+2026-10-15T13:48:22 Valve V1 closed
+2026-10-15T13:48:22 Valve V_manifold opened
+2026-10-15T13:48:27 Pump P1 started with power 15
+2026-10-15T13:48:27   t(s)  phase  setpoint  P(bar)  power(%)
+2026-10-15T13:48:27    0  RAMP  0.32  0.324  12
+2026-10-15T13:48:28    1  RAMP  0.33  0.327   1
+2026-10-15T13:48:29    2  RAMP  0.34  0.503   4
+2026-10-15T13:48:30    3  RAMP  0.35  0.329   4
+2026-10-15T13:48:31    4  RAMP  0.36  0.464   0
+2026-10-15T13:48:32    5  RAMP  0.37  0.318  12
+2026-10-15T13:48:33    6  RAMP  0.38  0.472   0
+2026-10-15T13:48:34    7  RAMP  0.39  0.325  15
+2026-10-15T13:48:35    8  RAMP  0.40  0.492   0
+2026-10-15T13:48:36    9  RAMP  0.41  0.348  16
+2026-10-15T13:48:37   10  RAMP  0.42  0.450   1
+2026-10-15T13:48:38   11  RAMP  0.43  0.690   8
+2026-10-15T13:48:39   12  RAMP  0.44  0.423   4
+2026-10-15T13:48:40   13  RAMP  0.45  0.555   0
+2026-10-15T13:48:41   14  RAMP  0.46  0.506  13
+2026-10-15T13:48:42   15  RAMP  0.47  0.453   5
+2026-10-15T13:48:43   16  RAMP  0.48  0.623   0
+2026-10-15T13:48:44   17  RAMP  0.49  0.415  18
+2026-10-15T13:48:45   18  RAMP  0.50  0.577   1
+2026-10-15T13:48:46   19  RAMP  0.51  0.693  11
+2026-10-15T13:48:47   20  RAMP  0.52  0.469   8
+2026-10-15T13:48:48   21  RAMP  0.53  0.598   0
+2026-10-15T13:48:49   22  RAMP  0.54  0.797   8
+2026-10-15T13:48:50   23  RAMP  0.55  0.466  13
+2026-10-15T13:48:51   24  RAMP  0.56  0.543   4
+2026-10-15T13:48:52   25  RAMP  0.57  0.627   3
+2026-10-15T13:48:53   26  RAMP  0.58  0.789   5
+2026-10-15T13:48:54   27  RAMP  0.59  0.503  18
+2026-10-15T13:48:55   28  RAMP  0.60  0.638   2
+2026-10-15T13:48:56   29  RAMP  0.61  0.700   2
+2026-10-15T13:48:57   30  RAMP  0.62  0.880   8
+2026-10-15T13:48:58   31  RAMP  0.63  0.526  16
+2026-10-15T13:48:59   32  RAMP  0.64  0.559  14
+2026-10-15T13:49:00   33  RAMP  0.65  0.636   5
+2026-10-15T13:49:01   34  RAMP  0.66  0.749   1
+2026-10-15T13:49:02   35  RAMP  0.67  0.914   8
+2026-10-15T13:49:03   36  RAMP  0.68  0.769  15
+2026-10-15T13:49:04   37  RAMP  0.69  0.665   6
+2026-10-15T13:49:05   38  RAMP  0.70  0.879   0
+2026-10-15T13:49:06   39  RAMP  0.71  0.929   7
+2026-10-15T13:49:07   40  RAMP  0.72  0.746  14
+2026-10-15T13:49:08   41  RAMP  0.73  0.628  18
+2026-10-15T13:49:09   42  RAMP  0.74  0.731   6
+2026-10-15T13:49:10   43  RAMP  0.75  0.922   0
+2026-10-15T13:49:11   44  RAMP  0.76  1.111   9
+2026-10-15T13:49:12   45  RAMP  0.77  0.631  15
+2026-10-15T13:49:13   46  RAMP  0.78  0.779   7
+2026-10-15T13:49:14   47  RAMP  0.79  0.767   7
+2026-10-15T13:49:15   48  RAMP  0.80  0.760  15
+2026-10-15T13:49:16   49  RAMP  0.81  0.819   5
+2026-10-15T13:49:17   50  RAMP  0.82  0.860   5
+2026-10-15T13:49:18   51  RAMP  0.83  0.865   5
+2026-10-15T13:49:19   52  RAMP  0.84  0.882   4
+2026-10-15T13:49:20   53  RAMP  0.85  0.847  15
+2026-10-15T13:49:21   54  RAMP  0.86  0.699  16
+2026-10-15T13:49:22   55  RAMP  0.87  0.772  14
+2026-10-15T13:49:23   56  RAMP  0.88  0.764  10
+2026-10-15T13:49:24   57  RAMP  0.89  1.057   0
+2026-10-15T13:49:25   58  RAMP  0.90  1.203   6
+2026-10-15T13:49:26   59  RAMP  0.91  1.032   5
+2026-10-15T13:49:27   60  RAMP  0.92  1.012   5
+2026-10-15T13:49:28   61  RAMP  0.93  0.912  12
+2026-10-15T13:49:29   62  RAMP  0.94  0.944  10
+2026-10-15T13:49:30   63  RAMP  0.95  0.829  15
+2026-10-15T13:49:31   64  RAMP  0.96  0.875  12
+2026-10-15T13:49:32   65  RAMP  0.97  0.953   5
+2026-10-15T13:49:33   66  RAMP  0.98  1.409   5
+2026-10-15T13:49:34   67  RAMP  0.99  1.014  21
+2026-10-15T13:49:35   68  RAMP  1.00  1.043   3
+2026-10-15T13:49:36   69  RAMP  1.01  1.761   9
+2026-10-15T13:49:37   70  RAMP  1.02  0.847  18
+2026-10-15T13:49:38   71  RAMP  1.03  1.020   4
+2026-10-15T13:49:39   72  RAMP  1.04  1.338   8
+2026-10-15T13:49:40   73  RAMP  1.05  1.549  14
+2026-10-15T13:49:41   74  RAMP  1.06  0.892  16
+2026-10-15T13:49:42   75  RAMP  1.07  1.400  11
+2026-10-15T13:49:43   76  RAMP  1.08  1.189   9
+2026-10-15T13:49:44   77  RAMP  1.09  1.115   3
+2026-10-15T13:49:45   78  RAMP  1.10  1.833   9
+2026-10-15T13:49:46   79  RAMP  1.11  1.056  19
+2026-10-15T13:49:47   80  RAMP  1.12  0.977  10
+2026-10-15T13:49:48   81  RAMP  1.13  1.198   5
+2026-10-15T13:49:49   82  RAMP  1.14  1.108  17
+2026-10-15T13:49:50   83  RAMP  1.15  1.199  15
+2026-10-15T13:49:51   84  RAMP  1.16  1.600   9
+2026-10-15T13:49:52   85  RAMP  1.17  1.503  18
+2026-10-15T13:49:53   86  RAMP  1.18  1.055  13
+2026-10-15T13:49:54   87  RAMP  1.19  1.327  15
+2026-10-15T13:49:55   88  RAMP  1.20  1.469  12
+2026-10-15T13:49:56   89  RAMP  1.21  1.578   6
+2026-10-15T13:49:57   90  RAMP  1.22  1.481   6
+2026-10-15T13:49:58   91  RAMP  1.23  1.122  16
+2026-10-15T13:49:59   92  RAMP  1.24  1.300   9
+2026-10-15T13:50:00   93  RAMP  1.25  1.201  15
+2026-10-15T13:50:01   94  RAMP  1.26  1.336  13
+2026-10-15T13:50:02   95  RAMP  1.27  1.251  13
+2026-10-15T13:50:03   96  RAMP  1.28  1.516   7
+2026-10-15T13:50:04   97  RAMP  1.29  1.363  13
+2026-10-15T13:50:05   98  RAMP  1.30  1.286  13
+2026-10-15T13:50:06   99  RAMP  1.31  1.506   7
+2026-10-15T13:50:07   100  RAMP  1.32  1.336  13
+2026-10-15T13:50:08   101  RAMP  1.33  1.271  13
+2026-10-15T13:50:09   102  RAMP  1.34  1.533   7
+2026-10-15T13:50:10   103  RAMP  1.35  1.433  13
+2026-10-15T13:50:11   104  RAMP  1.36  1.462   9
+2026-10-15T13:50:12   105  RAMP  1.37  1.292  15
+2026-10-15T13:50:13   106  RAMP  1.38  1.489  15
+2026-10-15T13:50:14   107  RAMP  1.39  1.810   9
+2026-10-15T13:50:15   108  RAMP  1.40  1.547   9
+2026-10-15T13:50:16   109  RAMP  1.41  1.323  15
+2026-10-15T13:50:17   110  RAMP  1.42  1.564  15
+2026-10-15T13:50:18   111  RAMP  1.43  1.804   9
+2026-10-15T13:50:19   112  RAMP  1.44  1.295  16
+2026-10-15T13:50:20   113  RAMP  1.45  1.466  10
+2026-10-15T13:50:21   114  RAMP  1.46  1.392  15
+2026-10-15T13:50:22   115  RAMP  1.47  1.570  15
+2026-10-15T13:50:23   116  RAMP  1.48  1.702   8
+2026-10-15T13:50:24   117  RAMP  1.49  1.404  16
+2026-10-15T13:50:25   118  RAMP  1.50  1.688   9
+2026-10-15T13:50:26   119  RAMP  1.51  1.367  15
+2026-10-15T13:50:27   120  RAMP  1.52  1.570  15
+2026-10-15T13:50:29 Pump P1 stopped
+2026-10-15T13:50:29 Valve V1 closed
+2026-10-15T13:50:29 Valve V_manifold closed
+2026-10-15T13:50:29 pressure_ramp ended: soft_limit, P max 2.178 bar at 121.0 s
+2026-10-15T13:50:29 TEST|pressure_ramp|11|FAIL|slot=11;label=kp100_rate0.01_;end=soft_limit;tgt=2.00;kp=100;ki=50;kd=50;slew=3;st=15;mp=70;pmax=2.18;tpmax=121.0;ovs=0.00;rise=78.0;err=0.00;rip=0.00;pw= 0;pwp2p= 0;rev=0;sat= 0;reached=no
+2026-10-15T13:50:29 The O-ring is left LOCKED (oring_unlock when the pressure is gone).
+2026-10-15T13:50:29 --- pressure_ramp summary ---
+2026-10-15T13:50:29 id          | result | data
+2026-10-15T13:50:29 11          | FAIL   | slot=11;label=kp100_rate0.01_;end=soft_limit;tgt=2.00;kp=100;ki=50;kd=50;slew=3
+2026-10-15T13:50:29 TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+2026-10-15T13:50:29 TEST|pressure_ramp|summary|FAIL|pass=0;fail=1;skip=0
+2026-10-15T13:51:18 > slot12
+2026-10-15T13:51:18 Rotating to slot 12
+2026-10-15T13:51:24 O-ring unlocked
+2026-10-15T13:51:32 O-ring locked
+2026-10-15T13:51:43 > pressure_ramp target=2.0 rate=0.01 start=15 slew=3 maxpower=70 hold=20 decay=0 quick kp=100 ki=50 kd=50 label=kp100_rate0.01_s12
+2026-10-15T13:51:43 === pressure_ramp: slot 12, label kp100_rate0.01_ ===
+2026-10-15T13:51:43 PID 100 / 50 / 50, output 0..70 %, start 15 %, steps 3 % per update
+2026-10-15T13:51:43 Setpoint 0 -> 2.00 bar at 0.010 bar/s (200 s), hold 20 s.
+2026-10-15T13:51:43 The pump stops by itself at 2.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T13:51:43 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T13:51:44 === pressure_ramp ===
+2026-10-15T13:51:44 Valve V1 closed
+2026-10-15T13:51:44 Valve V_manifold opened
+2026-10-15T13:51:49 Pump P1 started with power 15
+2026-10-15T13:51:49   t(s)  phase  setpoint  P(bar)  power(%)
+2026-10-15T13:51:49    0  RAMP  0.28  0.281  12
+2026-10-15T13:51:50    1  RAMP  0.29  0.312   0
+2026-10-15T13:51:51    2  RAMP  0.30  0.257  11
+2026-10-15T13:51:52    3  RAMP  0.31  0.389   0
+2026-10-15T13:51:53    4  RAMP  0.32  0.314   1
+2026-10-15T13:51:54    5  RAMP  0.33  0.463   6
+2026-10-15T13:51:55    6  RAMP  0.34  0.362   0
+2026-10-15T13:51:56    7  RAMP  0.35  0.308  14
+2026-10-15T13:51:57    8  RAMP  0.36  0.365   1
+2026-10-15T13:51:58    9  RAMP  0.37  0.485   9
+2026-10-15T13:51:59   10  RAMP  0.38  0.408   0
+2026-10-15T13:52:00   11  RAMP  0.39  0.330  16
+2026-10-15T13:52:01   12  RAMP  0.40  0.458   1
+2026-10-15T13:52:02   13  RAMP  0.41  0.364  10
+2026-10-15T13:52:03   14  RAMP  0.42  0.489   0
+2026-10-15T13:52:04   15  RAMP  0.43  0.383  10
+2026-10-15T13:52:05   16  RAMP  0.44  0.507   0
+2026-10-15T13:52:06   17  RAMP  0.45  0.397  12
+2026-10-15T13:52:07   18  RAMP  0.46  0.558   0
+2026-10-15T13:52:08   19  RAMP  0.47  0.430   7
+2026-10-15T13:52:09   20  RAMP  0.48  0.567   0
+2026-10-15T13:52:10   21  RAMP  0.49  0.434  12
+2026-10-15T13:52:11   22  RAMP  0.50  0.588   0
+2026-10-15T13:52:12   23  RAMP  0.51  0.447  12
+2026-10-15T13:52:13   24  RAMP  0.52  0.699   0
+2026-10-15T13:52:14   25  RAMP  0.53  0.511   4
+2026-10-15T13:52:15   26  RAMP  0.54  0.812   3
+2026-10-15T13:52:16   27  RAMP  0.55  0.571   0
+2026-10-15T13:52:17   28  RAMP  0.56  0.797   8
+2026-10-15T13:52:18   29  RAMP  0.57  0.560   3
+2026-10-15T13:52:19   30  RAMP  0.58  0.749   2
+2026-10-15T13:52:20   31  RAMP  0.59  0.536  10
+2026-10-15T13:52:21   32  RAMP  0.60  0.646   0
+2026-10-15T13:52:22   33  RAMP  0.61  0.797   7
+2026-10-15T13:52:23   34  RAMP  0.62  0.560  11
+2026-10-15T13:52:24   35  RAMP  0.63  0.701   0
+2026-10-15T13:52:25   36  RAMP  0.64  0.836  11
+2026-10-15T13:52:26   37  RAMP  0.65  0.631   5
+2026-10-15T13:52:27   38  RAMP  0.66  0.813   0
+2026-10-15T13:52:28   39  RAMP  0.67  0.578  15
+2026-10-15T13:52:29   40  RAMP  0.68  0.801   0
+2026-10-15T13:52:30   41  RAMP  0.69  0.730  13
+2026-10-15T13:52:31   42  RAMP  0.70  0.655   9
+2026-10-15T13:52:32   43  RAMP  0.71  0.892   0
+2026-10-15T13:52:33   44  RAMP  0.72  0.623  16
+2026-10-15T13:52:34   45  RAMP  0.73  0.693   6
+2026-10-15T13:52:35   46  RAMP  0.74  0.952   0
+2026-10-15T13:52:36   47  RAMP  0.75  0.653  13
+2026-10-15T13:52:37   48  RAMP  0.76  0.722   6
+2026-10-15T13:52:38   49  RAMP  0.77  0.980   0
+2026-10-15T13:52:39   50  RAMP  0.78  0.666  16
+2026-10-15T13:52:40   51  RAMP  0.79  0.716  14
+2026-10-15T13:52:41   52  RAMP  0.80  0.822   3
+2026-10-15T13:52:42   53  RAMP  0.81  0.959   2
+2026-10-15T13:52:43   54  RAMP  0.82  1.025  11
+2026-10-15T13:52:44   55  RAMP  0.83  0.734  13
+2026-10-15T13:52:45   56  RAMP  0.84  0.782  11
+2026-10-15T13:52:46   57  RAMP  0.85  0.869   3
+2026-10-15T13:52:47   58  RAMP  0.86  0.984   2
+2026-10-15T13:52:48   59  RAMP  0.87  1.202   9
+2026-10-15T13:52:49   60  RAMP  0.88  0.786  12
+2026-10-15T13:52:50   61  RAMP  0.89  0.971   0
+2026-10-15T13:52:51   62  RAMP  0.90  1.078   5
+2026-10-15T13:52:52   63  RAMP  0.91  1.124   7
+2026-10-15T13:52:53   64  RAMP  0.92  0.984  15
+2026-10-15T13:52:54   65  RAMP  0.93  0.890   8
+2026-10-15T13:52:55   66  RAMP  0.94  0.978   3
+2026-10-15T13:52:56   67  RAMP  0.95  1.078   2
+2026-10-15T13:52:57   68  RAMP  0.96  1.167   5
+2026-10-15T13:52:58   69  RAMP  0.97  1.125  11
+2026-10-15T13:52:59   70  RAMP  0.98  1.209   7
+2026-10-15T13:53:00   71  RAMP  0.99  1.220  12
+2026-10-15T13:53:01   72  RAMP  1.00  0.873  15
+2026-10-15T13:53:02   73  RAMP  1.01  1.006   4
+2026-10-15T13:53:03   74  RAMP  1.02  1.165   3
+2026-10-15T13:53:04   75  RAMP  1.03  1.353   9
+2026-10-15T13:53:05   76  RAMP  1.04  0.860  16
+2026-10-15T13:53:06   77  RAMP  1.05  1.124   2
+2026-10-15T13:53:07   78  RAMP  1.06  1.086  10
+2026-10-15T13:53:08   79  RAMP  1.07  0.998  10
+2026-10-15T13:53:09   80  RAMP  1.08  0.975  16
+2026-10-15T13:53:10   81  RAMP  1.09  0.951  18
+2026-10-15T13:53:11   82  RAMP  1.10  0.999  11
+2026-10-15T13:53:12   83  RAMP  1.11  1.256   6
+2026-10-15T13:53:13   84  RAMP  1.12  1.174   7
+2026-10-15T13:53:14   85  RAMP  1.13  1.278   6
+2026-10-15T13:53:15   86  RAMP  1.14  1.245   2
+2026-10-15T13:53:16   87  RAMP  1.15  1.566   8
+2026-10-15T13:53:17   88  RAMP  1.16  1.482   8
+2026-10-15T13:53:18   89  RAMP  1.17  1.264  10
+2026-10-15T13:53:19   90  RAMP  1.18  1.282  14
+2026-10-15T13:53:20   91  RAMP  1.19  1.020  18
+2026-10-15T13:53:21   92  RAMP  1.20  1.276   2
+2026-10-15T13:53:22   93  RAMP  1.21  1.608   6
+2026-10-15T13:53:23   94  RAMP  1.22  1.417  16
+2026-10-15T13:53:24   95  RAMP  1.23  1.133  18
+2026-10-15T13:53:25   96  RAMP  1.24  1.088  11
+2026-10-15T13:53:26   97  RAMP  1.25  1.447   0
+2026-10-15T13:53:27   98  RAMP  1.26  1.957  12
+2026-10-15T13:53:28   99  RAMP  1.27  1.150  17
+2026-10-15T13:53:29   100  RAMP  1.28  1.591  12
+2026-10-15T13:53:30   101  RAMP  1.29  1.269  19
+2026-10-15T13:53:31   102  RAMP  1.30  1.170  14
+2026-10-15T13:53:32   103  RAMP  1.31  1.651   8
+2026-10-15T13:53:33   104  RAMP  1.32  1.368   9
+2026-10-15T13:53:34   105  RAMP  1.33  1.310  11
+2026-10-15T13:53:35   106  RAMP  1.34  1.466  14
+2026-10-15T13:53:36   107  RAMP  1.35  1.634   8
+2026-10-15T13:53:37   108  RAMP  1.36  1.680   7
+2026-10-15T13:53:38   109  RAMP  1.37  1.269  11
+2026-10-15T13:53:39   110  RAMP  1.38  1.528   8
+2026-10-15T13:53:40   111  RAMP  1.39  1.463  13
+2026-10-15T13:53:41   112  RAMP  1.40  1.380  13
+2026-10-15T13:53:42   113  RAMP  1.41  1.625   7
+2026-10-15T13:53:43   114  RAMP  1.42  1.521  13
+2026-10-15T13:53:44   115  RAMP  1.43  1.420  13
+2026-10-15T13:53:45   116  RAMP  1.44  1.657  11
+2026-10-15T13:53:46   117  RAMP  1.45  1.617   8
+2026-10-15T13:53:47   118  RAMP  1.46  1.493  12
+2026-10-15T13:53:48   119  RAMP  1.47  1.348  14
+2026-10-15T13:53:49   120  RAMP  1.48  1.807   8
+2026-10-15T13:53:50   121  RAMP  1.49  1.933  10
+2026-10-15T13:53:51   122  RAMP  1.50  1.416  16
+2026-10-15T13:53:52   123  RAMP  1.51  1.578  10
+2026-10-15T13:53:53   124  RAMP  1.52  1.689  10
+2026-10-15T13:53:54   125  RAMP  1.53  1.392  16
+2026-10-15T13:53:55   126  RAMP  1.54  1.579  10
+2026-10-15T13:53:56   127  RAMP  1.55  1.709  10
+2026-10-15T13:53:57   128  RAMP  1.56  1.443  18
+2026-10-15T13:53:58   129  RAMP  1.57  1.556  19
+2026-10-15T13:53:59   130  RAMP  1.58  1.940  12
+2026-10-15T13:54:00   131  RAMP  1.59  1.579  10
+2026-10-15T13:54:01   132  RAMP  1.60  1.832  11
+2026-10-15T13:54:02   133  RAMP  1.61  1.540  17
+2026-10-15T13:54:03   134  RAMP  1.62  1.785   7
+2026-10-15T13:54:04   135  RAMP  1.63  1.609  16
+2026-10-15T13:54:05   136  RAMP  1.64  1.716  11
+2026-10-15T13:54:06   137  RAMP  1.65  1.904  11
+2026-10-15T13:54:07   138  RAMP  1.66  1.557  17
+2026-10-15T13:54:08   139  RAMP  1.67  1.778  11
+2026-10-15T13:54:09   140  RAMP  1.68  1.908  11
+2026-10-15T13:54:10   141  RAMP  1.69  1.553  17
+2026-10-15T13:54:11   142  RAMP  1.70  1.777  11
+2026-10-15T13:54:12   143  RAMP  1.71  1.946  11
+2026-10-15T13:54:13   144  RAMP  1.72  1.606  17
+2026-10-15T13:54:14   145  RAMP  1.73  1.793  11
+2026-10-15T13:54:15   146  RAMP  1.74  1.975  11
+2026-10-15T13:54:16   147  RAMP  1.75  1.614  17
+2026-10-15T13:54:17   148  RAMP  1.76  1.805  11
+2026-10-15T13:54:18   149  RAMP  1.77  2.008  12
+2026-10-15T13:54:19   150  RAMP  1.78  1.680  14
+2026-10-15T13:54:20   151  RAMP  1.79  2.097   9
+2026-10-15T13:54:21 Pump P1 stopped
+2026-10-15T13:54:21 Valve V1 closed
+2026-10-15T13:54:21 Valve V_manifold closed
+2026-10-15T13:54:21 pressure_ramp ended: soft_limit, P max 2.154 bar at 151.6 s
+2026-10-15T13:54:21 TEST|pressure_ramp|12|FAIL|slot=12;label=kp100_rate0.01_;end=soft_limit;tgt=2.00;kp=100;ki=50;kd=50;slew=3;st=15;mp=70;pmax=2.15;tpmax=151.6;ovs=0.10;rise=91.4;err=0.00;rip=0.00;pw= 0;pwp2p= 0;rev=0;sat= 0;reached=no
+2026-10-15T13:54:22 The O-ring is left LOCKED (oring_unlock when the pressure is gone).
+2026-10-15T13:54:22 --- pressure_ramp summary ---
+2026-10-15T13:54:22 id          | result | data
+2026-10-15T13:54:22 12          | FAIL   | slot=12;label=kp100_rate0.01_;end=soft_limit;tgt=2.00;kp=100;ki=50;kd=50;slew=3
+2026-10-15T13:54:22 TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+2026-10-15T13:54:22 TEST|pressure_ramp|summary|FAIL|pass=0;fail=1;skip=0
+2026-10-15T13:59:36 > slot11
+2026-10-15T13:59:36 Rotating to slot 11
+2026-10-15T13:59:43 O-ring unlocked
+2026-10-15T13:59:50 O-ring locked
+2026-10-15T13:59:58 > pressure_ramp target=2.0 rate=0.01 start=15 slew=3 maxpower=70 hold=20 decay=0 quick kp=100 ki=50 kd=50 label=nopulse_s11
+2026-10-15T13:59:58 === pressure_ramp: slot 11, label nopulse_s11 ===
+2026-10-15T13:59:58 PID 100 / 50 / 50, output 0..70 %, start 15 %, steps 3 % per update
+2026-10-15T13:59:58 Setpoint 0 -> 2.00 bar at 0.010 bar/s (200 s), hold 20 s.
+2026-10-15T13:59:58 The pump stops by itself at 2.15 bar; the hard cap is 3.00 bar. Someone at the 24 V switch.
+2026-10-15T13:59:58 Any key stops the pump. Send any key to start, or 'x' to abort now.
+2026-10-15T14:00:01 === pressure_ramp ===
+2026-10-15T14:00:01 Valve V1 closed
+2026-10-15T14:00:01 Valve V_manifold opened
+2026-10-15T14:00:06 Pump P1 started with power 15
+2026-10-15T14:00:06   t(s)  phase  setpoint  P(bar)  power(%)
+2026-10-15T14:00:06    0  RAMP  0.34  0.343  12
+2026-10-15T14:00:07    1  RAMP  0.35  0.380   0
+2026-10-15T14:00:08    2  RAMP  0.36  0.311  13
+2026-10-15T14:00:09    3  RAMP  0.37  0.475   0
+2026-10-15T14:00:10    4  RAMP  0.38  0.374   2
+2026-10-15T14:00:11    5  RAMP  0.39  0.572   3
+2026-10-15T14:00:12    6  RAMP  0.40  0.436   0
+2026-10-15T14:00:13    7  RAMP  0.41  0.374  14
+2026-10-15T14:00:14    8  RAMP  0.42  0.446   1
+2026-10-15T14:00:15    9  RAMP  0.43  0.519  12
+2026-10-15T14:00:16   10  RAMP  0.44  0.523   0
+2026-10-15T14:00:17   11  RAMP  0.45  0.405  10
+2026-10-15T14:00:18   12  RAMP  0.46  0.570   0
+2026-10-15T14:00:19   13  RAMP  0.47  0.434   7
+2026-10-15T14:00:20   14  RAMP  0.48  0.634   0
+2026-10-15T14:00:21   15  RAMP  0.49  0.473   4
+2026-10-15T14:00:22   16  RAMP  0.50  0.857   3
+2026-10-15T14:00:23   17  RAMP  0.51  0.592   0
+2026-10-15T14:00:24   18  RAMP  0.52  0.465  16
+2026-10-15T14:00:25   19  RAMP  0.53  0.614   0
+2026-10-15T14:00:26   20  RAMP  0.54  0.473  16
+2026-10-15T14:00:27   21  RAMP  0.55  0.618   0
+2026-10-15T14:00:28   22  RAMP  0.56  0.631  14
+2026-10-15T14:00:29   23  RAMP  0.57  0.635   1
+2026-10-15T14:00:30   24  RAMP  0.58  0.762  10
+2026-10-15T14:00:31   25  RAMP  0.59  0.597   2
+2026-10-15T14:00:32   26  RAMP  0.60  1.044   6
+2026-10-15T14:00:33   27  RAMP  0.61  0.678   0
+2026-10-15T14:00:34   28  RAMP  0.62  0.793  10
+2026-10-15T14:00:35   29  RAMP  0.63  0.609   5
+2026-10-15T14:00:36   30  RAMP  0.64  0.839   0
+2026-10-15T14:00:37   31  RAMP  0.65  0.583  11
+2026-10-15T14:00:38   32  RAMP  0.66  0.784   2
+2026-10-15T14:00:39   33  RAMP  0.67  0.710  13
+2026-10-15T14:00:40   34  RAMP  0.68  0.658   6
+2026-10-15T14:00:41   35  RAMP  0.69  1.021   0
+2026-10-15T14:00:42   36  RAMP  0.70  0.674   4
+2026-10-15T14:00:43   37  RAMP  0.71  0.815   0
+2026-10-15T14:00:44   38  RAMP  0.72  0.967  11
+2026-10-15T14:00:45   39  RAMP  0.73  0.712   6
+2026-10-15T14:00:46   40  RAMP  0.74  1.055   0
+2026-10-15T14:00:47   41  RAMP  0.75  0.696   9
+2026-10-15T14:00:48   42  RAMP  0.76  0.998   0
+2026-10-15T14:00:49   43  RAMP  0.77  0.672  14
+2026-10-15T14:00:50   44  RAMP  0.78  0.847   0
+2026-10-15T14:00:51   45  RAMP  0.79  0.985   4
+2026-10-15T14:00:52   46  RAMP  0.80  0.709  18
+2026-10-15T14:00:53   47  RAMP  0.81  0.925   0
+2026-10-15T14:00:54   48  RAMP  0.82  1.130  12
+2026-10-15T14:00:55   49  RAMP  0.83  0.872   2
+2026-10-15T14:00:56   50  RAMP  0.84  1.260   6
+2026-10-15T14:00:57   51  RAMP  0.85  0.794   9
+2026-10-15T14:00:58   52  RAMP  0.86  1.102   0
+2026-10-15T14:00:59   53  RAMP  0.87  0.764  17
+2026-10-15T14:01:00   54  RAMP  0.88  0.875   5
+2026-10-15T14:01:01   55  RAMP  0.89  1.066   5
+2026-10-15T14:01:02   56  RAMP  0.90  1.183  11
+2026-10-15T14:01:03   57  RAMP  0.91  0.830  10
+2026-10-15T14:01:04   58  RAMP  0.92  0.926   2
+2026-10-15T14:01:05   59  RAMP  0.93  1.108   2
+2026-10-15T14:01:06   60  RAMP  0.94  1.279  12
+2026-10-15T14:01:07   61  RAMP  0.95  0.921   7
+2026-10-15T14:01:08   62  RAMP  0.96  1.008   0
+2026-10-15T14:01:09   63  RAMP  0.97  1.227   5
+2026-10-15T14:01:10   64  RAMP  0.98  1.331  12
+2026-10-15T14:01:11   65  RAMP  0.99  0.949   8
+2026-10-15T14:01:12   66  RAMP  1.00  1.075   2
+2026-10-15T14:01:13   67  RAMP  1.01  1.131   1
+2026-10-15T14:01:14   68  RAMP  1.02  1.193   5
+2026-10-15T14:01:15   69  RAMP  1.03  1.289   7
+2026-10-15T14:01:16   70  RAMP  1.04  1.349  12
+2026-10-15T14:01:17   71  RAMP  1.05  0.965   9
+2026-10-15T14:01:18   72  RAMP  1.06  1.195   4
+2026-10-15T14:01:19   73  RAMP  1.07  1.339   5
+2026-10-15T14:01:20   74  RAMP  1.08  1.399  12
+2026-10-15T14:01:21   75  RAMP  1.09  0.979  12
+2026-10-15T14:01:22   76  RAMP  1.10  1.180   0
+2026-10-15T14:01:23   77  RAMP  1.11  1.548   6
+2026-10-15T14:01:24   78  RAMP  1.12  1.148  13
+2026-10-15T14:01:25   79  RAMP  1.13  1.652   9
+2026-10-15T14:01:26   80  RAMP  1.14  0.979  15
+2026-10-15T14:01:27   81  RAMP  1.15  1.150   5
+2026-10-15T14:01:28   82  RAMP  1.16  1.216   7
+2026-10-15T14:01:29   83  RAMP  1.17  1.146   4
+2026-10-15T14:01:30   84  RAMP  1.18  1.672   4
+2026-10-15T14:01:31   85  RAMP  1.19  1.007  18
+2026-10-15T14:01:32   86  RAMP  1.20  1.107   9
+2026-10-15T14:01:33   87  RAMP  1.21  1.597   1
+2026-10-15T14:01:34   88  RAMP  1.22  1.262  21
+2026-10-15T14:01:34 Pump P1 stopped
+2026-10-15T14:01:35 Valve V1 closed
+2026-10-15T14:01:35 Valve V_manifold closed
+2026-10-15T14:01:35 pressure_ramp ended: soft_limit, P max 2.168 bar at 88.3 s
+2026-10-15T14:01:35 TEST|pressure_ramp|11|FAIL|slot=11;label=nopulse_s11;end=soft_limit;tgt=2.00;kp=100;ki=50;kd=50;slew=3;st=15;mp=70;pmax=2.17;tpmax=88.3;ovs=0.13;rise=83.8;err=0.00;rip=0.00;pw= 0;pwp2p= 0;rev=0;sat= 0;reached=no
+2026-10-15T14:01:35 The O-ring is left LOCKED (oring_unlock when the pressure is gone).
+2026-10-15T14:01:35 --- pressure_ramp summary ---
+2026-10-15T14:01:35 id          | result | data
+2026-10-15T14:01:35 11          | FAIL   | slot=11;label=nopulse_s11;end=soft_limit;tgt=2.00;kp=100;ki=50;kd=50;slew=3;st=
+2026-10-15T14:01:35 TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+2026-10-15T14:01:35 TEST|pressure_ramp|summary|FAIL|pass=0;fail=1;skip=0

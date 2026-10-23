@@ -1,0 +1,32 @@
+# S1-B bench session, 2026-10-19: clog diagnostic on a new filter (slot 11)
+
+Condensed from the console transcript the user pasted in the chat. The TEST line is verbatim; the pressure table is abridged (the full 487 s trace is not kept here).
+
+Filter: a NEW Sterivex, slot 11. The water is not clean (user), so the filter clogs. Recorded as a diagnostic, not as an S1-B pass.
+
+## Run 4: slot 11, fill_test volume=1000 label=b1 (S1-B)
+
+Weighed: **865 g** (tared jug, user). Counted by the flowmeter: 673 mL (UNCALIBRATED, F6).
+
+    fill_test volume=1000 label=b1
+    Pump 1000 mL (flowmeter, UNCALIBRATED) at 3.15 bar. PID 200.0 / 100.00 / 100.0, output 0..60 %, start 15%, steps 3 % per update, pressure raw.
+    Pauses at 3.35 bar (raw), resumes under 3.15 bar. Timeout 1800 s, stall 60 s. Hard cap 3.60 bar.
+    ...
+    fill_test ended: clogged, 673 mL (flowmeter) in 487 s, P max 3.56 bar, 465 pause(s)
+    The flowmeter is UNCALIBRATED (F6): measure or weigh the water that came out and compare with 673 mL.
+    TEST|fill_test|11|FAIL|slot=11;label=b1;end=clogged;vol_ml=673;want_ml=1000;t_s=487;tgt=3.15;kp=200.0;ki=100.00;kd=100.0;slew=3;filt=0.0;pmax=3.56;pauses=465;paused_s=66;clog_warn=2;pw_end=17.0;ml_min=83;p_end=1.67
+    O-ring left LOCKED (oring_unlock when the pressure is gone).
+    TOTAL: 0 PASS, 1 FAIL, 0 SKIP -> FAIL
+
+## Reading
+
+- `end=clogged`: the clog stop worked. The 60 s window fell from 138 mL (first window) to 21 mL (the last one, under 30 % of the first).
+- Weighed 865 g against 673 mL counted: the flowmeter read about 78 % of the water. That is the low-flow under-read (F150). **The flow factor was not corrected:** the run ended `clogged` and F150 says the factor comes from a normal-flow run only.
+- P max 3.56 bar, 0.04 bar under the 3.6 bar hard cap, with 465 pauses at the 3.35 bar pause level (F151). The cap was never tripped.
+- The pressure pattern was the same as the used-filter runs of 2026-10-19: the flow fell from about 0.13 L/min at the start to 0.0 near the end.
+
+## Verdict
+
+**Diagnostic, not a pass.** The water (not clean) clogs a new filter at about 0.9 L, 865 g. Logged as a clog diagnostic (user, 2026-10-19). S1-B's own pass line (`end=volume`, 900–1100 g) is not met by this run.
+
+Finding for the log: the clogging depends on the water, so an S1-B pass on dirty water may never happen. The stop criteria and the weighed partial volume are what S1-C needs.

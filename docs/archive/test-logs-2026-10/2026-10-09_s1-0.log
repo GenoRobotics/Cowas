@@ -1,0 +1,87 @@
+2026-10-09T11:17:19 Serial initialized
+2026-10-09T11:17:19 LED status initiated
+2026-10-09T11:17:19 LED green initiated
+2026-10-09T11:17:19 Pressure sensor P1 initiated
+2026-10-09T11:17:19 Valve V1 closed
+2026-10-09T11:17:19 Valve V_23 on L way
+2026-10-09T11:17:19 Valve V_manifold closed
+2026-10-09T11:17:19 Pump P1 stopped
+2026-10-09T11:17:19 Pump P1 initiated
+2026-10-09T11:17:19 Micro Pump DNA Shield pump stopped
+2026-10-09T11:17:19 Micro Pump DNA Shield pump initiated
+2026-10-09T11:17:19 Encoder sensor no_ID initiated
+2026-10-09T11:17:19 Button B_left initiated
+2026-10-09T11:17:19 Button B_right initiated
+2026-10-09T11:17:19 Button B_start initiated
+2026-10-09T11:18:07 �abp_raw
+2026-10-09T11:18:07 abp_raw: 20 raw frames from the SPI pressure sensor (CS D8), 200 ms apart
+2026-10-09T11:18:07   06 62 5A  status 00 valid  counts 1634  (-0.003 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:07   06 64 5A  status 00 valid  counts 1636  (-0.002 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:07   06 62 5A  status 00 valid  counts 1634  (-0.003 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:07   06 62 5A  status 00 valid  counts 1634  (-0.003 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:07   06 62 5A  status 00 valid  counts 1634  (-0.003 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:08   06 62 5A  status 00 valid  counts 1634  (-0.003 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:08   06 62 5A  status 00 valid  counts 1634  (-0.003 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:08   06 62 5A  status 00 valid  counts 1634  (-0.003 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:08   06 62 5A  status 00 valid  counts 1634  (-0.003 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:08   06 64 5A  status 00 valid  counts 1636  (-0.002 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:09   06 64 5A  status 00 valid  counts 1636  (-0.002 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:09   06 64 5A  status 00 valid  counts 1636  (-0.002 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:09   06 62 5A  status 00 valid  counts 1634  (-0.003 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:09   06 62 5A  status 00 valid  counts 1634  (-0.003 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:09   06 64 5A  status 00 valid  counts 1636  (-0.002 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:10   06 64 5A  status 00 valid  counts 1636  (-0.002 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:10   06 64 5A  status 00 valid  counts 1636  (-0.002 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:10   06 5F 5A  status 00 valid  counts 1631  (-0.006 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:10   06 64 5A  status 00 valid  counts 1636  (-0.002 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:11   06 64 5A  status 00 valid  counts 1636  (-0.002 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:18:11 counts min 1631, max 1636, spread 5  (steady)
+2026-10-09T11:18:11 FF FF FF = no answer (supply / MISO wire / dead); 00 00 00 = MISO stuck low; counts ~1638 = 0 bar on a 10-90 % part
+2026-10-09T11:20:32 abp_raw
+2026-10-09T11:20:32 abp_raw: 20 raw frames from the SPI pressure sensor (CS D8), 200 ms apart
+2026-10-09T11:20:32   12 00 5A  status 00 valid  counts 4608  (2.343 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:32   11 EB 5A  status 00 valid  counts 4587  (2.327 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:33   11 DF 5A  status 00 valid  counts 4575  (2.317 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:33   11 D0 5A  status 00 valid  counts 4560  (2.306 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:33   11 C4 5A  status 00 valid  counts 4548  (2.296 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:33   11 B9 5A  status 00 valid  counts 4537  (2.287 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:34   11 A7 5A  status 00 valid  counts 4519  (2.273 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:34   11 98 5A  status 00 valid  counts 4504  (2.261 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:34   11 8C 5A  status 00 valid  counts 4492  (2.252 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:34   11 7D 5A  status 00 valid  counts 4477  (2.240 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:34   11 89 5A  status 00 valid  counts 4489  (2.250 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:35   11 B9 5A  status 00 valid  counts 4537  (2.287 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:35   11 D0 5A  status 00 valid  counts 4560  (2.306 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:35   11 C7 5A  status 00 valid  counts 4551  (2.299 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:35   11 D3 5A  status 00 valid  counts 4563  (2.308 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:35   11 E2 5A  status 00 valid  counts 4578  (2.320 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:36   11 DF 5A  status 00 valid  counts 4575  (2.317 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:36   11 D0 5A  status 00 valid  counts 4560  (2.306 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:36   11 C7 5A  status 00 valid  counts 4551  (2.299 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:36   11 BC 5A  status 00 valid  counts 4540  (2.290 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:20:36 counts min 4477, max 4608, spread 131  <-- NOT STEADY: if the pressure was not changing, the frames are garbage (wiring, supply, ground)
+2026-10-09T11:20:36 FF FF FF = no answer (supply / MISO wire / dead); 00 00 00 = MISO stuck low; counts ~1638 = 0 bar on a 10-90 % part
+2026-10-09T11:21:25 abp_raw
+2026-10-09T11:21:25 abp_raw: 20 raw frames from the SPI pressure sensor (CS D8), 200 ms apart
+2026-10-09T11:21:25   1E 27 5A  status 00 valid  counts 7719  (4.798 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:25   1E CC 5A  status 00 valid  counts 7884  (4.928 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:25   1E 8B 5A  status 00 valid  counts 7819  (4.877 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:26   1E 50 5A  status 00 valid  counts 7760  (4.831 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:26   1E 1B 5A  status 00 valid  counts 7707  (4.789 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:26   1D EB 5A  status 00 valid  counts 7659  (4.751 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:26   1D D3 5A  status 00 valid  counts 7635  (4.732 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:26   1E 0C 5A  status 00 valid  counts 7692  (4.777 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:26   1D E8 5A  status 00 valid  counts 7656  (4.749 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:27   1D EE 5A  status 00 valid  counts 7662  (4.753 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:27   1D FA 5A  status 00 valid  counts 7674  (4.763 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:27   1E 03 5A  status 00 valid  counts 7683  (4.770 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:27   1E 44 5A  status 00 valid  counts 7748  (4.821 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:28   1E 12 5A  status 00 valid  counts 7698  (4.782 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:28   1D FD 5A  status 00 valid  counts 7677  (4.765 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:28   1D D0 5A  status 00 valid  counts 7632  (4.730 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:28   1E 12 5A  status 00 valid  counts 7698  (4.782 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:28   1E 21 5A  status 00 valid  counts 7713  (4.794 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:29   1E 4A 5A  status 00 valid  counts 7754  (4.826 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:29   1E 12 5A  status 00 valid  counts 7698  (4.782 bar, datasheet conversion for 150 psi)  temp 20 C
+2026-10-09T11:21:29 counts min 7632, max 7884, spread 252  <-- NOT STEADY: if the pressure was not changing, the frames are garbage (wiring, supply, ground)
+2026-10-09T11:21:29 FF FF FF = no answer (supply / MISO wire / dead); 00 00 00 = MISO stuck low; counts ~1638 = 0 bar on a 10-90 % part

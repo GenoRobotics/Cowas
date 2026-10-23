@@ -1,0 +1,34 @@
+void SIC_control()
+{
+    if (button_right.isPressed())
+    {
+        button_right.waitPressedAndReleased();
+
+        manifold.begin();
+        // PURGE_SLOT no longer needs marking unavailable here - FILL_ORDER never includes it
+
+        demo_sample_process();
+
+        green_led.off();
+        status_led.off();
+    }
+    else if (button_left.isPressed())
+    {
+        button_left.waitPressedAndReleased();
+        status_led.on();
+
+        button_start.waitPressedAndReleased();
+
+        green_led.on();
+
+        step_dive(50);
+
+        green_led.off();
+        button_start.waitPressedAndReleased();
+        green_led.on();
+        spool.start_origin();
+
+        green_led.off();
+        status_led.off();
+    }
+}

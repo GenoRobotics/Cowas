@@ -1,0 +1,7 @@
+void test_soft_limit(void)
+{
+    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 2.95f, ramp_soft_limit(2.8f, 0.15f, 3.5f, 0.1f)); // target + overshoot, far from the cap
+    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 2.9f, ramp_soft_limit(2.8f, 0.15f, 3.0f, 0.1f));  // the defaults: clipped to cap - margin
+    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 2.9f, ramp_soft_limit(2.8f, 0.5f, 3.0f, 0.1f));
+    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 1.15f, ramp_soft_limit(1.0f, 0.15f, 3.0f, 0.1f));
+}
