@@ -3,22 +3,6 @@
 
 //float invertVoltageDivider(float voltage);
 
-// * Virtual function big
-// Convert the analog voltage to pressure using a custom formula
-float BigPressure::convertToPressure(float voltage) {
-
-    const float  OffSet = 3.105 ; // V
-    float pressure = (voltage - OffSet) * 250;   // these are kPa
-    // Serial.print("Pressure kpa : ");
-    // Serial.println(pressure);
-
-    pressure = pressure / 100.0;    // to get bars
-    // Serial.print("Pressure bar : ");
-    // Serial.println(pressure);
-
-    return pressure; // to get atm pressure
-}
-
 // * Virtual function SMALL
 // Convert the analog voltage to pressure using a custom formula
 float SmallPressure::convertToPressure(float voltage) {

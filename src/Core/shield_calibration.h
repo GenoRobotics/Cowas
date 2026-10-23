@@ -3,7 +3,7 @@
 
 // Pure math for the DNA/RNA Shield micro pump calibration (LA3, console `shield_calibrate`):
 // no Arduino.h, no globals, no hardware. Unit-tested on the host with `pio test -e native`
-// (test/test_shield_calibration/). The procedure is described in docs/LA3_PROTOCOL.md.
+// (test/test_shield_calibration/). The procedure is described in docs/lab/shield-protocol.md.
 //
 // The micro pump is time-based (no flowmeter on the shield line). Each calibration run
 // dispenses into a tared tube for a fixed time and the operator weighs it. A straight line

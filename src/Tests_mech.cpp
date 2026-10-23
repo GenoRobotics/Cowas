@@ -3,7 +3,7 @@
  * @brief FW2 mechanical test suite: locking, sealing and rotation checks, and the
  * pumping tests prepared for (or run without) the pressure sensor. Every test prints one
  * TEST|<name>|<id>|<PASS/FAIL/SKIP>|<k=v;...> line per result and a summary table
- * (Test_report.cpp); tools/hw_test_log.py captures them to test_logs/.
+ * (Test_report.cpp); tools/hw_test_log.py captures them to docs/logs/test-logs/.
  *
  * Common options: 'x' aborts at every pause; `auto` = no pauses (x still aborts between
  * steps); from=N (a slot number) count=M order=index|fill for the multi-slot tests
@@ -15,6 +15,7 @@
 #include <Arduino.h>
 #include "Tests_mech.h"
 #include "Tests.h"
+#include "Run_keys.h"
 #include "Test_report.h"
 #include "Test_openloop.h"
 #include "Oring_lock.h"
@@ -29,6 +30,7 @@
 #include "Core/slot_iteration.h"
 #include "Core/manifold_geometry.h"
 #include "Core/pressure_ramp.h"
+#include "Core/fill_stop.h"
 #include "Core/pid_metrics.h"
 
 extern Valve_2_2 valve_1;
@@ -317,7 +319,7 @@ static void cmd_help()
     Serial.println("Common options: x aborts at every pause; auto = no pauses; from=<slot> count=<n> order=index|fill");
     Serial.println("-- lock / rotation (FW2) --");
     Serial.println("  oring_state                   lock state, encoder angle, nearest slot, pressure-sensor flag");
-    Serial.println("  actuator_home                 aligned to a slot (+-" + String(ACTUATOR_HOME_SLOT_TOLERANCE_DEG, 1) + " deg): overdrive lock, unlock -> UNLOCKED");
+    Serial.println("  actuator_home                 aligned to a slot (+-" + String(ACTUATOR_HOME_SLOT_TOLERANCE_DEG, 1) + " deg): overdrive lock, unlock -> UNLOCKED. x aborts a move: state UNKNOWN");
     Serial.println("  oring_lock | oring_unlock     lock / unlock at the current slot (state must be known)");
     Serial.println("  lock_cycle [n] [auto]         n lock/unlock cycles here (default 5), times each move");
     Serial.println("  lock_endurance [n] [auto]     n cycles (default 200), encoder every 10, temperature question every 50");
@@ -331,11 +333,15 @@ static void cmd_help()
     Serial.println("  calibrate_pressure            syringe + manometer on a tee, no pump: prints PRESSURE_GAIN and the zero offset");
     Serial.println("-- pumping (sensorless while PRESSURE_SENSOR_AVAILABLE = false: type NOSENSOR) --");
     Serial.println("  leak_hold [mL|Ns] [power=%]   lock, water, 'leak?', air push, unlock (default " + String(TEST_LEAK_HOLD_DEFAULT_ML, 0) + " mL)");
-    Serial.println("  pressure_ramp [target=bar] [rate=bar/s, 0=step] [hold=s] [decay=s] [maxpower=%] [start=%] [slew=%] [kp= ki= kd=] [label=] [quick]  PID by pressure: seal check and PID tuning");
+    Serial.println("  pressure_ramp [target=bar] [rate=bar/s, 0=step] [hold=s] [decay=s] [maxpower=%] [start=%] [slew=%] [kp= ki= kd=] [filter=s] [label=] [quick]  PID by pressure: seal check and tuning");
+    Serial.println("  fill_test [volume=mL] [target=bar] [maxpower=%] [timeout=s] [stall=s] [start=%] [slew=%] [kp= ki= kd=] [filter=s] [label=] [quick]  PID; pump a volume (default 1000 mL) through the filter of the current slot; pauses at the limit");
     Serial.println("  multi_sample [volume=mL] [power=%] [auto] [from= count= order=]  load_slot per available slot");
     Serial.println("  shield_only [slot] [ms] [auto]  micro pump only (time-based), sensorless OK");
+    Serial.println("  prime_shield  DNA-shield pump runs until a key says the line is primed (x aborts)");
     Serial.println("  full_cycle [slot] purge=y/n shield=y/n empty=y/n volume=mL   real step functions (needs the sensor)");
     Serial.println("  full_all [purge= shield= empty= volume=] [auto] [from= count= order=]");
+    Serial.println("  session                       ask site, date, experiment, operator (once per day; written to the log)");
+    Serial.println("  run_sample [slot] [volume=mL] ask sample name, condition, notes; then the whole sample. Needs `session` first");
     Serial.println("-- existing commands --");
     Serial.println("  slotN, slot0, clockMM, clocklist, manifold, cal, zero, manifold_direction, encoder_manifold, enc_rot");
     Serial.println("  linear_actuator, calibrate_actuator (both make the lock state UNKNOWN), calibrate_all");
@@ -364,10 +370,13 @@ static void cmd_actuator_home()
     test_begin("actuator_home");
     int slot;
     float error;
-    bool ok = actuator_home(&slot, &error);
-    test_result("home", ok ? core::TEST_PASS : core::TEST_FAIL,
+    bool aborted = false;
+    bool ok = actuator_home(&slot, &error, &aborted);
+    // the lock can run off-slot (D36), but the test passes only when the rotor is aligned
+    bool aligned = ok && fabsf(error) <= ACTUATOR_HOME_SLOT_TOLERANCE_DEG;
+    test_result("home", aligned ? core::TEST_PASS : core::TEST_FAIL,
                 "slot=" + String(slot) + ";err_deg=" + f2(error) + ";tol_deg=" + String(ACTUATOR_HOME_SLOT_TOLERANCE_DEG, 1) +
-                    ";state=" + oring_lock_state_name());
+                    ";state=" + oring_lock_state_name() + String(aborted ? ";reason=aborted" : ""));
     test_end();
 }
 
@@ -526,6 +535,12 @@ static void cmd_rotate_all(const Cmd &c)
     {
         int slot = list[i];
         float err;
+        // rotateMotor() locks the O-ring again on return (rest state, Manifold.cpp), so unlock before every move
+        if (oring_lock_state() != core::LOCK_STATE_UNLOCKED && !unlock_oring())
+        {
+            Serial.println("Stopped: could not unlock the O-ring before the move.");
+            break;
+        }
         bool rotated = rotate_and_measure(slot, &err);
         String kv = "slot=" + String(slot) + ";clock=" + clock_minutes_for_slot(slot) + ";err_deg=" + f2(err);
         bool pass = rotated && fabsf(err) < TEST_ROTATE_MAX_ERROR_DEG;
@@ -562,9 +577,9 @@ static void cmd_rotate_all(const Cmd &c)
             }
         }
         test_result(String(slot).c_str(), pass ? core::TEST_PASS : core::TEST_FAIL, kv);
-        if (!rotated || oring_lock_state() != core::LOCK_STATE_UNLOCKED)
+        if (!rotated)
         {
-            Serial.println("Stopped: rotation failed or the O-ring is not unlocked.");
+            Serial.println("Stopped: rotation failed.");
             break;
         }
         if (i + 1 < n && pause_or_abort(auto_mode, "Slot " + String(slot) + " done"))
@@ -748,25 +763,26 @@ static void cmd_leak_hold(const Cmd &c)
     test_end();
 }
 
-// S1-1b: the pump regulated BY PRESSURE, not by a fixed power. The PID (the production gains, with
-// kp= ki= kd= to try others) follows a setpoint, holds it, then (optionally) the pump stops and the decay
-// is read. Two uses: a slow rise to about 3 bar as a seal check (defaults), and the fine tuning of the
-// PID: the same run on the same slot with other gains, compared by the numbers it prints (ovs, rise,
-// rip, rev, pw..., tools/compare_tune.py).
+// S1-1b: the pump regulated BY PRESSURE, not by a fixed power. The controller follows a setpoint that rises
+// slowly to a target, holds it, then (optionally) the pump stops and the decay is read. Two uses: a seal check
+// (the manifold seal leaks droplets around 3 bar, F144: keep the target at 2.5 or lower), and the tuning of the
+// controller: the same run on the same slot with other kp= ki= kd= slew= start= filter=, compared by the numbers
+// it prints (ovs, rise, rip, rev, pw..., tools/compare_tune.py).
 //
 // Water only: the valves are set as in load_slot_water (V1 closed, Vman open).
-// Safety: the cap is checked on every pass (about 2 ms). The test stops the pump itself a little above
-// the target (a controlled stop, before the hard cap). It refuses to start if the line is not empty
-// (P > PRESSURE_RAMP_MAX_START_BAR), so two runs are comparable.
-// `slew=0 rate=0 start=50 maxpower=100` reproduces what CtrlPump::run() does today (a step setpoint, 50 %
-// first, the raw PID output into Pump::set_power, with its blocking 4 s ramp on big steps, F132).
+// Safety: the cap is checked on every pass (about 2 ms); there is no soft stop, the hard cap is the only one.
+// It refuses to start if the line is not empty (P > PRESSURE_RAMP_MAX_START_BAR), so two runs are comparable.
+// The controller is MiniPID (PRESSURE_RAMP_PID_KP/KI/KD from the model of the bench, F146; slew 3 % per 100 ms, start 15 %, raw pressure
+// unless filter= is given). One change from the first version: the output goes through Pump::set_power_live
+// (12-bit, never blocks) instead of Pump::set_power, whose blocking 4 s ramp on a step of 10 points made the
+// loop blind (F139). 1..9 % still become the 10 % floor, 0 is "pump idle".
 static void cmd_pressure_ramp(const Cmd &c)
 {
-    static const char *const keys[] = {"target", "rate", "hold", "decay", "maxpower", "start", "slew", "kp", "ki", "kd", "label"};
+    static const char *const keys[] = {"target", "rate", "hold", "decay", "maxpower", "start", "slew", "kp", "ki", "kd", "filter", "label"};
     static const char *const flags[] = {"quick"};
     const char *usage = "pressure_ramp [target=bar] [rate=bar/s, 0=step] [hold=s] [decay=s] [maxpower=%] [start=%] [slew=%/update, 0=off] "
-                        "[kp= ki= kd=] [label=text] [quick]";
-    if (!check_args(c, usage, keys, 11, flags, 1, 0))
+                        "[kp= ki= kd=] [filter=s, 0=raw pressure] [label=text] [quick]";
+    if (!check_args(c, usage, keys, 12, flags, 1, 0))
         return;
     if (!require_pressure_sensor("pressure_ramp"))
         return;
@@ -778,7 +794,8 @@ static void cmd_pressure_ramp(const Cmd &c)
     }
     float target = PRESSURE_RAMP_DEFAULT_TARGET_BAR;
     float rate = PRESSURE_RAMP_DEFAULT_RATE_BAR_S;
-    float kp = PUMP_PID_KP, ki = PUMP_PID_KI, kd = PUMP_PID_KD;
+    float kp = PRESSURE_RAMP_PID_KP, ki = PRESSURE_RAMP_PID_KI, kd = PRESSURE_RAMP_PID_KD;
+    float filter_s = PRESSURE_RAMP_DEFAULT_FILTER_S;
     long hold_s = PRESSURE_RAMP_DEFAULT_HOLD_S;
     long decay_s = PRESSURE_RAMP_DEFAULT_DECAY_S;
     long max_power = PRESSURE_RAMP_MAX_POWER;
@@ -786,6 +803,7 @@ static void cmd_pressure_ramp(const Cmd &c)
     long slew = PRESSURE_RAMP_MAX_STEP_PERCENT;
     if (!arg_float(c, "target", &target, 0, 10) || !arg_float(c, "rate", &rate, 0, 10) ||
         !arg_float(c, "kp", &kp, 0, 2000) || !arg_float(c, "ki", &ki, 0, 2000) || !arg_float(c, "kd", &kd, 0, 2000) ||
+        !arg_float(c, "filter", &filter_s, 0, 10) ||
         !arg_long(c, "hold", &hold_s, 0, 600) || !arg_long(c, "decay", &decay_s, 0, 600) ||
         !arg_long(c, "maxpower", &max_power, 10, 100) || !arg_long(c, "start", &start_power, 0, 100) ||
         !arg_long(c, "slew", &slew, 0, 100))
@@ -795,7 +813,7 @@ static void cmd_pressure_ramp(const Cmd &c)
         Serial.println("Bad value start=" + String(start_power) + ": it must not be above maxpower=" + String(max_power));
         return;
     }
-    const bool step = (rate == 0.0f); // production-like: the setpoint is the target from the first update
+    const bool step = (rate == 0.0f); // operation-like: the setpoint is the target from the first update
     const bool quick = core::args_has_flag(c.args, "quick");
     char label[16] = "";
     const char *label_arg = core::args_value(c.args, "label");
@@ -829,8 +847,9 @@ static void cmd_pressure_ramp(const Cmd &c)
     uint32_t ramp_ms = step ? 0 : core::ramp_duration_ms(0.0f, target, rate);
     uint32_t hold_ms = (uint32_t)hold_s * 1000UL;
     Serial.println("=== pressure_ramp: slot " + String(slot) + (label[0] ? String(", label ") + label : String("")) + " ===");
-    Serial.println("PID " + String(kp, 0) + " / " + String(ki, 0) + " / " + String(kd, 0) + ", output 0.." + String(max_power) + " %, start " +
-                   String(start_power) + " %, steps " + (slew ? String(slew) + " % per update" : String("not limited (as production)")));
+    Serial.println("PID " + String(kp, 1) + " / " + String(ki, 2) + " / " + String(kd, 1) + ", output 0.." + String(max_power) + " %, start " +
+                   String(start_power) + " %, steps " + (slew ? String(slew) + " % per update" : String("not limited")) + ", pressure " +
+                   (filter_s > 0 ? String("filtered over ") + String(filter_s, 1) + " s" : String("raw")));
     Serial.println("Setpoint " + (step ? String("STEP to ") : String("0 -> ")) + String(target, 2) + " bar" +
                    (step ? String("") : String(" at ") + String(rate, 3) + " bar/s (" + String(ramp_ms / 1000.0, 0) + " s)") + ", hold " +
                    String(hold_s) + " s" + (decay_s ? ", then pump off and decay " + String(decay_s) + " s" : String("")) + ".");
@@ -857,8 +876,7 @@ static void cmd_pressure_ramp(const Cmd &c)
     MiniPID pid(kp, ki, kd);
     pid.setOutputLimits(0, max_power);
     float power_cmd = (float)start_power;
-    pump.set_power((int8_t)start_power);
-    pump.start(); // the normal soft start (4 s) to the start power; the cap is checked during it
+    pump.start_at((uint8_t)start_power); // at once, no 4 s soft start: the PID is in control from the first instant
 
     const char *reason = pump.is_running() ? nullptr : "start_refused";
     float start_bar = read_p_in();
@@ -866,6 +884,7 @@ static void cmd_pressure_ramp(const Cmd &c)
     {
         start_bar = 0.0f;
     }
+    float p_filt = start_bar;
     core::PidRunStats st;
     core::pid_stats_begin(&st, target, 0.9f, PRESSURE_RAMP_REVERSAL_PERCENT, (float)max_power);
     float p_max = start_bar;
@@ -906,11 +925,13 @@ static void cmd_pressure_ramp(const Cmd &c)
         float sp = step ? target : core::ramp_setpoint(start_bar, target, rate, t);
         if (now - last_update >= PRESSURE_RAMP_UPDATE_MS)
         {
+            float dt_s = (now - last_update) / 1000.0f;
             last_update = now;
+            p_filt = core::lowpass_step(p_filt, p, dt_s, filter_s); // filter_s = 0: the raw pressure
             pid.setSetpoint(sp);
-            float wanted = (float)pid.getOutput(p);
+            float wanted = (float)pid.getOutput(p_filt);
             power_cmd = slew ? core::slew_limit(power_cmd, wanted, (float)slew) : wanted;
-            pump.set_power((int8_t)(power_cmd + 0.5f)); // with slew=0 this can block 4 s on a big step, as in production (F132)
+            pump.set_power_live(power_cmd); // fine (12-bit) and never blocking; 0 = pump idle, 1..9 become the 10 % floor
             core::pid_stats_add(&st, t, p, power_cmd, in_hold && (now - hold_start) >= hold_ms / 2);
         }
         if (now - last_print >= 1000)
@@ -955,13 +976,15 @@ static void cmd_pressure_ramp(const Cmd &c)
 
     bool has_late = core::pid_stats_has_late(&st);
     float err = core::pid_stats_mean_error(&st);
-    bool reached = completed && has_late && err >= -0.1f;
+    // reached = the target was held, AND the run was calm (the g3 run said PASS with a 2.5 bar ripple)
+    bool reached = completed && has_late && err >= -0.1f && core::pid_stats_overshoot(&st) <= PRESSURE_RAMP_PASS_MAX_OVERSHOOT_BAR &&
+                   core::pid_stats_ripple(&st) <= PRESSURE_RAMP_PASS_MAX_RIPPLE_BAR;
     // The numbers to compare between runs (tools/compare_tune.py): ovs = overshoot over the target (bar),
     // rise = s to 90 % of the target, err = mean P - target and rip = max - min of P in the second half of
     // the hold, pw / pwp2p = mean and swing of the power there, rev = power reversals (chatter),
     // sat = % of the time at max power
-    kv += ";end=" + String(reason) + ";tgt=" + String(target, 2) + ";kp=" + String(kp, 0) + ";ki=" + String(ki, 0) + ";kd=" + String(kd, 0) +
-          ";slew=" + String(slew) + ";st=" + String(start_power) + ";mp=" + String(max_power) + ";pmax=" + String(p_max, 2) +
+    kv += ";end=" + String(reason) + ";tgt=" + String(target, 2) + ";kp=" + String(kp, 1) + ";ki=" + String(ki, 2) + ";kd=" + String(kd, 1) +
+          ";slew=" + String(slew) + ";filt=" + String(filter_s, 1) + ";st=" + String(start_power) + ";mp=" + String(max_power) + ";pmax=" + String(p_max, 2) +
           ";tpmax=" + String(t_pmax / 1000.0, 1) + ";ovs=" + String(core::pid_stats_overshoot(&st), 2) + ";rise=" + String(st.rise_s, 1) +
           ";err=" + String(err, 2) + ";rip=" + String(core::pid_stats_ripple(&st), 2) + ";pw=" + String(core::pid_stats_power_mean(&st), 0) +
           ";pwp2p=" + String(core::pid_stats_power_p2p(&st), 0) + ";rev=" + String(st.reversals) + ";sat=" + String(core::pid_stats_saturated_pct(&st), 0) +
@@ -1002,6 +1025,240 @@ static void cmd_pressure_ramp(const Cmd &c)
         }
     }
     test_result(String(slot).c_str(), (reached && leak == 'n') ? core::TEST_PASS : core::TEST_FAIL, kv);
+    Serial.println("O-ring left LOCKED (oring_unlock when the pressure is gone).");
+    test_end();
+}
+
+// fill_test (2026-10-15): pump a volume (default 1 L) of water through the filter of the CURRENT slot, regulated by
+// pressure with the same PID as pressure_ramp (kp= ki= kd= slew= start= filter= to tune). At the pressure limit (cap - 0.4 bar, on the RAW reading) the pump PAUSES
+// (output 0, relay on, the water keeps draining through the filter) and resumes when the filtered pressure has fallen
+// by 0.5 bar, at 85 % of the power it had: it does not stop the test. The test ends on the volume, a timeout, a stall
+// (clogged: almost no flow for stall= seconds of PUMPING time), a pressure that stays up while paused (the filter holds it),
+// an abort or the hard cap. The end= reason is in the TEST line (2026-10-19, src/Core/fill_stop.h).
+// The flowmeter reads almost nothing at slow flow (F150): compare the collected water with trusted_ml, the fast-flow part.
+static void cmd_fill_test(const Cmd &c)
+{
+    static const char *const keys[] = {"volume", "target", "maxpower", "timeout", "stall", "start", "slew", "kp", "ki", "kd", "filter", "label"};
+    static const char *const flags[] = {"quick"};
+    const char *usage = "fill_test [volume=mL] [target=bar] [maxpower=%] [timeout=s] [stall=s, 0=off] [start=%] [slew=%/update, 0=off] "
+                        "[kp= ki= kd=] [filter=s, 0=raw pressure] [label=text] [quick]";
+    if (!check_args(c, usage, keys, 13, flags, 1, 0))
+        return;
+    if (!require_pressure_sensor("fill_test"))
+        return;
+    float cap = pump.get_pressure_safety_cap();
+    if (pump.get_pressure_safety_fn() == nullptr || !(cap > 0))
+    {
+        Serial.println("REFUSED | fill_test: no pressure cap is registered on the pump");
+        return;
+    }
+    float volume = FILL_DEFAULT_ML, target = -1.0f; // -1 = not given: the highest target (FILL_MAX_TARGET_BAR, from the cap)
+    float kp = PRESSURE_RAMP_PID_KP, ki = PRESSURE_RAMP_PID_KI, kd = PRESSURE_RAMP_PID_KD;
+    float filter_s = PRESSURE_RAMP_DEFAULT_FILTER_S;
+    long max_power = PRESSURE_RAMP_MAX_POWER, timeout_s = FILL_DEFAULT_TIMEOUT_S, stall_s = FILL_DEFAULT_STALL_S;
+    long start_power = PRESSURE_RAMP_START_POWER, slew = PRESSURE_RAMP_MAX_STEP_PERCENT;
+    if (!arg_float(c, "volume", &volume, 10, 5000) || !arg_float(c, "target", &target, 0.3, 10) ||
+        !arg_float(c, "kp", &kp, 0, 2000) || !arg_float(c, "ki", &ki, 0, 2000) || !arg_float(c, "kd", &kd, 0, 2000) ||
+        !arg_float(c, "filter", &filter_s, 0, 10) || !arg_long(c, "maxpower", &max_power, 10, 100) ||
+        !arg_long(c, "start", &start_power, 0, 100) || !arg_long(c, "slew", &slew, 0, 100) ||
+        !arg_long(c, "timeout", &timeout_s, 10, 7200) || !arg_long(c, "stall", &stall_s, 0, 600))
+        return;
+    if (start_power > max_power)
+    {
+        Serial.println("Bad value start=" + String(start_power) + ": it must not be above maxpower=" + String(max_power));
+        return;
+    }
+    const float pause_bar = cap - FILL_PAUSE_BELOW_CAP_BAR;
+    const float resume_bar = pause_bar - FILL_RESUME_BELOW_PAUSE_BAR;
+    if (target < 0.0f)
+    {
+        target = resume_bar; // the default is the highest allowed target
+    }
+    if (target > resume_bar)
+    {
+        Serial.println("REFUSED | fill_test: target " + String(target, 2) + " bar must be at most " + String(resume_bar, 2) +
+                       " (the pump pauses at " + String(pause_bar, 2) + " bar and resumes at " + String(resume_bar, 2) + ")");
+        return;
+    }
+    const bool quick = core::args_has_flag(c.args, "quick");
+    char label[16] = "";
+    const char *label_arg = core::args_value(c.args, "label");
+    if (label_arg)
+    {
+        strncpy(label, label_arg, sizeof label - 1);
+        label[sizeof label - 1] = 0;
+        core::sanitize_kv_value(label);
+    }
+    float p_before = read_p_in();
+    if (p_before > PRESSURE_RAMP_MAX_START_BAR || p_before < PRESSURE_SENSOR_MIN_PLAUSIBLE_BAR)
+    {
+        Serial.println("REFUSED | fill_test: the line is not empty or the sensor is not trusted (P = " + String(p_before, 2) +
+                       " bar, allowed up to " + String(PRESSURE_RAMP_MAX_START_BAR, 2) + "). Let the pressure out first");
+        return;
+    }
+    int slot;
+    if ((slot = aligned_slot("fill_test", nullptr)) < 0)
+        return;
+
+    Serial.println("=== fill_test: slot " + String(slot) + (label[0] ? String(", label ") + label : String("")) + " ===");
+    Serial.println("Pump " + String(volume, 0) + " mL (flowmeter, calibrated; the fast-flow part is trusted_ml) at " + String(target, 2) + " bar. PID " + String(kp, 1) + " / " +
+                   String(ki, 2) + " / " + String(kd, 1) + ", output 0.." + String(max_power) + " %, start " + String(start_power) + " %, steps " +
+                   (slew ? String(slew) + " % per update" : String("not limited")) + ", pressure " +
+                   (filter_s > 0 ? String("filtered over ") + String(filter_s, 1) + " s." : String("raw.")));
+    Serial.println("Pauses at " + String(pause_bar, 2) + " bar (raw), resumes under " + String(resume_bar, 2) + " bar. Timeout " + String(timeout_s) +
+                   " s, stall " + (stall_s ? String(stall_s) + " s" : String("off")) + ". Hard cap " + String(cap, 2) + " bar. Someone at the 24 V switch.");
+    Serial.println("Any key stops the pump. Send any key to start, or 'x' to abort now.");
+    if (wait_for_keypress_or_abort())
+    {
+        Serial.println("Aborted before start");
+        return;
+    }
+
+    test_begin("fill_test");
+    String kv = "slot=" + String(slot) + ";label=" + label;
+    if (!lock_oring())
+    {
+        test_result(String(slot).c_str(), core::TEST_FAIL, kv + ";lock=failed");
+        test_end();
+        return;
+    }
+    valve_1.set_close_way();
+    valve_manifold.set_open_way();
+    delay(DELAY_VALVES_MS);
+
+    flow_sensor_small.reset_values();
+    flow_sensor_small.activate();
+
+    MiniPID pid(kp, ki, kd);
+    pid.setOutputLimits(0, max_power);
+    pump.start_at((uint8_t)start_power); // at once, no 4 s soft start: the PID is in control from the first instant
+
+    const char *reason = pump.is_running() ? nullptr : "start_refused";
+    float p_filt = p_before > 0.0f ? p_before : 0.0f;
+    float p_max = p_filt, power_cmd = (float)start_power, resume_power = (float)start_power, ml = 0.0f;
+    bool paused = false;
+    int n_pauses = 0;
+    uint32_t pause_start = 0, t_paused = 0, last_update = 0, last_print = 0;
+    uint32_t t0 = millis();
+    FilterWatch watch; // the stop criteria, shared with the operation sampling (src/Hardware/Filter_watch.cpp)
+    watch.begin((float)stall_s, FILL_CLOG_FRACTION, (float)FILL_PRESSURE_STUCK_S, true);
+    watch.arm(t0, 0.0f); // the stall window starts with the run (2026-10-19: pauses no longer restart it, F149)
+    core::TrustedVolume trusted; // the confident flowmeter volume of this run (F150, 2026-10-23)
+    trusted.reset(0.0f, t0);
+    Serial.println("  t(s)  state  ptarget  P(bar)  Pfilt  power(%)  mL_total  L/min");
+    while (reason == nullptr)
+    {
+        uint32_t now = millis();
+        uint32_t t = now - t0;
+        if (pump.enforce_pressure_safety()) // reads the sensor on every pass; stops the pump itself
+        {
+            reason = "cap";
+            break;
+        }
+        float p = read_p_in();
+        if (p > p_max)
+        {
+            p_max = p;
+        }
+        if (abort_pending())
+        {
+            pump.stop();
+            reason = "aborted";
+            break;
+        }
+        if (!paused && p >= pause_bar)
+        {
+            paused = true;
+            n_pauses++;
+            pause_start = now;
+            resume_power = power_cmd * FILL_BACKOFF_FACTOR;
+            if (resume_power < (float)PUMP_MINIMUM_POWER_PERCENT)
+            {
+                resume_power = (float)PUMP_MINIMUM_POWER_PERCENT;
+            }
+            pump.set_power_live(0.0f);
+            Serial.println("  PAUSE at " + String(p, 2) + " bar (" + String(n_pauses) + "): waiting for " + String(resume_bar, 2) + " bar");
+        }
+        if (now - last_update >= PRESSURE_RAMP_UPDATE_MS)
+        {
+            float dt_s = (now - last_update) / 1000.0f;
+            last_update = now;
+            flow_sensor_small.update();
+            ml = (float)flow_sensor_small.get_totalFlowMilliL();
+            trusted.update(ml, now, FLOW_TRUST_MIN_ML_PER_MIN, FLOW_TRUST_WINDOW_MS); // the confident volume (F150, 2026-10-23)
+            p_filt = core::lowpass_step(p_filt, p, dt_s, filter_s); // filter_s = 0: the raw pressure
+            if (paused)
+            {
+                if (p_filt <= resume_bar)
+                {
+                    paused = false;
+                    t_paused += now - pause_start;
+                    pid.reset(); // the integral of before the pause is no longer true
+                    power_cmd = resume_power;
+                    pump.set_power_live(power_cmd);
+                }
+            }
+            else
+            {
+                float sp = core::ramp_setpoint(0.0f, target, PRESSURE_RAMP_DEFAULT_RATE_BAR_S, t);
+                pid.setSetpoint(sp);
+                float wanted = (float)pid.getOutput(p_filt);
+                power_cmd = slew ? core::slew_limit(power_cmd, wanted, (float)slew) : wanted;
+                pump.set_power_live(power_cmd);
+            }
+        }
+        if (ml >= volume)
+        {
+            reason = "volume";
+            break;
+        }
+        if (t >= (uint32_t)timeout_s * 1000UL)
+        {
+            reason = "timeout";
+            break;
+        }
+        // stall (pumping time only) and pressure (paused, not coming back down): see src/Core/fill_stop.h
+        const core::FillStop watch_reason = watch.step(now, paused, ml, p, resume_bar);
+        if (watch_reason != core::FILL_GOING_ON)
+        {
+            reason = core::fill_stop_name(watch_reason);
+            break;
+        }
+        if (now - last_print >= 2000)
+        {
+            last_print = now;
+            float sp_show = core::ramp_setpoint(0.0f, target, PRESSURE_RAMP_DEFAULT_RATE_BAR_S, t);
+            Serial.println("  " + String(t / 1000.0, 0) + "  " + (paused ? "PAUSE" : "FILL ") + "  " + String(sp_show, 2) + "  " + String(p, 3) + "  " +
+                           String(p_filt, 2) + "  " + String(paused ? 0.0f : power_cmd, 1) + "  " + String(ml, 0) + "  " +
+                           String(flow_sensor_small.get_flowRate(), 3));
+        }
+        delay(2);
+    }
+    if (paused)
+    {
+        t_paused += millis() - pause_start;
+    }
+    trusted.close(ml, millis(), FLOW_TRUST_MIN_ML_PER_MIN); // the last, partial window
+    pump.stop();
+    uint32_t t_total = millis() - t0;
+    delay(1000);
+    float p_end = read_p_in();
+    valve_1.set_close_way();
+    valve_manifold.set_close_way();
+
+    bool done = (strcmp(reason, "volume") == 0);
+    kv += ";end=" + String(reason) + ";vol_ml=" + String(ml, 0) + ";trusted_ml=" + String(trusted.trusted_ml(), 0) + ";want_ml=" + String(volume, 0) + ";t_s=" + String(t_total / 1000.0, 0) +
+          ";tgt=" + String(target, 2) + ";kp=" + String(kp, 1) + ";ki=" + String(ki, 2) + ";kd=" + String(kd, 1) + ";slew=" + String(slew) +
+          ";filt=" + String(filter_s, 1) + ";pmax=" + String(p_max, 2) +
+          ";pauses=" + String(n_pauses) + ";paused_s=" + String(t_paused / 1000.0, 0) + ";clog_warn=" + String(watch.clog_warnings()) +";pw_end=" + String(power_cmd, 1) +
+          ";ml_min=" + String(t_total ? ml * 60000.0f / (float)t_total : 0.0f, 0) + ";p_end=" + String(p_end, 2);
+    Serial.println(String("fill_test ended: ") + reason + ", " + String(ml, 0) + " mL (flowmeter) in " + String(t_total / 1000.0, 0) + " s, P max " +
+                   String(p_max, 2) + " bar, " + String(n_pauses) + " pause(s)");
+    if (!quick)
+    {
+        Serial.println("Compare the water that came out with " + String(ml, 0) + " mL.");
+    }
+    test_result(String(slot).c_str(), done ? core::TEST_PASS : core::TEST_FAIL, kv);
     Serial.println("O-ring left LOCKED (oring_unlock when the pressure is gone).");
     test_end();
 }
@@ -1091,44 +1348,99 @@ static void cmd_multi_sample(const Cmd &c)
     test_end("visited=" + String(visited));
 }
 
-// One full production cycle at `slot`; returns the TEST result.
+// A duration in seconds with one decimal, for the STEP TIMES line and the TEST line.
+static String secs(uint32_t ms)
+{
+    return String(ms / 1000.0, 1);
+}
+
+// One full operation cycle at `slot`; returns the TEST result.
 static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool empty, float volume, String *kv)
 {
+    const String given = *kv; // F198 (2026-10-23): the caller's fields (run_sample: name, condition, site ...) are kept on the TEST line
     *kv = "slot=" + String(slot) + ";purge=" + (purge ? "y" : "n") + ";shield=" + (shield ? "y" : "n") +
-          ";empty=" + (empty ? "y" : "n") + ";volume_ml=" + String(volume, 0);
+          ";empty=" + (empty ? "y" : "n") + ";volume_ml=" + String(volume, 0) +
+          ";placeholders=purge_ml,shield_time,flow_factor"; // S1-C: set by hand, not measured (roadmap S1-C item 3)
+    // S1-C item 3: the purge volume and whether the spool is on the machine (answered in `session`)
+    *kv += ";purge_ml=" + String(core::purge_volume_ml(spool_installed_session, PURGE_NO_SPOOL_ML, PURGE_SPOOL_ML), 0) +
+           ";spool=" + (spool_installed_session ? "installed" : "absent");
+    if (given.length() > 0)
+    {
+        *kv += ";" + given;
+    }
     if (!require_pressure_sensor("full_cycle"))
     {
         *kv += ";reason=no_pressure_sensor";
         return core::TEST_SKIP;
     }
+    // step times (user, 2026-10-23): each step is timed and printed, and goes on the TEST line as t_*_s
+    const uint32_t t_begin = millis();
     bool ok = !purge || step_purge();
+    const uint32_t t_purge = millis() - t_begin;
+    uint32_t t_sample = 0, t_shield = 0, t_unlock = 0;
     const char *failed = ok ? "" : "purge";
+    bool skipped = false; // s typed during a step: that step ended early and is not counted as a PASS (S1-C item 1)
+    if (ok && purge && strcmp(last_purge_end, "skipped") == 0)
+    {
+        skipped = true;
+    }
     if (ok)
     {
+        const uint32_t t_mark = millis();
         ok = step_sampling(slot, true, volume);
-        *kv += ";sampled_ml=" + String(flow_sensor_small.get_totalFlowMilliL());
+        t_sample = millis() - t_mark;
+        // a clog is one reason with two criteria (2026-10-19): sample_end=clogged, and rule= says which one stopped it
+        const bool clog = strcmp(last_sample_end, "stalled") == 0 || strcmp(last_sample_end, "clogged") == 0;
+        *kv += ";sampled_ml=" + String(flow_sensor_small.get_totalFlowMilliL()) + ";trusted_ml=" + String(last_sample_trusted_ml, 0) +
+               ";sample_end=" + (clog ? "clogged" : last_sample_end);
+        if (clog)
+        {
+            *kv += ";rule=" + String(last_sample_end);
+        }
+        if (strcmp(last_sample_end, "skipped") == 0)
+        {
+            skipped = true;
+        }
         failed = ok ? "" : "sampling";
     }
     if (ok && shield)
     {
+        const uint32_t t_mark = millis();
         ok = step_DNA_shield(slot);
+        t_shield = millis() - t_mark;
         failed = ok ? "" : "shield";
     }
-    if (ok && empty)
+    if (empty)
     {
-        ok = step_empty();
-        failed = ok ? "" : "empty";
+        // the deployment-line emptying is no longer part of the cycle (user, 2026-10-19): the flag is kept on the TEST line, nothing runs
+        *kv += ";empty_step=removed";
     }
     if (ok)
     {
+        const uint32_t t_mark = millis();
         ok = unlock_oring(); // FW2 tests end unlocked (the locked rest state comes in FW4)
+        t_unlock = millis() - t_mark;
         failed = ok ? "" : "unlock";
     }
+    if (run_abort_latched())
+    {
+        *kv += ";aborted=x";
+    }
+    *kv += ";t_purge_s=" + secs(t_purge) + ";t_sample_s=" + secs(t_sample) + ";t_shield_s=" + secs(t_shield) +
+           ";t_unlock_s=" + secs(t_unlock) + ";t_total_s=" + secs(millis() - t_begin);
+    Serial.println("STEP TIMES | purge " + secs(t_purge) + " s | sample (with its emptying) " + secs(t_sample) + " s | shield " +
+                   secs(t_shield) + " s | unlock " + secs(t_unlock) + " s | total " + secs(millis() - t_begin) + " s");
     if (!ok)
     {
         *kv += String(";failed_at=") + failed;
+        return core::TEST_FAIL;
     }
-    return ok ? core::TEST_PASS : core::TEST_FAIL;
+    if (skipped)
+    {
+        *kv += ";skipped=y";
+        return core::TEST_SKIP;
+    }
+    return core::TEST_PASS;
 }
 
 static bool full_cycle_options(const Cmd &c, bool *purge, bool *shield, bool *empty, float *volume)
@@ -1209,6 +1521,41 @@ static void cmd_full_all(const Cmd &c)
     test_end();
 }
 
+// prime_shield (2026-10-19, user): the DNA-shield peristaltic pump is preloaded by hand. It runs until a key says the line is
+// primed (liquid dripping steadily, no bubbles). The same key loop as shield_calibrate's priming (Tests.cpp). x aborts.
+static void cmd_prime_shield(const Cmd &c)
+{
+    (void)c;
+    Serial.println("prime_shield: the DNA-shield pump runs. Press any key when the line drips steadily with no bubbles (x aborts; stops by itself after " +
+                   String(SHIELD_CAL_PRIME_MAX_MS / 1000) + " s).");
+    micro_pump.start(); // refuses (message) if the O-ring is not locked
+    const uint32_t t0 = millis();
+    char key = 0;
+    while (millis() - t0 < SHIELD_CAL_PRIME_MAX_MS)
+    {
+        key = real_keypress_waiting();
+        if (key)
+        {
+            break;
+        }
+        delay(5);
+    }
+    micro_pump.stop();
+    const String secs = String((millis() - t0) / 1000);
+    if (key == 0)
+    {
+        Serial.println("prime_shield: stopped by time after " + secs + " s - NOT confirmed primed");
+    }
+    else if (key == 'x' || key == 'X')
+    {
+        Serial.println("prime_shield: aborted with x after " + secs + " s");
+    }
+    else
+    {
+        Serial.println("prime_shield: primed - pump stopped after " + secs + " s");
+    }
+}
+
 static void cmd_shield_only(const Cmd &c)
 {
     static const char *const keys[] = {"ms"};
@@ -1216,7 +1563,7 @@ static void cmd_shield_only(const Cmd &c)
     if (!check_args(c, "shield_only [slot] [ms] [auto]", keys, 1, flags, 1, 2))
         return;
     long slot = -1;
-    long ms = FILL_STERIVEX_TIME / 10; // the production value today (PLACEHOLDER, F4)
+    long ms = FILL_STERIVEX_TIME / 10; // the operation value today (PLACEHOLDER, F4)
     if (!positional_long(c, 0, &slot, 0, NB_SLOT - 1, "slot") || !positional_long(c, 1, &ms, 100, FILL_STERIVEX_TIME, "ms") ||
         !arg_long(c, "ms", &ms, 100, FILL_STERIVEX_TIME))
         return;
@@ -1263,6 +1610,187 @@ static void cmd_shield_only(const Cmd &c)
     test_end();
 }
 
+// ================================================================ field metadata (2026-10-23, user)
+// `session` asks the site, date, experiment and operator once for the day. `run_sample <slot>` asks the sample name,
+// the condition and the notes before each sample, then runs the whole sample (purge, sample, shield, unlock) with one
+// command. Both print META lines, which the session log keeps in the .log file; the sample name becomes the id of the
+// sample record, so its JSON file carries the name. The session is kept in RAM: a reset needs `session` again.
+// Named run_sample, not sample: a line starting with "sample" goes to the legacy Pi protocol (main.cpp) after `stop`.
+
+// Maximum wait for a typed answer (PLACEHOLDER, 2026-10-23): no answer within 10 min cancels the question.
+static const uint32_t FIELD_ANSWER_WAIT_MS = 600000UL;
+
+struct FieldSession
+{
+    bool set = false;
+    String site;
+    String date;
+    String experiment;
+    String operator_name;
+};
+static FieldSession field_session;
+
+// A typed answer for the META line: no ';', '|' or '=' (they separate the fields), at most 48 characters.
+static String meta_clean(String s)
+{
+    s.trim();
+    s.replace(';', '_');
+    s.replace('|', '_');
+    s.replace('=', '_');
+    return s.substring(0, 48);
+}
+
+// One typed line. 0 = answer (may be empty), 1 = x typed, 2 = no answer within FIELD_ANSWER_WAIT_MS.
+static int read_answer(String &answer)
+{
+    const uint32_t start = millis();
+    while (millis() - start < FIELD_ANSWER_WAIT_MS)
+    {
+        if (Serial.available() <= 0)
+        {
+            delay(20);
+            continue;
+        }
+        answer = Serial.readStringUntil('\n');
+        answer.trim();
+        return answer.equalsIgnoreCase("x") ? 1 : 0;
+    }
+    return 2;
+}
+
+// Asks one question and waits for the answer. A required answer is asked again while it is empty. False = cancelled.
+static bool ask(const char *label, String &answer, bool required)
+{
+    for (;;)
+    {
+        Serial.println(String("ASK | ") + label + "  (type the answer + ENTER, x = cancel)");
+        const int got = read_answer(answer);
+        if (got != 0)
+        {
+            Serial.println(got == 1 ? "CANCELLED | x typed" : "CANCELLED | no answer in time");
+            return false;
+        }
+        if (!required || answer.length() > 0)
+        {
+            return true;
+        }
+        Serial.println(String("REQUIRED | ") + label + " cannot be empty");
+    }
+}
+
+// YYYY-MM-DD with digits and dashes only (the typed date went into every record of a run: F199 check, 2026-10-23)
+static bool valid_date(const String &d)
+{
+    if (d.length() != 10)
+        return false;
+    for (int i = 0; i < 10; i++)
+    {
+        const char ch = d.charAt(i);
+        if (i == 4 || i == 7 ? ch != '-' : (ch < '0' || ch > '9'))
+            return false;
+    }
+    return true;
+}
+
+static void cmd_session(const Cmd &c)
+{
+    (void)c;
+    FieldSession s;
+    String a;
+    if (!ask("site", a, true))
+        return;
+    s.site = meta_clean(a);
+    for (;;)
+    {
+        if (!ask("date (YYYY-MM-DD)", a, true))
+            return;
+        a.trim();
+        if (valid_date(a))
+            break;
+        Serial.println("REQUIRED | the date must look like 2026-10-23 (digits and dashes)");
+    }
+    s.date = meta_clean(a);
+    if (!ask("experiment name", a, true))
+        return;
+    s.experiment = meta_clean(a);
+    if (!ask("operator (optional)", a, false))
+        return;
+    s.operator_name = meta_clean(a);
+    for (;;)
+    {
+        if (!ask("spool module on the machine? (y/n)", a, true))
+            return;
+        a.trim();
+        a.toLowerCase();
+        if (a == "y" || a == "n")
+            break;
+        Serial.println("REQUIRED | answer y or n");
+    }
+    spool_installed_session = (a == "y"); // sets the purge volume (purge_volume_ml) for this session
+    s.set = true;
+    field_session = s;
+    Serial.println("META|session;site=" + s.site + ";date=" + s.date + ";experiment=" + s.experiment + ";operator=" + s.operator_name +
+                   ";spool=" + (spool_installed_session ? "installed" : "absent"));
+}
+
+static void cmd_run_sample(const Cmd &c)
+{
+    static const char *const keys[] = {"volume"};
+    if (!check_args(c, "run_sample [slot] [volume=mL]   (send `session` first; no slot = the slot the manifold is on)", keys, 1, nullptr, 0, 1))
+        return;
+    long slot = -1;
+    float volume = STX_SAMPLE_MILLILITERS;
+    if (!positional_long(c, 0, &slot, 1, NB_SLOT - 1, "slot") || !arg_float(c, "volume", &volume, 1, 5000))
+        return;
+    if (!field_session.set)
+    {
+        Serial.println("REFUSED | run_sample: no session yet - send `session` first (site, date, experiment)");
+        return;
+    }
+    if (slot < 0)
+    {
+        // F197 (user, 2026-10-23): no slot typed = the sample at the slot the manifold is on now (encoder), if it is on one
+        float error = 0;
+        bool encoder_ok = false;
+        const int nearest = manifold_nearest_slot(&error, &encoder_ok);
+        if (!encoder_ok || nearest < 1 || fabsf(error) > ACTUATOR_HOME_SLOT_TOLERANCE_DEG)
+        {
+            Serial.println(String("REFUSED | run_sample: no slot typed and the manifold is not on a sample slot (nearest ") + nearest +
+                           ", error " + String(error, 2) + " deg). Type run_sample <slot>");
+            return;
+        }
+        slot = nearest;
+        Serial.println("run_sample: no slot typed, using the slot the manifold is on: " + String(slot));
+    }
+    String name, condition, notes;
+    if (!ask("sample name", name, true) || !ask("condition (e.g. control, blank, filter A)", condition, true) ||
+        !ask("notes (optional)", notes, false))
+    {
+        Serial.println("Sample not started.");
+        return;
+    }
+    const String clean_name = meta_clean(name);
+    Serial.println("META|sample;slot=" + String(slot) + ";name=" + clean_name + ";condition=" + meta_clean(condition) +
+                   ";notes=" + meta_clean(notes) + ";site=" + field_session.site +
+                   ";date=" + field_session.date + ";experiment=" + field_session.experiment);
+    test_begin("run_sample");
+    if (PRESSURE_SENSOR_AVAILABLE && !require_known("run_sample"))
+    {
+        test_end();
+        return;
+    }
+    set_sample_record_name(clean_name.c_str());
+    const String clean_condition = meta_clean(condition);
+    set_sample_record_meta(field_session.site.c_str(), field_session.date.c_str(), clean_condition.c_str()); // F199: in the records
+    String kv = "name=" + clean_name + ";condition=" + meta_clean(condition) +
+                ";site=" + field_session.site + ";experiment=" + field_session.experiment;
+    core::TestResult r = run_full_cycle((int)slot, true, true, true, volume, &kv);
+    set_sample_record_name("");
+    set_sample_record_meta("", "", "");
+    test_result(String(slot).c_str(), r, kv);
+    test_end();
+}
+
 // ================================================================ dispatcher
 
 bool mech_tests_dispatch(const String &line)
@@ -1271,7 +1799,8 @@ bool mech_tests_dispatch(const String &line)
     core::ArgsError e = core::parse_args(line.c_str(), c.name, sizeof c.name, &c.args);
     const char *known[] = {"help", "oring_state", "actuator_home", "oring_lock", "oring_unlock", "lock_cycle",
                            "lock_endurance", "rotate_all", "encoder_repeat", "valve_check", "leak_hold",
-                           "multi_sample", "full_cycle", "full_all", "shield_only", "pressure_ramp"};
+                           "multi_sample", "full_cycle", "full_all", "shield_only", "prime_shield", "pressure_ramp", "fill_test",
+                           "session", "run_sample"};
     bool mine = false;
     for (unsigned i = 0; i < sizeof known / sizeof known[0]; i++)
     {
@@ -1311,6 +1840,8 @@ bool mech_tests_dispatch(const String &line)
         cmd_leak_hold(c);
     else if (!strcmp(c.name, "pressure_ramp"))
         cmd_pressure_ramp(c);
+    else if (!strcmp(c.name, "fill_test"))
+        cmd_fill_test(c);
     else if (!strcmp(c.name, "multi_sample"))
         cmd_multi_sample(c);
     else if (!strcmp(c.name, "full_cycle"))
@@ -1319,5 +1850,11 @@ bool mech_tests_dispatch(const String &line)
         cmd_full_all(c);
     else if (!strcmp(c.name, "shield_only"))
         cmd_shield_only(c);
+    else if (!strcmp(c.name, "prime_shield"))
+        cmd_prime_shield(c);
+    else if (!strcmp(c.name, "session"))
+        cmd_session(c);
+    else if (!strcmp(c.name, "run_sample"))
+        cmd_run_sample(c);
     return true;
 }

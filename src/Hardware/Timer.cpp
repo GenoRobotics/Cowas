@@ -24,35 +24,3 @@
 
 // TC3_HANDLER() located in pressure sensor class
 
-/**
- * @brief Timer interrupt
- * 
- * @param tc the desired timer counter instance
- * @param _channel The channel of tc
- * @param _irq corresponding NVIC (nested vector interrupt controller)
- * @param _frequency frequency. 4 = 1 second.
- */
-void timerStart(struct Timer pTimer) {
-    Tc *tc = pTimer.timer_clock;
-    uint32_t _channel = pTimer.channel;
-    IRQn_Type _irq = pTimer.irq;
-    uint32_t _frequency = pTimer.frequency;
-
-    pmc_set_writeprotect(false);
-    pmc_enable_periph_clk((uint32_t)_irq);
-    TC_Configure(tc, _channel, TC_CMR_WAVE | TC_CMR_WAVSEL_UP_RC | TC_CMR_TCCLKS_TIMER_CLOCK4);
-    uint32_t rc = VARIANT_MCK/32/_frequency; //32 to have a resolution a frequ min of 4 sec
-    TC_SetRA(tc, _channel, rc/2); //50% high, 50% low
-    TC_SetRC(tc, _channel, rc);
-    TC_Start(tc, _channel);
-    tc->TC_CHANNEL[_channel].TC_IER=TC_IER_CPCS;
-    tc->TC_CHANNEL[_channel].TC_IDR=~TC_IER_CPCS;
-    NVIC_EnableIRQ(_irq);
-}
-
-void timerStop(struct Timer pTimer){
-    IRQn_Type _irq = pTimer.irq;
-
-    pmc_disable_periph_clk((uint32_t)_irq);
-    NVIC_DisableIRQ(_irq);
-}

@@ -25,18 +25,18 @@
 #include "Settings.h"
 #include "Critical_error.h"
 #include "Timer.h"
-#include "Serial_device.h"
 #include "Step_functions.h"
 #include "Manifold.h"
 #include "Micro_pump.h"
 #include "Flow_sensor.h"
 #include "Oring_lock.h"
+#include "Run_keys.h"
+#include "Core/sample_record.h"
 
 // Delay when actuating valves
 #define DELAY_ACTIONS 1000
 
 extern C_output output;
-extern Serial_device serial;
 extern Led status_led;
 extern Led green_led;
 extern Valve_2_2 valve_1;
@@ -60,10 +60,10 @@ extern Micro_Pump micro_pump;
 extern Flow_sensor flow_sensor_small;
 extern Flow_sensor flow_sensor_big;
 
-extern float read_pressure2(); // main.cpp - the pressure sensor currently backing pump control (see its comment there for why)
+extern float read_p_in(); // main.cpp - the pressure sensor backing pump control and the cap: the ABP on SPI (S1-1)
 
 /**
- * @brief Moves the manifold to `slot` for a production step that will pump through
+ * @brief Moves the manifold to `slot` for a operation step that will pump through
  * it (water or air) - unlocks the o-ring first if currently locked (required
  * before any rotation), rotates, then re-locks once aligned. This is the "lock for
  * the whole slot dwell" model: the o-ring stays compressed for as long as the
@@ -73,18 +73,14 @@ extern float read_pressure2(); // main.cpp - the pressure sensor currently backi
  */
 bool goto_slot_locked(int slot)
 {
-    // FW2: each move can be refused (lock state UNKNOWN) or fail (encoder, timeout).
-    // Stop at the first failure: never lock and pump at the wrong slot.
-    if (!unlock_oring()) // no-op if already unlocked
-    {
-        return false;
-    }
+    // rotateMotor() unlocks for the turn and leaves the O-ring locked again (rest state).
+    // FW2: a refusal (lock state UNKNOWN) or a failure (encoder, timeout) stops here.
     if (!rotateMotor(slot))
     {
-        output.println("ERROR | goto_slot_locked: rotation to slot " + String(slot) + " failed - O-ring left unlocked");
+        output.println("ERROR | goto_slot_locked: rotation to slot " + String(slot) + " failed");
         return false;
     }
-    return lock_oring();
+    return oring_go_to(core::LOCK_STATE_LOCKED);
 }
 
 /**
@@ -114,6 +110,92 @@ static void stop_procedure(const char *who)
     valve_1.set_close_way();
     valve_manifold.set_close_way();
     output.println(String("ERROR | ") + who + ": stopped - pumps off, valves closed, O-ring " + oring_lock_state_name());
+}
+
+/**
+ * @brief S1-C addendum item 1: x typed during a pump run latches an abort. Every step checks it at its boundaries, so the
+ * command stops at the next one (the step's own pump run already stopped). Returns true if the procedure must stop now.
+ */
+static bool aborted_stop(const char *who)
+{
+    if (!run_abort_latched())
+    {
+        return false;
+    }
+    stop_procedure(who);
+    output.println(String("ABORT | ") + who + ": the command was aborted with x");
+    return true;
+}
+
+/**
+ * @brief Waits ms, polling the console keys every 100 ms, so x or stop still ends a vent. False = abort latched.
+ */
+static bool vent_wait(uint32_t ms)
+{
+    const uint32_t start = millis();
+    while (millis() - start < ms)
+    {
+        poll_run_key();
+        if (run_abort_latched())
+        {
+            return false;
+        }
+        delay(100);
+    }
+    return true;
+}
+
+/**
+ * @brief F192, vent redone 2026-10-23 (user): the line drops by itself with the pump off and the valves shut for
+ * PRESSURE_DECAY_WAIT_MS; then the air vent V1 is open for PRESSURE_AIR_VENT_MS and shut again. Nothing here stops the
+ * sample for the pressure: the O-ring unlock goes on whatever the readings (the readings are logged). Only a faulty
+ * sensor read or an abort returns false, and the caller stops with the O-ring LOCKED.
+ */
+static bool vent_line(const char *who)
+{
+    pump.stop();
+    valve_1.set_close_way();
+    valve_manifold.set_close_way();
+    output.println(String("Vent: pump off, V1 and Vman closed for ") + String(PRESSURE_DECAY_WAIT_MS / 1000) +
+                   " s, then air vent V1 open for " + String(PRESSURE_AIR_VENT_MS / 1000) + " s");
+
+    const float p_before = read_p_in();
+    if (p_before == PRESSURE_SENSOR_INVALID_BAR)
+    {
+        output.println(String("ERROR | ") + who + ": pressure sensor invalid before the vent - O-ring stays LOCKED");
+        return false;
+    }
+    if (!vent_wait(PRESSURE_DECAY_WAIT_MS))
+    {
+        return false;
+    }
+
+    const float p_waited = read_p_in();
+    if (p_waited == PRESSURE_SENSOR_INVALID_BAR)
+    {
+        output.println(String("ERROR | ") + who + ": pressure sensor invalid after the wait - O-ring stays LOCKED");
+        return false;
+    }
+
+    valve_1.set_open_way();
+    const bool vented = vent_wait(PRESSURE_AIR_VENT_MS);
+    valve_1.set_close_way();
+    if (!vented)
+    {
+        return false;
+    }
+
+    const float p_vented = read_p_in();
+    if (p_vented == PRESSURE_SENSOR_INVALID_BAR)
+    {
+        output.println(String("ERROR | ") + who + ": pressure sensor invalid after the vent - O-ring stays LOCKED");
+        return false;
+    }
+    output.println(String("Vent: ") + String(p_before, 2) + " bar before, " + String(p_waited, 2) + " bar after the wait, " +
+                   String(p_vented, 2) + " bar after the air vent" +
+                   (p_vented < PRESSURE_RELEASE_BAR ? " (released)" : " (NOT released below " + String(PRESSURE_RELEASE_BAR, 1) +
+                                                                       " bar: going on, the sample is not stopped for this)"));
+    return true;
 }
 
 /**
@@ -222,6 +304,10 @@ void step_fill_container()
         }
         // TODO : better function. cannot be constant time because time depends of how deep we sample
         // --> water need to go through the spool tube before entering the system
+        else if (pump.enforce_pressure_safety()) // hard cap, checked on every pass (2026-10-23 safety check)
+        {
+            run = false;
+        }
         else if (millis() - time1 > FILL_CONTAINER_TIME)
         {
             run = false;
@@ -270,6 +356,88 @@ void step_fill_container()
     Serial.println(flow_sensor_big.get_totalFlowMilliL());
 }
 
+// S1-C log (docs/software/code-guide.md §4, the sample record): one JSON line per purge or sample, printed when its pump run ends, so the stop
+// reason and the volumes are written by the code that decided them. Update the version with each firmware step.
+static const char *const SAMPLE_RECORD_FW = "S1-1b-dev";
+static int sample_record_seq = 0; // id of the record in this boot: auto-1, auto-2, ... (the operator id is not in the firmware yet)
+
+// The name of the sample being run (set by run_sample, 2026-10-23): it becomes the id of the sample record, so the JSON
+// file carries the name. Empty = the id is the counter (auto-N). Purges always keep the counter.
+static char sample_record_name[48] = "";
+
+void set_sample_record_name(const char *name)
+{
+    snprintf(sample_record_name, sizeof(sample_record_name), "%s", name ? name : "");
+}
+
+// F199 (user, 2026-10-23): the session site and date and the sample condition, written in every record of the run_sample
+// (purge and sample). Empty = not written. Set by run_sample before its run and cleared after it.
+static char sample_meta_site[48] = "";
+static char sample_meta_date[16] = "";
+static char sample_meta_condition[48] = "";
+
+void set_sample_record_meta(const char *site, const char *date, const char *condition)
+{
+    snprintf(sample_meta_site, sizeof(sample_meta_site), "%s", site ? site : "");
+    snprintf(sample_meta_date, sizeof(sample_meta_date), "%s", date ? date : "");
+    snprintf(sample_meta_condition, sizeof(sample_meta_condition), "%s", condition ? condition : "");
+}
+
+static void print_sample_record(const char *purpose, int slot, uint32_t start_ms, float target_ml, const CtrlPump &run,
+                                const char *lock_before)
+{
+    // placeholders in use (CLAUDE.md, rule 5): listed on every record, so no record looks clean by accident (flow_uncal removed 2026-10-23, the flowmeter is calibrated)
+    static const char *const flags[] = {"placeholder:ABP_FULL_SCALE_PSI", "placeholder:STX_MAX_PRESSURE"};
+    const bool is_purge = strcmp(purpose, "purge") == 0;
+    char id[64];
+    if (!is_purge && sample_record_name[0] != '\0')
+    {
+        snprintf(id, sizeof(id), "%s", sample_record_name);
+    }
+    else
+    {
+        snprintf(id, sizeof(id), "auto-%d", ++sample_record_seq);
+    }
+    const float vol_ml = (float)flow_sensor_small.get_totalFlowMilliL();
+
+    core::SampleRecord r;
+    r.fw = SAMPLE_RECORD_FW;
+    r.id = id;
+    r.purpose = purpose;
+    r.site = sample_meta_site[0] != ' ' ? sample_meta_site : NULL;
+    r.date = sample_meta_date[0] != ' ' ? sample_meta_date : NULL;
+    r.condition = sample_meta_condition[0] != ' ' ? sample_meta_condition : NULL;
+    r.slot = slot;
+    r.start_ms = start_ms;
+    r.end_ms = millis();
+    r.target_ml = target_ml;
+    r.vol_ml = vol_ml;
+    r.vol_trusted_ml = run.trusted_ml(); // the confident part of vol_ml (F150, 2026-10-23)
+    r.purge_ml = is_purge ? vol_ml : NAN;
+    r.end_reason = core::sample_end_name(run.end_reason());
+    r.p_mean_bar = run.pressure_mean();
+    r.p_max_bar = run.pressure_max();
+    r.p_cap_bar = STX_MAX_PRESSURE;
+    r.lock_before = lock_before;
+    r.lock_after = oring_lock_state_name();
+    r.shield_ml = NAN; // the shield pump is a separate step
+    r.flow_factor = calibrationFactor_small;
+    r.p_gain = PRESSURE_GAIN;
+    r.p_offset_bar = PRESSURE_ZERO_OFFSET_BAR;
+    r.abp_full_scale_psi = ABP_FULL_SCALE_PSI;
+    r.linear_act_locked_steps = (int)LINEAR_ACT_LOCKED_STEPS;
+    r.flags = flags;
+    r.n_flags = (int)(sizeof(flags) / sizeof(flags[0]));
+
+    char line[720];
+    if (core::format_sample_record(r, line, sizeof(line)) < 0)
+    {
+        output.println("LOG ERROR: sample record did not fit, not written");
+        return;
+    }
+    output.println(String(line));
+}
+
 /**
  * @brief Empty the container through purge channel. Step_fill_container first.
  * Can be stopped manually with buttons
@@ -286,6 +454,18 @@ bool step_purge(bool stop_pressure)
         output.println("Step purge started");
     }
 
+    if (aborted_stop("step_purge"))
+    {
+        return false;
+    }
+
+    // S1-C addendum item 3: the purge volume follows the spool answer given in `session` (spool_installed_session).
+    // User 2026-10-23: spool absent 500 mL, spool installed 7 L.
+    const float purge_ml = core::purge_volume_ml(spool_installed_session, PURGE_NO_SPOOL_ML, PURGE_SPOOL_ML);
+    output.println("Step purge: " + String(purge_ml, 0) + " mL, spool " + (spool_installed_session ? "installed" : "absent"));
+
+    const char *lock_before = oring_lock_state_name(); // for the sample record (S1-C log)
+
     // set the valves and manifold - flows through an open tube (no filter), but the
     // same rotary o-ring seal still needs to be locked for this slot before pumping
     if (!goto_slot_locked(PURGE_SLOT))
@@ -299,8 +479,9 @@ bool step_purge(bool stop_pressure)
     delay(DELAY_ACTIONS);
 
     CtrlPumpFlow ctrl_flow;
-    ctrl_flow.begin(&pump, &pump_pid, read_pressure2, &flow_sensor_small, PURGE_MILLILITERS, 2, true);
-    ctrl_flow.set_max_runtime(3 * 60 * 1000); // in ms
+    ctrl_flow.begin(&pump, &pump_pid, read_p_in, &flow_sensor_small, purge_ml, OPERATION_TARGET_BAR, true);
+    // the purge timeout follows the spool answer (Settings.h): 15 min with the spool, 3 min without
+    ctrl_flow.set_max_runtime(spool_installed_session ? PURGE_SPOOL_MAX_RUNTIME_MS : PURGE_MAX_RUNTIME_MS); // in ms
 
     uint32_t time1 = millis();
     // purge with certain flow
@@ -309,20 +490,22 @@ bool step_purge(bool stop_pressure)
         output.println("ctrl flow started");
     }
     ctrl_flow.run();
+    last_purge_end = ctrl_flow.end_reason();
+    print_sample_record("purge", PURGE_SLOT, time1, purge_ml, ctrl_flow, lock_before);
 
     valve_1.set_close_way();
     valve_manifold.set_close_way(); // default position of valves
 
     if (VERBOSE_PURGE || TIMER)
     {
-        output.println("Time to purge : " + String(millis() - time1) + " ms");
+        output.println("Time to purge : " + String(millis() - time1) + " ms (end=" + ctrl_flow.end_reason() + ")");
     }
 
     if (VERBOSE_PURGE)
     {
         output.println("Step purge ended");
     }
-    return true;
+    return !aborted_stop("step_purge"); // a skip (s) is a normal end of this step; an abort (x) stops the command
 }
 
 /**
@@ -330,9 +513,18 @@ bool step_purge(bool stop_pressure)
  *
  * @param slot_manifold The filter in which the sampling is made
  */
+const char *last_sample_end = "none"; // why the last step_sampling() pumped stopped: volume, timeout, cap, sensor (S1-C)
+const char *last_purge_end = "none";  // why the last step_purge() pumped stopped (S1-C)
+float last_sample_trusted_ml = 0.0f;  // the confident flowmeter volume of the last step_sampling() pump run (F150, 2026-10-23)
+const char *last_empty_end = "none";  // why the last step_empty() pumped stopped (S1-C)
+
 bool step_sampling(int slot_manifold, bool stop_pressure, float volume_ml)
 {
     if (!require_pressure_sensor("step_sampling"))
+    {
+        return false;
+    }
+    if (aborted_stop("step_sampling"))
     {
         return false;
     }
@@ -345,6 +537,8 @@ bool step_sampling(int slot_manifold, bool stop_pressure, float volume_ml)
     {
         output.println("Press right button when container is empty -> will stop sampling sterivex");
     }
+
+    const char *lock_before = oring_lock_state_name(); // for the sample record (S1-C log)
 
     // set the valves
     if (!goto_slot_locked(slot_manifold))
@@ -361,15 +555,20 @@ bool step_sampling(int slot_manifold, bool stop_pressure, float volume_ml)
     // sample certain amount
     // todo: detect when pressure is below certain threshhold == sterivex saturated
     CtrlPumpFlow ctrl_flow;
-    ctrl_flow.begin(&pump, &pump_pid, read_pressure2, &flow_sensor_small, volume_ml, 2, true);
-    ctrl_flow.set_max_runtime(3 * 60 * 1000); // in ms
+    ctrl_flow.begin(&pump, &pump_pid, read_p_in, &flow_sensor_small, volume_ml, OPERATION_TARGET_BAR, true);
+    ctrl_flow.set_max_runtime(SAMPLE_MAX_DURATION_MS); // in ms (S1-C: was 3 min, F15)
+    FilterWatch filter_watch; // stall, clogged and pressure stops, the same as fill_test (S1-C)
+    filter_watch.begin(FILL_DEFAULT_STALL_S, FILL_CLOG_FRACTION, (float)FILL_PRESSURE_STUCK_S, true);
+    ctrl_flow.set_filter_watch(&filter_watch);
+    // pause at the cap margin and resume after (S1-C, user 2026-10-19): the filter fills without overshooting the cap
+    ctrl_flow.set_pause(FILL_PAUSE_BAR, FILL_RESUME_BAR);
 
     flow_sensor_small.reset_values();
 
     CtrlPumpNoWater ctrl_empty; // here we want to empty sterivex
-    ctrl_empty.begin(&pump, &pump_pid, read_pressure2, 0.4, true);
-    ctrl_empty.set_end_cond_time(5000);
-    ctrl_empty.set_max_runtime(60 * 1000); // in ms
+    ctrl_empty.begin(&pump, &pump_pid, read_p_in, OPERATION_TARGET_BAR, true);
+    ctrl_empty.set_end_cond_time(EMPTY_AIR_HOLD_MS);
+    ctrl_empty.set_max_runtime(EMPTY_MAX_TIME_MS);
 
     uint32_t time1 = millis();
 
@@ -379,6 +578,21 @@ bool step_sampling(int slot_manifold, bool stop_pressure, float volume_ml)
         output.println("Step sample: pumping water through sterivex");
     }
     ctrl_flow.run();
+    last_sample_trusted_ml = ctrl_flow.trusted_ml(); // for the TEST line (F150, 2026-10-23)
+    last_sample_end = strcmp(ctrl_flow.end_reason(), "cond") == 0 ? "volume" : ctrl_flow.end_reason();
+    output.println("Step sample ended: " + String(last_sample_end) + ", pauses " + String(ctrl_flow.pauses()));
+    print_sample_record("sample", slot_manifold, time1, volume_ml, ctrl_flow, lock_before);
+    if (aborted_stop("step_sampling"))
+    {
+        return false;
+    }
+
+    // F192 (user, 2026-10-23): wait, then a 5 s air vent. Not a gate for the sample: only a faulty sensor or an abort stops here
+    if (!vent_line("step_sampling"))
+    {
+        stop_procedure("step_sampling");
+        return false;
+    }
 
     // emptying the tubes
     valve_1.set_open_way(); // here we want to empty the system, to take air instead of water
@@ -394,6 +608,10 @@ bool step_sampling(int slot_manifold, bool stop_pressure, float volume_ml)
         output.println("Step sample: emptying through purge");
     }
     ctrl_empty.run();
+    if (aborted_stop("step_sampling"))
+    {
+        return false;
+    }
 
     // emptying the sterivex filter
     if (!goto_slot_locked(slot_manifold)) // unlocks before leaving purge, re-locks back at the filter
@@ -407,8 +625,14 @@ bool step_sampling(int slot_manifold, bool stop_pressure, float volume_ml)
     }
 
     ctrl_empty.set_pressure_thresh(EMPTY_WATER_PRESSURE_STX_THRESHOLD);
+    ctrl_empty.set_end_cond_time(EMPTY_STX_AIR_HOLD_MS); // the sterivex air drying is longer than the purge one (user, 2026-10-23)
+    ctrl_empty.set_max_runtime(EMPTY_MAX_TIME_MS + EMPTY_STX_EXTRA_MAX_MS);
     ctrl_empty.run(); // emptying sterivex
     valve_1.set_close_way();
+    if (aborted_stop("step_sampling"))
+    {
+        return false;
+    }
 
     if (VERBOSE_SAMPLE || TIMER)
     {
@@ -430,9 +654,9 @@ bool step_sampling(int slot_manifold, bool stop_pressure, float volume_ml)
  * positioned at the target slot and the o-ring is unlocked - this does NOT rotate
  * the manifold itself (use rotateMotor()/goto_slot_locked() before calling).
  * Standalone building block for manual testing (see test_load_sample() and
- * test_multi_sample_loading() in Tests.cpp) - not currently called from
+ * the old multi-sample test, removed 2026-10-23) - not currently called from
  * step_sampling(), which has its own more elaborate purge-then-filter double
- * air-emptying for the full production sequence.
+ * air-emptying for the full operation sequence.
  * @param volume_ml target water volume to pump through, in mL.
  * @return true if the o-ring locked successfully, false if lock_oring() failed (in
  * which case nothing else runs).
@@ -461,13 +685,22 @@ bool load_slot(float volume_ml)
  */
 void load_slot_water(float volume_ml)
 {
+    if (aborted_stop("load_slot_water"))
+    {
+        return;
+    }
     valve_1.set_close_way();
     valve_manifold.set_open_way();
     delay(DELAY_ACTIONS);
 
     CtrlPumpFlow ctrl_flow;
-    ctrl_flow.begin(&pump, &pump_pid, read_pressure2, &flow_sensor_small, volume_ml, 2, true);
-    ctrl_flow.set_max_runtime(3 * 60 * 1000); // in ms
+    ctrl_flow.begin(&pump, &pump_pid, read_p_in, &flow_sensor_small, volume_ml, OPERATION_TARGET_BAR, true);
+    ctrl_flow.set_max_runtime(SAMPLE_MAX_DURATION_MS); // in ms (S1-C: was 3 min, F15)
+    FilterWatch filter_watch; // stall, clogged and pressure stops, the same as fill_test (S1-C)
+    filter_watch.begin(FILL_DEFAULT_STALL_S, FILL_CLOG_FRACTION, (float)FILL_PRESSURE_STUCK_S, true);
+    ctrl_flow.set_filter_watch(&filter_watch);
+    // pause at the cap margin and resume after (S1-C, user 2026-10-19): the filter fills without overshooting the cap
+    ctrl_flow.set_pause(FILL_PAUSE_BAR, FILL_RESUME_BAR);
     if (VERBOSE_SAMPLE)
     {
         output.println("load_slot: pumping water through the filter");
@@ -481,14 +714,18 @@ void load_slot_water(float volume_ml)
  */
 void load_slot_air()
 {
+    if (aborted_stop("load_slot_air"))
+    {
+        return;
+    }
     valve_1.set_open_way();         // take ambient air instead of water
     valve_manifold.set_close_way(); // close the deployment line
     delay(DELAY_ACTIONS);
 
     CtrlPumpNoWater ctrl_empty;
-    ctrl_empty.begin(&pump, &pump_pid, read_pressure2, 0.4, true); // low PID setpoint while emptying
-    ctrl_empty.set_end_cond_time(5000);
-    ctrl_empty.set_max_runtime(60 * 1000); // in ms
+    ctrl_empty.begin(&pump, &pump_pid, read_p_in, OPERATION_TARGET_BAR, true);
+    ctrl_empty.set_end_cond_time(EMPTY_AIR_HOLD_MS);
+    ctrl_empty.set_max_runtime(EMPTY_MAX_TIME_MS);
     ctrl_empty.set_pressure_thresh(EMPTY_WATER_PRESSURE_STX_THRESHOLD); // stop when pressure drops below this (air detected)
     if (VERBOSE_SAMPLE)
     {
@@ -500,7 +737,7 @@ void load_slot_air()
 }
 
 /**
- * @brief Loads one sample at the manifold's CURRENT slot using the FULL production
+ * @brief Loads one sample at the manifold's CURRENT slot using the FULL operation
  * sequence: step_sampling() (locks, pumps water to STX_SAMPLE_MILLILITERS or the
  * pump's hard pressure cap, then the elaborate purge-then-filter double
  * air-emptying) followed by step_DNA_shield() (pushes DNA-shield preservative into
@@ -580,6 +817,11 @@ bool step_empty()
     {
         return false;
     }
+    if (aborted_stop("step_empty"))
+    {
+        return false;
+    }
+    const uint32_t t_empty = millis();
 
     // pump from deployment
     valve_1.set_close_way();
@@ -594,16 +836,17 @@ bool step_empty()
     }
 
     CtrlPumpNoWater pump_ctrl;
-    pump_ctrl.begin(&pump, &pump_pid, read_pressure2, 2, false);
-    pump_ctrl.set_end_cond_time(5000);
-    pump_ctrl.set_max_runtime(EMPTY_DEPLOYMENT_TIME); // in ms
+    pump_ctrl.begin(&pump, &pump_pid, read_p_in, OPERATION_TARGET_BAR, true); // printed: the 2026-10-19 trapped empty left no pressure record
+    pump_ctrl.set_end_cond_time(EMPTY_AIR_HOLD_MS);
+    pump_ctrl.set_max_runtime(EMPTY_MAX_TIME_MS); // in ms
 
     // ! should add a security time, as no water at pressure sensor doesn't mean no water in system
 
     pump_ctrl.run();
-
+    last_empty_end = pump_ctrl.end_reason();
     valve_manifold.set_close_way();
-    return true;
+    output.println(String("Step empty: end=") + pump_ctrl.end_reason() + ", " + String((millis() - t_empty) / 1000) + " s");
+    return !aborted_stop("step_empty"); // a skip (s) ends this step normally; an abort (x) stops the command
 }
 
 /**
@@ -704,18 +947,8 @@ void sample_process(int depth, int manifold_slot)
         return;
     }
 
-    // emptying system
-    if (VERBOSE_SAMPLE)
-    {
-        output.println("Last step: emptying system from water");
-    }
-    delay(DELAY_ACTIONS);
-    if (!step_empty())
-    {
-        output.println("ERROR | sample_process: emptying failed - cycle stopped (the filter itself is done)");
-        set_system_state(state_error);
-        return;
-    }
+    // the deployment-line emptying is no longer part of the cycle (user, 2026-10-19: 5 min is too long, and the cycle
+    // ends back at the purge). step_empty() stays for abort_sample().
 
     // rest state: don't leave the o-ring compressed once the whole cycle is done
     unlock_oring();
@@ -845,7 +1078,15 @@ bool step_DNA_shield(int slot_manifold)
         return false;
     }
 
+    // F156 (2026-10-19): the micro pump is time-based (no flow sensor), so the log shows the time it really ran. The volume is
+    // not measured here: weigh the bottle, or use shield_calibrate (LA3). A skip (s) ends this pump run only; the air push below still runs.
+    const uint32_t t_shield = millis();
     micro_pump.start(FILL_STERIVEX_TIME / 10.); // ! remove /100, only to be faster for testing
+    output.println("Step DNA-shield: micro pump ran " + String(millis() - t_shield) + " ms (time-based, volume not measured)");
+    if (aborted_stop("step_DNA_shield"))
+    {
+        return false;
+    }
 
     delay(500);
 
@@ -856,8 +1097,14 @@ bool step_DNA_shield(int slot_manifold)
     pump.set_power(PUMP_SHIELD_POWER);
 
     delay(500);
+    const uint32_t t_push = millis();
     pump.start(PUMP_SHIELD_TIME);
+    output.println("Step DNA-shield: air push ran " + String(millis() - t_push) + " ms at " + String(PUMP_SHIELD_POWER) + " %");
     delay(500);
+    if (aborted_stop("step_DNA_shield"))
+    {
+        return false;
+    }
 
     // avoid suction of shield when opening valves
     if (!goto_slot_locked(PURGE_SLOT)) // unlocks before leaving the filter, re-locks at purge
@@ -873,24 +1120,6 @@ bool step_DNA_shield(int slot_manifold)
         output.println("Step DNA-shield finished");
     }
     return true;
-}
-
-void DNA_shield_test(int slot_manifold)
-{
-    // ! need to leave water in pipe
-
-    if (VERBOSE_SHIELD)
-    {
-        output.println("Step DNA-shield started");
-    }
-
-    // go to right slot
-    if (!rotateMotor(slot_manifold))
-    {
-        return;
-    }
-
-    micro_pump.start(FILL_STERIVEX_TIME);
 }
 
 void abort_sample()

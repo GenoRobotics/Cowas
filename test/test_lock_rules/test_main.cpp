@@ -91,6 +91,18 @@ void test_home_tolerance_setting_is_sane(void)
     TEST_ASSERT_TRUE(ACTUATOR_HOME_SLOT_TOLERANCE_DEG < 22.5f / 2);
 }
 
+void test_lock_move(void)
+{
+    TEST_ASSERT_EQUAL_INT(LOCK_MOVE_NONE, lock_move_to(LOCK_STATE_LOCKED, LOCK_STATE_LOCKED));
+    TEST_ASSERT_EQUAL_INT(LOCK_MOVE_NONE, lock_move_to(LOCK_STATE_UNLOCKED, LOCK_STATE_UNLOCKED));
+    TEST_ASSERT_EQUAL_INT(LOCK_MOVE_TO_LOCKED, lock_move_to(LOCK_STATE_UNLOCKED, LOCK_STATE_LOCKED));
+    TEST_ASSERT_EQUAL_INT(LOCK_MOVE_TO_UNLOCKED, lock_move_to(LOCK_STATE_LOCKED, LOCK_STATE_UNLOCKED));
+    TEST_ASSERT_EQUAL_INT(LOCK_MOVE_REFUSE, lock_move_to(LOCK_STATE_UNKNOWN, LOCK_STATE_LOCKED));
+    TEST_ASSERT_EQUAL_INT(LOCK_MOVE_REFUSE, lock_move_to(LOCK_STATE_UNKNOWN, LOCK_STATE_UNLOCKED));
+    TEST_ASSERT_EQUAL_INT(LOCK_MOVE_REFUSE, lock_move_to(LOCK_STATE_LOCKED, LOCK_STATE_UNKNOWN));
+    TEST_ASSERT_EQUAL_INT(LOCK_MOVE_REFUSE, lock_move_to((LockState)42, LOCK_STATE_LOCKED));
+}
+
 void test_home_decision_names(void)
 {
     TEST_ASSERT_EQUAL_STRING("allowed", home_decision_name(HOME_ALLOWED));
@@ -110,5 +122,6 @@ int main(int, char **)
     RUN_TEST(test_may_home_nan_and_bad_tolerance_refuse);
     RUN_TEST(test_home_tolerance_setting_is_sane);
     RUN_TEST(test_home_decision_names);
+    RUN_TEST(test_lock_move);
     return UNITY_END();
 }

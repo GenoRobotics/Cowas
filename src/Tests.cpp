@@ -21,21 +21,22 @@
 #include "C_output.h"
 #include "Settings.h"
 #include "Timer.h"
-#include "Serial_device.h"
 #include "Tests.h"
 #include "Step_functions.h"
 #include "Manifold.h"
 #include "maintenance.h"
-#include "Pressure_sensor.h"
 #include "Linear_actuator.h"
 #include "Flow_sensor.h"
 #include "Oring_lock.h"
 #include "Core/shield_calibration.h"
+#include "Core/abp_convert.h"
+#include "Core/pressure_calibration.h"
+#include "Test_report.h"
 #include "Tests_mech.h"
+#include "Run_keys.h"
 
 extern int manifold_slot;
 extern C_output output;
-extern Serial_device serial;
 extern Led status_led;
 extern Led green_led;
 extern Trustability_ABP_Gage pressure1;
@@ -58,21 +59,10 @@ extern Button button_left;
 extern Button button_right;
 // extern Potentiometer potentiometer;
 extern struct Timer timer_control_pressure1;
-extern struct Timer timer_control_pressure2;
 
-extern BigPressure pressure2;
 
 extern Linear_actuator linear_actuator;
 extern Manifold manifold;
-
-void test_serial_device()
-{
-    if (Serial.available())
-    {
-        output.println(Serial.read());
-        output.println("");
-    }
-}
 
 void test_all_components()
 {
@@ -81,6 +71,11 @@ void test_all_components()
     // go_to_zero();
 
     String test_command;
+    while (Serial.available())
+    {
+        Serial.read(); // what was typed during the boot is incomplete (F49): start clean
+    }
+    Serial.println("=== Test menu READY: type a command + ENTER (`help` lists them) ===");
     while (42)
     {
         if (Serial.available())
@@ -88,7 +83,18 @@ void test_all_components()
             // test_command = Serial.readString();
             test_command = Serial.readStringUntil('\n');
             // test_command = Serial.readStringUntil('b');
-            Serial.println(test_command);
+            // F37: a CR, a space or a stray byte around the command made it silently do nothing
+            test_command.trim();
+            while (test_command.length() > 0 && ((uint8_t)test_command[0] < 0x21 || (uint8_t)test_command[0] > 0x7E))
+            {
+                test_command.remove(0, 1);
+            }
+            if (test_command.length() == 0)
+            {
+                continue; // a lone ENTER
+            }
+            Serial.println("> " + test_command);
+            run_keys_reset(); // a new command: an abort (x) from the one before does not carry over (S1-C)
 
             // FW2 test suite (Tests_mech.cpp): help, actuator_home, lock_cycle, rotate_all, ...
             // Handles its own commands (including the extended multi_sample) and skips the rest.
@@ -200,18 +206,22 @@ void test_all_components()
                 // goes to all slots and to 0 in between, takes a lot of time
                 test_manifold(); // all manifold, test first motor and encoder
             }
-            if (test_command == "pressure_sensors")
-            {
-                Serial.println("testing pressure_sensors");
-                test_pressure_sensor();
-            }
             if (test_command == "pressure")
             {
                 print_pressure_once();
             }
-            if (test_command == "calibrate_pressure2")
+            // 2026-10-23: was declared, documented and printed to by the code, but never dispatched (the operator tutorial uses it)
+            if (test_command == "abp_raw")
             {
-                calibrate_pressure2_zero();
+                print_abp_raw();
+            }
+            if (test_command == "pressure_zero")
+            {
+                pressure_zero();
+            }
+            if (test_command == "calibrate_pressure")
+            {
+                calibrate_pressure();
             }
             if (test_command == "pump")
             {
@@ -343,11 +353,6 @@ void test_all_components()
             if (test_command == "sample_cycle_full")
             {
                 test_load_sample_full();
-            }
-
-            if (test_command == "multi_sample")
-            {
-                test_multi_sample_loading();
             }
 
             if (test_command == "multi_sample_full")
@@ -522,282 +527,295 @@ void test_1_depth_40m()
     green_led.off();
 }
 
-void test_1_depth_40m_direct()
-{
-    if (!SPOOL_USE)
-    {
-        output.println("Spool disabled (SPOOL_USE=false in Settings.h) - test skipped");
-        return;
-    }
-    output.println("TEST 1 - ALTIMETRE 19m direct");
-    uint32_t lastTime = 0;
-
-    spool.start_origin();
-    status_led.on();
-    output.println("=========== go 19m");
-    button_start.waitPressedAndReleased();
-    status_led.off();
-    lastTime = millis();
-    spool.start(19000);
-    output.println(millis() - lastTime);
-
-    status_led.on();
-    output.println("=========== go origin");
-    button_start.waitPressedAndReleased();
-    status_led.off();
-    lastTime = millis();
-    spool.start(-1);
-    output.println(millis() - lastTime);
-
-    green_led.on();
-    output.println("END OF TEST 1 19 meters direct");
-    button_start.waitPressedAndReleased();
-    green_led.off();
-}
-
-void test_2_remplissage_container_1m()
-{
-
-    output.println("TEST 2 - container 1m");
-
-    spool.start(100);
-    valve_23.set_I_way();
-    delay(200);
-    pump.set_power(255);
-    timerStart(timer_control_pressure2);
-    pump.start();
-    while (button_container.getState() == 1)
-        ;
-    pump.stop();
-    timerStop(timer_control_pressure2);
-    valve_23.set_L_way();
-
-    step_purge();
-    step_rewind();
-}
-
-void test_2_remplissage_container_40m()
-{
-
-    output.println("TEST 2 - container 40m");
-
-    spool.start(40000);
-    valve_23.set_I_way();
-    delay(200);
-    pump.set_power(100);
-    timerStart(timer_control_pressure2);
-    pump.start();
-    while (button_container.getState() == 1)
-        ;
-    pump.stop();
-    timerStop(timer_control_pressure2);
-    valve_23.set_L_way();
-
-    step_purge();
-    step_rewind();
-}
-
-void test_3_sterivex_1()
-{
-
-    output.println("TEST 3 - sterivex 1");
-
-    spool.start(1000);
-    for (int i = 0; i < 3; i++)
-    {
-        output.println("Fill container number " + String(i + 1));
-        step_fill_container();
-        output.println("Purge number " + String(i + 1));
-        step_purge();
-    }
-
-    output.println("Fill container number 4");
-    step_fill_container();
-
-    // sampling sterivex 1
-    uint32_t lastTime = millis();
-    step_sampling(1);
-    output.println("Temps " + String(millis() - lastTime));
-
-    output.println("Control manuel pompe");
-    status_led.on();
-    button_start.waitPressedAndReleased();
-    status_led.off();
-
-    while (!button_start.isPressed())
-    {
-        if (button_left.isPressed())
-        {
-            button_left.waitPressedAndReleased();
-            pump.set_power(100);
-            pump.start();
-        }
-        if (button_right.isPressed())
-        {
-            button_right.waitPressedAndReleased();
-            pump.set_power(100);
-            pump.stop();
-        }
-        delay(10);
-    }
-    button_start.waitPressedAndReleased();
-    output.println("purge");
-    green_led.on();
-    button_start.waitPressedAndReleased();
-    green_led.off();
-
-    step_purge();
-    output.println("rewind");
-    button_start.waitPressedAndReleased();
-    step_rewind();
-}
-
-void test_3_sterivex_2()
-{
-    output.println("TEST 3 - sterivex 2");
-
-    spool.start(1000);
-    output.println("Fill container number 5");
-    step_fill_container();
-
-    // sampling sterivex 2
-    uint32_t lastTime = millis();
-    step_sampling(2);
-    output.println("Temps " + String(millis() - lastTime));
-
-    output.println("Control manuel pompe");
-    status_led.on();
-    button_start.waitPressedAndReleased();
-    status_led.off();
-
-    // mnaual contorl
-    // int pot_last_value = potentiometer.get_value(0, 100);
-    // int pot_value = 0;
-    // int speedy = 60;
-    while (!button_start.isPressed())
-    {
-        // pot_value = potentiometer.get_value(0, 100);
-        // if (pot_value <= pot_last_value - 4 || pot_value >= pot_last_value + 4)
-        // {
-        //     // speedy = pot_value;
-        //     // pot_last_value = pot_value;
-        //     output.println("speed " + String(speedy));
-        // }
-        if (button_left.isPressed())
-        {
-            button_left.waitPressedAndReleased();
-            pump.set_power(100);
-            pump.start();
-        }
-        if (button_right.isPressed())
-        {
-            button_right.waitPressedAndReleased();
-            pump.set_power(100);
-            pump.stop();
-        }
-        delay(10);
-    }
-    button_start.waitPressedAndReleased();
-    output.println("purge");
-    green_led.on();
-    button_start.waitPressedAndReleased();
-    green_led.off();
-
-    step_purge();
-    output.println("rewind");
-    button_start.waitPressedAndReleased();
-    step_rewind();
-}
-
 /**
  * @brief Reads and prints both pressure sensors once (not a loop - see
  * test_pressure_sensor() for the continuous stream version).
  */
 void print_pressure_once()
 {
-    output.println("Pressure (Trustability, pressure1): " + String(pressure1.getPressure()) + " bar");
-    output.println("Pressure (new sensor, pressure2): " + String(pressure2.readPressure()) + " bar");
+    float p = pressure1.getPressure();
+    if (pressure1.isTrusted())
+    {
+        output.println("Pressure (ABP on SPI, pressure1: backs the pump cap and the PID loops): " + String(p, 3) + " bar (datasheet conversion " +
+                       String(pressure1.getNominalPressure(), 3) + " bar, gain " + String(PRESSURE_GAIN, 4) + ", zero offset " +
+                       String(PRESSURE_ZERO_OFFSET_BAR, 4) + " bar)");
+    }
+    else
+    {
+        output.println("Pressure (ABP on SPI, pressure1): NOT TRUSTED - the pump can't run. Run abp_raw.");
+    }
 }
 
 char wait_for_keypress(); // defined below - forward declared for use here
 bool wait_for_keypress_or_abort(); // defined below - forward declared for use here
+bool ask_yes_no(const char *prompt); // defined below - forward declared for use here
+
+// Result of averaging the ABP's datasheet ("nominal") reading for a while.
+struct NominalAverage
+{
+    bool ok;      // false: the sensor was not trusted at some sample
+    float mean;   // bar
+    float spread; // bar, max - min
+    int n;
+};
+
+static NominalAverage average_nominal_pressure(uint32_t duration_ms)
+{
+    NominalAverage a = {true, 0, 0, 0};
+    double total = 0;
+    float lowest = 0, highest = 0;
+    uint32_t start = millis();
+    while (millis() - start < duration_ms)
+    {
+        float reading = pressure1.getNominalPressure();
+        if (!pressure1.isTrusted())
+        {
+            a.ok = false;
+            return a;
+        }
+        if (a.n == 0 || reading < lowest) lowest = reading;
+        if (a.n == 0 || reading > highest) highest = reading;
+        total += reading;
+        a.n++;
+        delay(20);
+    }
+    a.mean = (a.n > 0) ? (float)(total / a.n) : 0;
+    a.spread = highest - lowest;
+    a.ok = a.n > 0;
+    return a;
+}
 
 /**
- * @brief Quick zero-point calibration for pressure2 ("new sensor", BigPressure,
- * analog, pressure_2_pin). There's no live-settable offset on this sensor - the
- * OffSet in BigPressure::convertToPressure() (Pressure_sensor.cpp) is a hardcoded
- * constant - so like calibrate_flow_sensor(), this just computes and prints a
- * corrected value to paste in by hand, rather than reworking that class.
- *
- * Averages many samples over ~1s instead of trusting a single reading, and prints
- * the spread (max-min) so you can tell a noisy/unreliable signal from a clean one
- * that just needs its offset corrected - a single bad sample previously risked
- * calibrating the offset to a noise spike instead of the true zero point. With NO
- * pressure applied (sensor open to air / disconnected), the true pressure is 0, so
- * whatever pressure2 currently reports is pure offset error. From BigPressure's
- * formula (pressure = (voltage - OffSet) * 2.5), the corrected
- * OffSet = old OffSet + mean_reading / 2.5.
+ * @brief S1-1: zero of the ABP pressure sensor (pressure1). With the pump off and the line
+ * open to air, averages the datasheet reading for PRESSURE_ZERO_AVG_MS and prints the
+ * PRESSURE_ZERO_OFFSET_BAR line to paste into Settings.h. A quick re-tare that needs no
+ * manometer and leaves PRESSURE_GAIN alone. Read-only: nothing moves.
  */
-void calibrate_pressure2_zero()
+void pressure_zero()
 {
-    output.println("=== Pressure2 (new sensor) zero-point calibration ===");
-    output.println("Make sure NO pressure is applied (open to air / disconnected), then send any key to read, or 'x' to abort.");
-
+    output.println("=== pressure_zero (ABP, pressure1) ===");
+    if (pump.is_running())
+    {
+        output.println("REFUSED | pressure_zero: the pump is running");
+        return;
+    }
+    output.println("Pump off, line open to air (no pressure on the sensor). Send any key to read, or 'x' to abort.");
     if (wait_for_keypress_or_abort())
     {
         output.println("Aborted.");
         return;
     }
 
-    const uint8_t SAMPLES = 50;
-    float total = 0;
-    float min_reading = 0;
-    float max_reading = 0;
-    for (uint8_t i = 0; i < SAMPLES; i++)
+    test_begin("pressure_zero");
+    NominalAverage a = average_nominal_pressure(PRESSURE_ZERO_AVG_MS);
+    if (!a.ok)
     {
-        float reading = pressure2.readPressure();
-        if (i == 0 || reading < min_reading) min_reading = reading;
-        if (i == 0 || reading > max_reading) max_reading = reading;
-        total += reading;
-        delay(20);
+        output.println("The sensor is not trusted (run abp_raw): no zero.");
+        test_result("zero", core::TEST_FAIL, "reason=sensor_not_trusted");
+        test_end();
+        return;
     }
-    float mean_reading = total / SAMPLES;
-    float spread = max_reading - min_reading;
-
-    output.println("Mean reading over " + String(SAMPLES) + " samples (should be ~0 bar at true ambient): " + String(mean_reading, 3) + " bar");
-    output.println("Spread (max-min): " + String(spread, 3) + " bar");
-    if (spread > 0.3)
+    bool ok = fabs(a.mean) <= PRESSURE_ZERO_MAX_ABS_BAR && a.spread <= CAL_PRESSURE_MAX_SPREAD_BAR;
+    output.println("Mean over " + String(a.n) + " readings: " + String(a.mean, 4) + " bar, spread (max-min) " + String(a.spread, 4) + " bar");
+    if (fabs(a.mean) > PRESSURE_ZERO_MAX_ABS_BAR)
     {
-        output.println("WARNING: that spread is large for a sensor just sitting still - this looks like signal noise or a wiring issue (loose connector, floating pin, missing ground), not just an offset error. Fixing the offset alone won't help until the underlying signal is stable - worth checking the physical wiring before trusting this sensor for anything safety-related.");
+        output.println("That is too far from 0 to be an offset: pressure on the sensor, or the wrong ABP_FULL_SCALE_PSI. Nothing to paste.");
     }
-
-    const float OLD_OFFSET = 0.483; // must match the OffSet constant in BigPressure::convertToPressure() (Pressure_sensor.cpp) - update this too if that constant is ever changed by hand
-    float new_offset = OLD_OFFSET + mean_reading / 2.5;
-
-    output.println("Edit this in Pressure_sensor.cpp (BigPressure::convertToPressure()), then rebuild and reflash:");
-    output.println("  const float OffSet = " + String(new_offset, 3) + "; // V");
+    else if (a.spread > CAL_PRESSURE_MAX_SPREAD_BAR)
+    {
+        output.println("The reading was not steady: check the wiring and that nothing is moving in the line, then redo it.");
+    }
+    else
+    {
+        output.println("Edit this in Settings.h, then rebuild and reflash:");
+        output.println("  const float PRESSURE_ZERO_OFFSET_BAR = " + String(a.mean, 4) + "f;");
+    }
+    test_result("zero", ok ? core::TEST_PASS : core::TEST_FAIL,
+                "zero_offset_bar=" + String(a.mean, 4) + ";spread_bar=" + String(a.spread, 4) + ";n=" + String(a.n) +
+                    ";was_bar=" + String(PRESSURE_ZERO_OFFSET_BAR, 4));
+    test_end();
 }
 
-void test_pressure_sensor()
+// Throws away what is waiting on the console. A key typed as "k" + ENTER leaves its line
+// feed behind (at 9600 baud it arrives after the key was read), and the next prompt would
+// take it for an answer: that made calibrate_pressure skip the hold of its first point.
+static void drain_serial_input()
 {
-    float pressure;
-    float pressureBig;
-
-    while (!Serial.available())
+    uint32_t quiet_since = millis();
+    while (millis() - quiet_since < 100) // until nothing has arrived for 100 ms
     {
-        delay(500); // don't read pressure to fast
-        pressure = pressure1.getPressure();
-        pressureBig = pressure2.readPressure();
-
-        Serial.print("Pressure Trustability value : ");
-        Serial.println(pressure);
-        Serial.print("Pressure New sensor value : ");
-        Serial.println(pressureBig);
-        // Serial.print("   Analog value: ");
-        // Serial.println(analogRead(pressure_2_pin));
-
-        delay(500);
+        if (Serial.available())
+        {
+            Serial.read();
+            quiet_since = millis();
+        }
     }
+}
+
+// The one way calibrate_pressure waits for the operator. Everything typed BEFORE the call is
+// thrown away, then it blocks until a whole new line arrives (ENTER, as CR, LF or both) and
+// throws away what follows it. One ENTER = one go: no byte can be left over for the next
+// question. Returns false if the line was "x" (abort).
+static bool wait_for_enter()
+{
+    drain_serial_input();
+    String line = "";
+    while (true)
+    {
+        if (!Serial.available())
+        {
+            delay(5);
+            continue;
+        }
+        char c = Serial.read();
+        if (c == '\r' || c == '\n')
+        {
+            break;
+        }
+        line += c;
+    }
+    drain_serial_input();
+    line.trim();
+    return !(line == "x" || line == "X");
+}
+
+/**
+ * @brief S1-1: calibration of the ABP pressure sensor (pressure1) against the manometer.
+ * Sensor and manometer are taken off the pump line and joined to a syringe of air on a
+ * tee: both see the same static pressure, and the pump is never started.
+ * Flow asked by the user (2026-10-09), the same for every point (0 bar, then
+ * CAL_PRESSURE_TARGETS_BAR): ASK whether the pressure is applied, WAIT for ENTER, only then
+ * MEASURE for CAL_PRESSURE_AVG_MS. Nothing is measured before the ENTER of that point
+ * (wait_for_enter()). The manometer value of a point is its target. Fits
+ * reference = gain x nominal + offset (core::fit_pressure_cal) and prints the PRESSURE_GAIN /
+ * PRESSURE_ZERO_OFFSET_BAR lines and TEST| lines. It works on the datasheet reading, so the
+ * values already in Settings.h don't matter and it can be rerun.
+ */
+void calibrate_pressure()
+{
+    const int n_targets = sizeof(CAL_PRESSURE_TARGETS_BAR) / sizeof(CAL_PRESSURE_TARGETS_BAR[0]);
+    const int MAX_POINTS = n_targets + 1;
+    core::PressureCalPoint points[MAX_POINTS];
+    float spreads[MAX_POINTS];
+    int n = 0;
+
+    output.println("=== calibrate_pressure (ABP against the manometer) ===");
+    if (pump.is_running())
+    {
+        output.println("REFUSED | calibrate_pressure: the pump is running");
+        return;
+    }
+    output.println("Sensor + manometer + syringe of air on a tee, off the pump line. The pump is not used.");
+    output.println("Each step asks first, waits for ENTER, then measures. x + ENTER aborts.");
+
+    for (int i = 0; i <= n_targets; i++)
+    {
+        const float target = (i == 0) ? 0.0f : CAL_PRESSURE_TARGETS_BAR[i - 1];
+        output.println("");
+        if (i == 0)
+        {
+            output.println("Step 1 of " + String(n_targets + 1) + ": 0 bar. Is everything open to air? Press ENTER when it is.");
+        }
+        else
+        {
+            output.println("Step " + String(i + 1) + " of " + String(n_targets + 1) + ": " + String(target, 1) +
+                           " bar. Push until the manometer shows " + String(target, 1) + " and hold. Press ENTER when it is there.");
+        }
+        if (!wait_for_enter())
+        {
+            output.println("Aborted.");
+            return;
+        }
+        output.println("  measuring " + String(target, 1) + " bar for " + String(CAL_PRESSURE_AVG_MS / 1000) + " s - hold...");
+        NominalAverage a = average_nominal_pressure(CAL_PRESSURE_AVG_MS);
+        if (!a.ok)
+        {
+            output.println("The sensor is not trusted (run abp_raw). Aborted.");
+            return;
+        }
+        output.println("  done: sensor " + String(a.mean, 3) + " bar (moved by " + String(a.spread, 3) + " bar)." + (i == 0 ? "" : " You can release."));
+        points[n].reference_bar = target;
+        points[n].nominal_bar = a.mean;
+        spreads[n] = a.spread;
+        n++;
+    }
+    drain_serial_input();
+
+    // --- fit and report ---
+    core::PressureCalFit fit = core::fit_pressure_cal(points, n);
+    core::PressureCalVerdict verdict = core::pressure_cal_verdict(fit, CAL_PRESSURE_MIN_POINTS, CAL_PRESSURE_GAIN_MIN,
+                                                                  CAL_PRESSURE_GAIN_MAX, CAL_PRESSURE_MAX_RESIDUAL_BAR);
+    test_begin("calibrate_pressure");
+    output.println("--- calibrate_pressure results ---");
+    for (int i = 0; i < n; i++)
+    {
+        float residual = core::pressure_cal_residual(fit, points[i]);
+        float before = core::abp_apply_calibration(points[i].nominal_bar, PRESSURE_GAIN, PRESSURE_ZERO_OFFSET_BAR);
+        bool ok = fit.valid && fabs(residual) <= CAL_PRESSURE_MAX_RESIDUAL_BAR;
+        test_result(("p" + String(i)).c_str(), ok ? core::TEST_PASS : core::TEST_FAIL,
+                    "manometer_bar=" + String(points[i].reference_bar, 3) + ";abp_datasheet_bar=" + String(points[i].nominal_bar, 4) +
+                        ";abp_before_bar=" + String(before, 4) + ";abp_after_bar=" + String(points[i].reference_bar - residual, 4) +
+                        ";residual_bar=" + String(residual, 4) + ";spread_bar=" + String(spreads[i], 4));
+    }
+    test_result("fit", verdict == core::PRESSURE_CAL_PASS ? core::TEST_PASS : core::TEST_FAIL,
+                String("verdict=") + core::pressure_cal_verdict_name(verdict) + ";n=" + String(n) + ";gain=" + String(fit.gain, 4) +
+                    ";zero_offset_bar=" + String(fit.zero_offset_bar, 4) + ";r2=" + String(fit.r2, 5) +
+                    ";max_residual_bar=" + String(fit.max_residual_bar, 4) + ";limit_bar=" + String(CAL_PRESSURE_MAX_RESIDUAL_BAR, 3));
+    test_end();
+
+    if (verdict == core::PRESSURE_CAL_PASS)
+    {
+        output.println("Edit these in Settings.h, then rebuild and reflash:");
+        output.println("  const float PRESSURE_GAIN = " + String(fit.gain, 4) + "f;");
+        output.println("  const float PRESSURE_ZERO_OFFSET_BAR = " + String(fit.zero_offset_bar, 4) + "f;");
+    }
+    else if (verdict == core::PRESSURE_CAL_FAIL_GAIN)
+    {
+        output.println("Gain outside " + String(CAL_PRESSURE_GAIN_MIN, 1) + "-" + String(CAL_PRESSURE_GAIN_MAX, 1) +
+                       ": this is not a calibration error. Check the part number against ABP_FULL_SCALE_PSI, the wiring, and that sensor and manometer share the same volume. Nothing to paste.");
+    }
+    else if (verdict == core::PRESSURE_CAL_FAIL_POINTS)
+    {
+        output.println("Too few points (" + String(n) + ", need " + String(CAL_PRESSURE_MIN_POINTS) + "). Nothing to paste.");
+    }
+    else
+    {
+        output.println("A point is too far from the line (see the residuals above): the needle was not on the mark during the 3 s, or a leak. Run calibrate_pressure again. Nothing to paste.");
+    }
+}
+
+/**
+ * @brief Diagnostics for the SPI pressure sensor (pressure1, CS D8): prints 20 raw frames,
+ * 200 ms apart, unchecked. Tells the wiring faults apart: FF FF FF = nobody drives MISO
+ * (no supply, wrong wire, dead part), 00 00 00 = MISO held low, status 11 = the sensor's
+ * own diagnostic fault, status 10 = stale data (alive; polled faster than it updates, F27),
+ * status 00 = a valid reading. Read-only: nothing moves.
+ */
+void print_abp_raw()
+{
+    const char *status_names[] = {"00 valid", "01 command mode", "10 stale", "11 diagnostic fault"};
+    output.println("abp_raw: 20 raw frames from the SPI pressure sensor (CS D8), 200 ms apart");
+    uint16_t lowest = 0, highest = 0;
+    for (int i = 0; i < 20; i++)
+    {
+        byte f[3];
+        pressure1.read_raw(f);
+        char hex[12];
+        snprintf(hex, sizeof hex, "%02X %02X %02X", f[0], f[1], f[2]);
+        uint16_t counts = core::abp_frame_counts(f[0], f[1]);
+        if (i == 0 || counts < lowest) lowest = counts;
+        if (i == 0 || counts > highest) highest = counts;
+        output.println(String("  ") + hex + "  status " + status_names[f[0] >> 6] + "  counts " + String(counts) +
+                       "  (" + String(core::abp_counts_to_bar(counts, ABP_FULL_SCALE_PSI), 3) + " bar, datasheet conversion for " +
+                       String(ABP_FULL_SCALE_PSI, 0) + " psi)  temp " + String((f[2] << 3) * 9.77e-2 - 50, 0) + " C");
+        delay(200);
+    }
+    // F124: a frame can carry status 00 and still be garbage. A healthy sensor at a constant
+    // pressure repeats nearly the same counts and the same room temperature on every line.
+    output.println("counts min " + String(lowest) + ", max " + String(highest) + ", spread " + String(highest - lowest) + " (" +
+                   String(core::abp_counts_to_bar(highest, ABP_FULL_SCALE_PSI) - core::abp_counts_to_bar(lowest, ABP_FULL_SCALE_PSI), 3) +
+                   " bar). At a constant pressure, expect a few counts and the same temperature on every line.");
+    output.println("FF FF FF = no answer (supply / MISO wire / dead); 00 00 00 = MISO stuck low; counts ~1638 = 0 bar on a 10-90 % part");
 }
 
 void test_manifold()
@@ -880,7 +898,7 @@ void test_pump()
         pump.enforce_pressure_safety(); // pump is running for the whole loop here, so no need to gate this behind is_running() like wait_for_keypress() does
         if (millis() - last_print > PRESSURE_PRINT_INTERVAL_MS)
         {
-            output.println("  pressure (pressure2, backs the safety cap): " + String(pressure2.readPressure()) + " bar");
+            output.println("  pressure (ABP, backs the safety cap): " + String(pressure1.getPressure()) + " bar");
             last_print = millis();
         }
         delay(20);
@@ -1114,7 +1132,7 @@ void test_linear_actuator()
  * @brief Manual single-slot test of load_slot() (Step_functions.cpp): lock, pump
  * water (stopping on TEST_SAMPLE_VOLUME_ML or the pump's hard pressure cap - see
  * Pump::set_pressure_safety()), pump air to empty the filter, unlock. This is the
- * exact same function production code will use - no duplicated logic here.
+ * exact same function operation code will use - no duplicated logic here.
  * Precondition: the manifold must already be rotated to the target slot (use a
  * `slotN`/`clockMM` command first) and be unlocked.
  */
@@ -1136,53 +1154,8 @@ void test_load_sample()
 }
 
 /**
- * @brief Multi-sample dry run: rotates through every available slot in FILL_ORDER
- * and runs load_slot() at each with a small volume (TEST_MULTI_SAMPLE_VOLUME_ML,
- * not a real sample) - goal is to exercise every joint for leaks and confirm the
- * fill order/manifold rotation itself, without spending a full sample's worth of
- * water per slot. Pauses for operator confirmation between slots so leaks can be
- * inspected before moving on; send any key to continue, 'x' to abort the whole run.
- */
-void test_multi_sample_loading()
-{
-    output.println("=== Multi-sample loading test (dry run, " + String(TEST_MULTI_SAMPLE_VOLUME_ML) + " mL/slot) ===");
-    output.println("Visits every available slot in FILL_ORDER. Send any key to start, or 'x' to abort now.");
-
-    if (wait_for_keypress_or_abort())
-    {
-        output.println("Aborted before start");
-        return;
-    }
-
-    for (uint8_t i = 0; i < 14; i++)
-    {
-        int slot = FILL_ORDER[i];
-        if (manifold.get_state(slot) != available)
-        {
-            continue;
-        }
-
-        output.println("--- Slot " + String(slot) + " (clock " + String(clock_minutes_for_slot(slot)) + " min), " + String(i + 1) + "/14 in FILL_ORDER ---");
-        unlock_oring(); // no-op if already unlocked - guards the first iteration too, in case a prior run left it locked
-        rotateMotor(slot);
-
-        bool ok = load_slot(TEST_MULTI_SAMPLE_VOLUME_ML);
-        output.println(ok ? "  ok" : "  FAILED - lock_oring() did not confirm lock, check manually");
-
-        output.println("Inspect joints for leaks. Send any key to continue to the next slot, or 'x' to abort.");
-        if (wait_for_keypress_or_abort())
-        {
-            output.println("Aborted by operator.");
-            return;
-        }
-    }
-
-    output.println("Multi-sample loading test complete - all available slots visited.");
-}
-
-/**
  * @brief Manual single-slot test of load_slot_full() (Step_functions.cpp): the
- * FULL production sequence (step_sampling() + step_DNA_shield()) - real
+ * FULL operation sequence (step_sampling() + step_DNA_shield()) - real
  * STX_SAMPLE_MILLILITERS volume, the elaborate purge-then-filter double
  * air-emptying, and the DNA-shield preservative push, exactly as sample_process()
  * runs it per sample. Precondition: the manifold must already be rotated to the
@@ -1190,7 +1163,7 @@ void test_multi_sample_loading()
  */
 void test_load_sample_full()
 {
-    output.println("=== Sample-load test (FULL production sequence) ===");
+    output.println("=== Sample-load test (FULL operation sequence) ===");
     output.println("Precondition: manifold must already be aligned to the target sample slot.");
     output.println("Target volume: " + String(STX_SAMPLE_MILLILITERS) + " mL. Enter the slot number currently aligned (1-14), or 'x' to abort:");
 
@@ -1215,15 +1188,15 @@ void test_load_sample_full()
 }
 
 /**
- * @brief Multi-sample test using the FULL production sequence (load_slot_full()) -
- * real STX_SAMPLE_MILLILITERS volume per slot, unlike test_multi_sample_loading()'s
+ * @brief Multi-sample test using the FULL operation sequence (load_slot_full()) -
+ * real STX_SAMPLE_MILLILITERS volume per slot, unlike the old reduced-volume multi-sample test (removed 2026-10-23)
  * reduced-volume dry run. Rotates through every available slot in FILL_ORDER,
  * running step_sampling()+step_DNA_shield() at each. Pauses for operator
  * confirmation between slots; send any key to continue, 'x' to abort the whole run.
  */
 void test_multi_sample_loading_full()
 {
-    output.println("=== Multi-sample loading test (FULL production sequence, " + String(STX_SAMPLE_MILLILITERS) + " mL/slot) ===");
+    output.println("=== Multi-sample loading test (FULL operation sequence, " + String(STX_SAMPLE_MILLILITERS) + " mL/slot) ===");
     output.println("Visits every available slot in FILL_ORDER. Send any key to start, or 'x' to abort now.");
 
     if (wait_for_keypress_or_abort())
@@ -1272,8 +1245,8 @@ void test_multi_sample_loading_full()
  * early), the SAME stage is retried by continuing to jog from wherever it
  * physically is now, rather than accepting a premature measurement.
  *
- * @param steps_out set to the number of steps travelled in the call that ended in
- * a confirmed stall.
+ * @param steps_out set to the total number of steps travelled in this call,
+ * "not stalled yet" continuations included.
  * @param abort_requested if non-null, set to true if the operator explicitly
  * aborted at the confirmation prompt (distinct from "not stalled yet, keep going") -
  * callers must check this and stop, not just retry.
@@ -1287,10 +1260,11 @@ bool jog_until_keypress(actuator_direction dir, long max_steps, long *steps_out,
         *abort_requested = false;
     }
 
+    long steps = 0; // total over the whole call: a "not stalled yet" answer continues the count (and max_steps bounds the total)
+
     while (true)
     {
         linear_actuator.set_direction(dir);
-        long steps = 0;
         bool got_keypress = false;
 
         while (steps < max_steps)
@@ -1343,7 +1317,7 @@ bool jog_until_keypress(actuator_direction dir, long max_steps, long *steps_out,
  *
  * Stage 2 deliberately drives the motor into stall (torque maxed) rather than
  * stopping at a subjective "looks compressed enough" point - see the anti-drift
- * comment block in Settings.h/Oring_lock.cpp: production lock_oring() re-uses this
+ * comment block in Settings.h/Oring_lock.cpp: operation lock_oring() re-uses this
  * same stall point every cycle (with a further overdrive margin), so the o-ring
  * always compresses against the same real physical stop no matter how many
  * lock/unlock cycles have run, instead of open-loop step drift accumulating.
@@ -1359,7 +1333,8 @@ void calibrate_linear_actuator()
 
     // --- Stage 1: find and mark the UNLOCKED reference position ---
     output.println("Jog the actuator to the UNLOCKED (fully retracted / o-ring released) reference position:");
-    output.println("f = jog forward, b = jog backward (send any key to stop the jog), c = mark this as UNLOCKED, x = abort");
+    output.println("f = jog forward = RELEASE, b = jog backward = towards LOCK (send any key to stop the jog), c = mark this as UNLOCKED, x = abort");
+    output.println("Press c while the O-ring is RELEASED, not at the stall: the stall is found in the next stage.");
     while (true)
     {
         char adjust_cmd = wait_for_keypress();
@@ -1381,7 +1356,7 @@ void calibrate_linear_actuator()
         }
         else
         {
-            output.println("f: forward, b: backward, c: mark as UNLOCKED, x: abort");
+            output.println("f: forward (release), b: backward (towards lock), c: mark as UNLOCKED, x: abort");
         }
     }
     linear_actuator.reset_position(); // this is now position 0, the "unlocked" reference
@@ -1399,6 +1374,7 @@ void calibrate_linear_actuator()
         return;
     }
     output.println("Stall point measured: " + String(locked_steps) + " steps (from unlocked).");
+    output.println("The lock state stays UNKNOWN: the firmware still uses the old step count. After pasting the value and reflashing, run actuator_home.");
 
     linear_actuator.disable();
 
@@ -1406,7 +1382,7 @@ void calibrate_linear_actuator()
     output.println("=== Calibration summary ===");
     output.println("Edit this in Settings.h, then rebuild and reflash:");
     output.println("  const long LINEAR_ACT_LOCKED_STEPS = " + String(locked_steps) + ";");
-    output.println("Production locking (lock_oring()) will automatically over-drive " + String((LINEAR_ACT_LOCK_OVERDRIVE_FACTOR - 1.0) * 100, 0) + "% past this every cycle (LINEAR_ACT_LOCK_OVERDRIVE_FACTOR, Settings.h) - no need to add margin here yourself.");
+    output.println("Operation locking (lock_oring()) will automatically over-drive " + String((LINEAR_ACT_LOCK_OVERDRIVE_FACTOR - 1.0) * 100, 0) + "% past this every cycle (LINEAR_ACT_LOCK_OVERDRIVE_FACTOR, Settings.h) - no need to add margin here yourself.");
 }
 
 /// @brief Prints `prompt`, waits for one keypress, and returns true for y/Y.
@@ -1415,6 +1391,22 @@ bool ask_yes_no(const char *prompt)
     output.println(String(prompt) + " (y/n)");
     char c = wait_for_keypress();
     return (c == 'y' || c == 'Y');
+}
+
+/**
+ * @brief F130: asks whether the spool module is on the water path (default: yes), then prints the dead volume
+ * and the purge that goes with that answer (PURGE_SPOOL_ML or PURGE_NO_SPOOL_ML, user 2026-10-23).
+ * Any key except n/N counts as yes (Enter included). Prints only; it does not change the purge.
+ */
+void ask_spool_and_purge_check()
+{
+    output.println("Is the spool module connected to the water path? (y/n, Enter = y, default yes)");
+    char c = wait_for_keypress();
+    bool connected = !(c == 'n' || c == 'N');
+    float dead_ml = INTAKE_PATH_ML + (connected ? SPOOL_PATH_ML : 0.0f);
+    float purge_ml = core::purge_volume_ml(connected, PURGE_NO_SPOOL_ML, PURGE_SPOOL_ML);
+    output.println(String("Spool module: ") + (connected ? "connected" : "NOT connected") +
+                   "; dead volume about " + String(dead_ml, 0) + " mL; purge " + String(purge_ml, 0) + " mL");
 }
 
 /**
@@ -1472,6 +1464,10 @@ void calibrate_flow_sensor()
         if (volume_ml >= target_ml)
         {
             output.println("Target volume reached (sensor reading)");
+            break;
+        }
+        if (pump.enforce_pressure_safety()) // hard cap, checked on every pass (2026-10-23 safety check)
+        {
             break;
         }
         if (millis() - start_time > CAL_PUMP_MAX_RUNTIME_MS)
@@ -1641,7 +1637,7 @@ static bool prompt_float_or_default(const String &question, float default_value,
 }
 
 /**
- * @brief LA3 shield micro pump calibration (docs/LA3_PROTOCOL.md Part A). The shield
+ * @brief LA3 shield micro pump calibration (docs/lab/shield-protocol.md Part A). The shield
  * tube is taken off the manifold and dispenses into a tube on a 0.01 g scale.
  * Optionally times the filling of an empty line (for PRIME_SHIELD), primes the line,
  * then runs SHIELD_CAL_REPEATS times each of 2-3 durations, interleaved so a drift
@@ -1709,7 +1705,7 @@ void calibrate_shield_pump()
         durations[n_durations++] = (uint32_t)d;
     }
 
-    // time to fill an empty line: the line volume, for PRIME_SHIELD (LA3_PROTOCOL A3)
+    // time to fill an empty line: the line volume, for PRIME_SHIELD (LA3 protocol A3)
     uint32_t t_fill_line_ms = 0;
     if (ask_yes_no("Is the shield line empty (bottle connected, no liquid in the tube)? Then the time to the first drop is measured."))
     {
@@ -1812,7 +1808,7 @@ void calibrate_shield_pump()
 
     if (verdict != core::SHIELD_CAL_PASS)
     {
-        output.println("Calibration FAILED (" + String(core::shield_cal_verdict_name(verdict)) + "): don't use these numbers. See docs/LA3_PROTOCOL.md Part A for what to check.");
+        output.println("Calibration FAILED (" + String(core::shield_cal_verdict_name(verdict)) + "): don't use these numbers. See docs/lab/shield-protocol.md Part A for what to check.");
         return;
     }
     if (fill_ms == 0)
@@ -1830,7 +1826,7 @@ void calibrate_shield_pump()
     {
         output.println("WARNING: the target is outside the calibrated range; add a duration near " + String(fill_ms) + " ms and rerun.");
     }
-    output.println("Record it in docs/LA3_PROTOCOL.md (Part A results); FW4 item 7 puts it in Settings.h:");
+    output.println("Record it in docs/lab/shield-protocol.md (Part A results); FW4 item 7 puts it in Settings.h:");
     output.println("  const uint32_t DNA_SHIELD_FILL_MS = " + String(fill_ms) + "; // LA3 shield_calibrate, " + String(target_ml, 2) + " mL");
 }
 
@@ -1848,9 +1844,10 @@ void calibrate_shield_pump()
  */
 void identify_manifold_direction()
 {
-    if (!core::may_rotate(oring_lock_state()))
+    OringScope oring(core::LOCK_STATE_UNLOCKED); // locked again on return
+    if (!oring.ok())
     {
-        output.println(String("REFUSED | manifold_direction: O-ring lock state is ") + oring_lock_state_name() + " - the manifold must not rotate");
+        output.println("REFUSED | manifold_direction: manifold not moved (O-ring not unlocked)");
         return;
     }
     output.println("=== Manifold direction identification ===");
@@ -1916,10 +1913,8 @@ void identify_manifold_direction()
  * sensor, and optionally the DNA-shield pump + its dispensed volume), one at a time, asking
  * before each so you can skip ones that don't need redoing. Each sub-calibration
  * prints its own suggested values as it runs - this is just the checklist that
- * chains them together. Pressure sensors are NOT included: there's no offset/
- * calibration hook built into PressureSensor/BigPressure to hang a simple field
- * calibration off of (the zero-offset is a hardcoded constant in convertToPressure()),
- * so that's skipped for now rather than reworking those classes. After running
+ * chains them together. The pressure sensor is not in this chain: calibrate_pressure
+ * (the ABP against a manometer) runs first, as its own stage. After running
  * this, review everything printed above, edit Manifold.h / Settings.h / Flow_sensor.h
  * accordingly, then rebuild and reflash once before using the machine.
  */
@@ -1927,6 +1922,13 @@ void run_commissioning_calibration()
 {
     output.println("=== CoWaS commissioning calibration ===");
     output.println("Answer y/n for each - skip any that don't need redoing.");
+    ask_spool_and_purge_check(); // F130: the spool module changes the dead volume and the purge
+
+    // first: the stages below that pump rely on the pressure cap
+    if (ask_yes_no("Calibrate the pressure sensor against the manometer (syringe on a tee, no pump)?"))
+    {
+        calibrate_pressure();
+    }
 
     if (ask_yes_no("Calibrate the manifold encoder (purge angle)?"))
     {
@@ -2093,9 +2095,10 @@ void test_encoder()
     uint16_t pos;
     float angle_deg;
 
-    if (!core::may_rotate(oring_lock_state()))
+    OringScope oring(core::LOCK_STATE_UNLOCKED); // locked again on return
+    if (!oring.ok())
     {
-        output.println(String("REFUSED | encoder_manifold: O-ring lock state is ") + oring_lock_state_name() + " - the manifold must not rotate");
+        output.println("REFUSED | encoder_manifold: manifold not moved (O-ring not unlocked)");
         return;
     }
     manifold_motor.start(30, down);
@@ -2135,9 +2138,10 @@ void go_to_zero()
 {
     // FW2 (F43): refuses unless the O-ring is known unlocked, stops on the rotation
     // timeout and on repeated encoder failures (it used to spin forever).
-    if (!core::may_rotate(oring_lock_state()))
+    OringScope oring(core::LOCK_STATE_UNLOCKED); // locked again on return
+    if (!oring.ok())
     {
-        output.println(String("REFUSED | zero: O-ring lock state is ") + oring_lock_state_name() + " - the manifold must not rotate");
+        output.println("REFUSED | zero: manifold not moved (O-ring not unlocked)");
         return;
     }
     Serial.println("Going to zero manifold");
@@ -2193,7 +2197,3 @@ void go_to_zero()
 }
 
 // ! to implement, only needed if encoder manifold still changes absolut 0
-void reset_encoder()
-{
-    Serial.println("Resetting ");
-}

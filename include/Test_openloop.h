@@ -3,8 +3,8 @@
 
 // FW2 sensorless pump test mode (F17; the single exception to ROADMAP §6 rule 4).
 // TEST CODE ONLY: include this header from the console test suite (Tests_mech.cpp) and
-// nowhere else. No production path (main_program, button_control, Step_functions,
-// maintenance) may reach it - see the grep proof in docs/FIRMWARE_LOG.md (FW2).
+// nowhere else. No operation path (main_program, button_control, Step_functions,
+// maintenance) may reach it - see the grep proof in docs/logs/LOG.md (FW2).
 
 #include <Arduino.h>
 #include "../src/Core/openloop.h"
@@ -13,7 +13,7 @@ struct OpenLoopResult
 {
     bool ran;                  // false: refused (not armed, or a pressure sensor is available)
     core::OpenLoopStop reason; // why it stopped
-    float volume_ml;           // flowmeter total (uncalibrated factor, F6)
+    float volume_ml;           // flowmeter total (calibrated factor 77; reads low at slow flow, F150)
     uint32_t elapsed_ms;
     uint8_t power;             // the power actually used, after the clamp
 };

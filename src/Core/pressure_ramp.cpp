@@ -81,11 +81,13 @@ float slew_limit(float previous, float wanted, float max_step)
     return wanted;
 }
 
-float ramp_soft_limit(float target_bar, float overshoot_bar, float cap_bar, float cap_margin_bar)
+float lowpass_step(float prev, float x, float dt_s, float tau_s)
 {
-    float limit = target_bar + overshoot_bar;
-    float ceiling = cap_bar - cap_margin_bar;
-    return (limit < ceiling) ? limit : ceiling;
+    if (!(tau_s > 0.0f) || !(dt_s > 0.0f))
+    {
+        return x;
+    }
+    return prev + (dt_s / (tau_s + dt_s)) * (x - prev);
 }
 
 } // namespace core

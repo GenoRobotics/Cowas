@@ -14,7 +14,7 @@ const uint16_t speed = 40; // Refers to power, min 70 to move
 
 // ! move back to .h
 //float angle_offset_neg = -1.05;   // when turning CCW
-float angle_offset_pos = 5.2;   // when turning CW
+float angle_offset_pos = 2.3;   // when turning CW. 2026-10-22 (user): rotate_all dry, CW moves mean +1.09 deg overshoot, so 1.2 + 1.09 (F128 history: was 5.2 at speed 40, 2026-10-12). Check with rotate_all dry order=fill auto
 
 motor_direction direction = down; // 1 or -1
 int nb_turns = 0;
@@ -114,11 +114,11 @@ bool rotateMotor(int index)
     return true;
   }
 
-  // FW2 (F5, F18): never rotate while the O-ring is locked or its state is unknown.
-  if (!core::may_rotate(oring_lock_state()))
+  // target: the O-ring UNLOCKED to turn. OringScope locks it again on every return (rest state).
+  OringScope oring(core::LOCK_STATE_UNLOCKED);
+  if (!oring.ok())
   {
-    output.println(String("REFUSED | rotateMotor: O-ring lock state is ") + oring_lock_state_name() +
-                   (is_oring_locked() ? " - unlock first" : " - run actuator_home first") + ", manifold not moved");
+    output.println("REFUSED | rotateMotor: manifold not moved (O-ring not unlocked)");
     return false;
   }
   if (index < 0 || index >= NB_SLOT)
@@ -401,9 +401,10 @@ uint8_t spiWriteRead(uint8_t sendByte, uint8_t encoder, uint8_t releaseLine)
  * so there's time to react and stop the motor exactly aligned.
  */
 void calibrateEncoder(uint16_t speed){
-    if (!core::may_rotate(oring_lock_state()))
+    OringScope oring(core::LOCK_STATE_UNLOCKED); // locked again on return
+    if (!oring.ok())
     {
-        output.println(String("REFUSED | cal: O-ring lock state is ") + oring_lock_state_name() + " - the manifold must not rotate");
+        output.println("REFUSED | cal: manifold not moved (O-ring not unlocked)");
         return;
     }
     output.println("Calibrating encoder of the manifold");
@@ -493,7 +494,7 @@ uint16_t getRotationSPI(uint8_t encoder){
 }
 
 float scale_angle(float angle){
-  return core::scale_angle(angle, purge_angle, angle_between_slots);
+  return core::scale_angle(angle, scale_reference_angle, angle_between_slots);
 }
 
 bool read_manifold_angle(float *angle_deg)
@@ -508,15 +509,6 @@ bool read_manifold_angle(float *angle_deg)
     }
   }
   return false;
-}
-
-float slot_encoder_angle(int slot)
-{
-  if (slot < 0 || slot >= NB_SLOT)
-  {
-    return NAN;
-  }
-  return sterivex_angle[slot];
 }
 
 int manifold_nearest_slot(float *error_deg, bool *encoder_ok)

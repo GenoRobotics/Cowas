@@ -26,8 +26,6 @@ struct Timer{
     uint32_t frequency;
 };
 
-void timerStart(struct Timer pTimer);
-void timerStop(struct Timer pTimer);
 
 
 #endif

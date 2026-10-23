@@ -33,6 +33,17 @@ bool may_unlock(LockState s)
     return s == LOCK_STATE_UNLOCKED || s == LOCK_STATE_LOCKED;
 }
 
+LockMove lock_move_to(LockState current, LockState target)
+{
+    if (target != LOCK_STATE_LOCKED && target != LOCK_STATE_UNLOCKED)
+        return LOCK_MOVE_REFUSE;
+    if (current != LOCK_STATE_LOCKED && current != LOCK_STATE_UNLOCKED)
+        return LOCK_MOVE_REFUSE;
+    if (current == target)
+        return LOCK_MOVE_NONE;
+    return (target == LOCK_STATE_LOCKED) ? LOCK_MOVE_TO_LOCKED : LOCK_MOVE_TO_UNLOCKED;
+}
+
 const char *home_decision_name(HomeDecision d)
 {
     switch (d)

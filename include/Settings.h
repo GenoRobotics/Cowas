@@ -30,12 +30,12 @@ const uint32_t FILL_CONTAINER_TIME = 60 * 1000 * 11;         // ms. Experimental
 // micro pump DNA-shield variables
 const uint32_t FILL_STERIVEX_TIME = 250000; //
 const int8_t PUMP_SHIELD_POWER = 13;        // power of big pump to push the DNA-shield into the sterivex
-const uint32_t PUMP_SHIELD_TIME = 300;      // time for big pump to push DNA-shield
+const uint32_t PUMP_SHIELD_TIME = 300;      // ms for the big pump's run AFTER its 4 s soft ramp. The air push measures 4.8 s in total (ramp + this + the 500 ms relay stop); user accepted 4.8 s, 2026-10-19. Time for big pump to push DNA-shield
 
-// shield micro pump calibration (LA3, console `shield_calibrate`, docs/LA3_PROTOCOL.md Part A).
-// The prompts offer these as defaults; nothing in production reads them.
-const float SHIELD_DENSITY_G_PER_ML = 1.00f;                    // PLACEHOLDER: measure it (LA3_PROTOCOL A1)
-const float SHIELD_TARGET_ML = 1.5f;                            // PLACEHOLDER: the lab's target (LAB_INTERFACE B1)
+// shield micro pump calibration (LA3, console `shield_calibrate`, docs/lab/shield-protocol.md Part A).
+// The prompts offer these as defaults; nothing in operation reads them.
+const float SHIELD_DENSITY_G_PER_ML = 1.00f;                    // PLACEHOLDER: measure it (LA3 protocol A1)
+const float SHIELD_TARGET_ML = 1.5f;                            // PLACEHOLDER: the lab's target (decision with Felix, shield-protocol §7)
 const uint32_t SHIELD_CAL_DEFAULT_MS[] = {10000, 20000, 40000}; // ms. Run durations (at most 3 are used)
 const uint8_t SHIELD_CAL_REPEATS = 3;                           // runs per duration
 const uint32_t SHIELD_CAL_MAX_RUN_MS = 300000;                  // ms. Longest accepted run, and the bound on the printed fill time
@@ -78,7 +78,7 @@ const int UPDATE_TIME = 1000; // ms. Refresh frequency for main program
 const uint32_t PUMP_RAMP_MS = 4000;             // ms. Start-up time from 0 to the set power (asked: 3-5 s)
 const uint32_t PUMP_RAMP_STEP_MS = 20;          // ms. Between two output steps; the cap is checked at each step
 const uint8_t PUMP_RAMP_MIN_STEP_PERCENT = 10;  // percent. Live changes at least this big ramp
-const float STX_MAX_PRESSURE = 3.0; // bar. 2026-10-12, user decision: 3.0 for the 3 bar seal test. The sensor is calibrated to 2.0 bar only, trusted to 3 bar for this test. S1-1: was 3.0 (PLACEHOLDER, F3), above the 0-2.5 bar range of the bench manometer
+const float STX_MAX_PRESSURE = 3.6; // bar. 2026-10-19, user decision: 3.6 for bench tests (was 3.2 from 2026-10-15; 3.5 for a few hours, 3.0 from 2026-10-12, 2.5 before): droplets leak at the manifold seal around 3 bar (F144). PLACEHOLDER: the sensor is calibrated to 2.0 bar only (F136), the bench manometer reads to 2.5 bar, and the weakest part's pressure rating (Sterivex housing, tubing, valves, O-ring) is not checked yet. Every other place reads this constant (main.cpp, Pump.cpp, the pressure sensor driver)
 // Fail-safe bound for Pump::enforce_pressure_safety() (Pump.cpp): a gauge-pressure
 // reading this far below 0 is not a real physical pressure (a properly working,
 // calibrated sensor near ambient will read close to 0, not several bar negative) -
@@ -121,7 +121,10 @@ const int CAL_PRESSURE_MIN_POINTS = 3;                             // points nee
 const float CAL_PRESSURE_GAIN_MIN = 0.9f;                          // a fitted gain outside 0.9-1.1 is refused:
 const float CAL_PRESSURE_GAIN_MAX = 1.1f;                          // wrong part number or a wiring fault, not a calibration
 const float CAL_PRESSURE_MAX_RESIDUAL_BAR = 0.06f;                 // bar. The manometer: class 1.6 of 2.5 bar (0.04 bar, dial read 2026-10-12) + about 0.02 bar of needle reading on 0.1 bar divisions
-const float EMPTY_WATER_PRESSURE_PURGE_THRESHOLD = 0.04f; // 0.06f;       // bar from atmosphere. Threshold of pressure in tube considered as empty when purging
+// F155 (2026-10-19): the old 0.04 bar was never reached on an air-only line (it reads about 0.05 bar), so the emptying ran to its
+// maximum. Water pushed through the open tube read about 0.75-0.83 bar (the first purge), air about 0.02-0.09 bar. The middle
+// of that gap is the new rule: below it for EMPTY_WATER_SECURITY_TIME = air. PLACEHOLDER: check it on the bench (S1-C checklist).
+const float EMPTY_WATER_PRESSURE_PURGE_THRESHOLD = 0.4f;  // bar from atmosphere. Threshold of pressure in tube considered as empty when purging (was 0.04, F155)
 const float EMPTY_WATER_PRESSURE_STX_THRESHOLD = 0.8f;    // 1.7f;          // bar from atmosphere. Threshold of pressure in tube considered as empty when filtering
 const uint32_t EMPTY_WATER_SECURITY_TIME = 5 * 1000;      // ms. Time to ensure a correct flush of the container when purging
 const uint32_t EMPTY_WATER_STX_SECURITY_TIME = 60 * 1000; // ms. Time to ensure a correct flush of the conainter when filtering
@@ -131,12 +134,21 @@ const uint32_t EMPTY_DEPLOYMENT_TIME = 5 * 60 * 1000;
 const uint32_t PREPARATION_TIME = 60 * 30; // ms. system needs 30 minutes preparation before sampling
 
 // ! adapt here the volume for purge and sample
-const float PURGE_MILLILITERS = 0.1 * 1000;
-// F130 (2026-10-12): dead volume of the water path. The check in calibrate_all asks whether the spool module is connected (default yes).
+// Purge volume, chosen by the user (2026-10-23). The spool answer is given in `session` (spool_installed_session).
+const float PURGE_NO_SPOOL_ML = 500.0f;  // mL - spool off (user 2026-10-23: 500 mL)
+const float PURGE_SPOOL_ML = 7000.0f;    // mL - spool on (user 2026-10-23: 7 L). F110's 3 x dead volume would be 7.7 L; 7 L is the user's value
+// Purge timeout (ms). Spool off: 3 min (the old value). Spool on: 13 min (user, confirmed 2026-10-23). Estimate from slot 10
+// (2026-10-23): 1001 mL took 97 s through the same tube, so 7 L takes about 11 min; 5 min would stop it at about 3 L.
+const uint32_t PURGE_MAX_RUNTIME_MS = 3 * 60 * 1000;
+const uint32_t PURGE_SPOOL_MAX_RUNTIME_MS = 13 * 60 * 1000;
+// F130 (2026-10-12): dead volume of the water path (documentation and the calibrate_all check). Not used to set the purge.
 const float INTAKE_PATH_ML = 30.0f;   // mL. Measured: 4 mm ID x 2.40 m = the whole path before the exit, pump, sensors and tubing included (12.6 mL/m)
 const float SPOOL_PATH_ML = 2540.0f;  // mL. Spool path, 9 mm ID x 40 m: pi * 4.5^2 * 40000 mm^3 = 2.54 L. Connected by default
-const float PURGE_DEAD_VOLUME_FACTOR = 3.0f; // ROADMAP_STAGE2 §3.7 rule 1: purge >= 3 x the full dead volume
-const float STX_SAMPLE_MILLILITERS = 100; // amount of maximum volume to filter. Need to add a way to determine filter saturation and stop based on that
+// S1-C addendum item 3 (2026-10-19, user): the default for the spool question. `session` asks y/n each time and sets spool_installed_session.
+const bool SPOOL_INSTALLED = false;
+extern bool spool_installed_session; // is the spool module on the machine now (answered in `session`); starts as SPOOL_INSTALLED
+const float STX_SAMPLE_MILLILITERS = 1000; // user decision 2026-10-23: 1000 mL, or less when the clogging criteria stop the run (was 100, placeholder)// amount of maximum volume to filter. Need to add a way to determine filter saturation and stop based on that
+const uint32_t SAMPLE_MAX_DURATION_MS = 30UL * 60UL * 1000UL; // ms. Stage 1 S1-C (F15): step_sampling stops here at the latest and says so (end=timeout). Was 3 min, silently
 
 const uint32_t SYNC_TIME = 32400;     // ms. Time before refetching wifi time. Not implemented
 const uint8_t MAX_FILTER_NUMBER = 14; // max filters possible in the system
@@ -160,8 +172,6 @@ struct Date
 };
 
 String format_date_logging(time_t t);
-String format_date_friendly(time_t t);
-time_t timeToEpoch(uint8_t _hour, uint8_t _minute, uint8_t _day, uint8_t _month, uint16_t _year);
 
 // ============ SYSTEM STATES ================
 // system states are here for the human interface. The goal is to have the system updating its
@@ -177,7 +187,6 @@ enum System_state
     state_error,         // system not working for a reason
 };
 
-System_state get_system_state();
 void set_system_state(System_state state);
 void enable_output(bool enable);
 
@@ -203,7 +212,7 @@ const bool VERBOSE_MANIFOLD = false;
 const bool VERBOSE_SHIELD = true;
 
 // ============ PIN DEFINITIONS ==================
-// Full pin map (every Due pin, who uses it, direction, level, free pins): docs/PINOUT.md
+// Full pin map (every Due pin, who uses it, direction, level, free pins): docs/hardware/pinout.md
 const uint8_t STATUS_LED_PIN = 23;
 const uint8_t GREEN_LED_PIN = 22;
 const uint8_t PRESSURE1_PIN = 8;
@@ -257,18 +266,18 @@ const uint16_t LINEAR_ACT_CAL_STEPS_PER_SEC = 30;  // ~30 sec/revolution - delib
 
 // sample-load test cycle
 const float TEST_SAMPLE_VOLUME_ML = 500.0;       // 0.5L, target volume for the single-sample pump-through test
-const float TEST_MULTI_SAMPLE_VOLUME_ML = 50.0;  // small per-slot volume for the multi-sample joint-leak/order test (test_multi_sample_loading()) - just enough to see every joint wet, not a real sample
+const float TEST_MULTI_SAMPLE_VOLUME_ML = 50.0;  // small per-slot volume for the multi-sample joint-leak/order test (the old multi_sample test, removed 2026-10-23) - just enough to see every joint wet, not a real sample
 
 // ============ FW2: PRESSURE SENSOR GATE, TEST SUITE ============
 // Is a trusted pressure sensor backing the pump cap and the PID loops? Since S1-1 the cap
 // and the PID loops read the ABP on SPI D8 (read_p_in(), main.cpp), but the flag stays
 // false: on 2026-10-09 the ABP returned garbage frames on the bench (F124). Set it true
 // only when `abp_raw` is steady at rest and `calibrate_pressure` has passed (S1-1 checklist
-// rows 1-4, docs/FIRMWARE_LOG.md). While false, every procedure
+// rows 1-4, docs/logs/LOG.md). While false, every procedure
 // that needs pressure (the step_* functions, sample_process, load_slot*, pump, the panel
-// pump mode, calibrate_flow, cal_DNA, purge_pipes) REFUSES with a message; pumping is only
+// pump mode, calibrate_flow, cal_DNA) REFUSES with a message; pumping is only
 // possible through the sensorless test mode below. After setting it true, the S1-1 bench
-// checks (dead-sensor stop, cap trip: docs/TESTS_PENDING.md) must pass before any real run.
+// checks (dead-sensor stop, cap trip: stage 1 roadmap, the T1 calibration) must pass before any real run.
 const bool PRESSURE_SENSOR_AVAILABLE = true;
 
 // Sensorless pump test mode (F17; ROADMAP §6 rule 4 exception): pump_open_loop_test() in
@@ -277,7 +286,7 @@ const uint8_t TEST_OPENLOOP_MAX_POWER = 30;         // % - PLACEHOLDER (user, 20
 const uint32_t TEST_OPENLOOP_MAX_MS_LIMIT = 120000; // ms - hard limit of one open-loop run, whatever is asked
 const uint32_t TEST_OPENLOOP_NO_FLOW_MS = 5000;     // ms - stop when the flowmeter gives no pulse for this long
 const uint32_t TEST_OPENLOOP_WATER_MAX_MS = 60000;  // ms - default time limit of a water phase (volume normally stops it first)
-const uint32_t TEST_OPENLOOP_AIR_PUSH_MS = 10000;   // ms - PLACEHOLDER: sensorless air push (the production one is ~5 s in practice, F28)
+const uint32_t TEST_OPENLOOP_AIR_PUSH_MS = 10000;   // ms - PLACEHOLDER: sensorless air push (the operation one is ~5 s in practice, F28)
 
 // O-ring lock tri-state (F18) and the rotation tests
 const float ACTUATOR_HOME_SLOT_TOLERANCE_DEG = 3.0; // deg - PLACEHOLDER (user, 2026-09-25): actuator_home (and any lock at the current slot) needs the encoder this close to a slot
@@ -287,27 +296,67 @@ const uint32_t TEST_ROTATE_SETTLE_MS = 500;         // ms - wait after a rotatio
 const uint16_t TEST_LOCK_HOLD_S = 3;                // s - rotate_all: how long each slot stays locked (hold=N)
 const float TEST_LEAK_HOLD_DEFAULT_ML = 50.0;       // mL - leak_hold default water volume ("small volume")
 
-// S1-1b `pressure_ramp` (2026-10-15, user): setpoint-tracking PID (Part 1 restored)
-// Removed soft cap logic; hard cap (STX_MAX_PRESSURE = 3.0) is the only safety limit.
-const float PRESSURE_RAMP_DEFAULT_TARGET_BAR = 2.8;   // bar - 0.2 below the 3.0 cap
-const float PRESSURE_RAMP_DEFAULT_RATE_BAR_S = 0.05;  // bar/s - 0 to 2.8 bar in about 56 s
+// S1-1b `pressure_ramp` and `fill_test` (2026-10-15 to 2026-10-19). Hard cap (STX_MAX_PRESSURE) is the only pressure limit.
+const float PRESSURE_RAMP_DEFAULT_TARGET_BAR = 2.5;   // bar - droplets leaked at the manifold seal around 3 bar (user, 2026-10-15, F144)
+const float PRESSURE_RAMP_DEFAULT_RATE_BAR_S = 0.05;  // bar/s - 0 to 2.5 bar in about 50 s
 const float PRESSURE_RAMP_MIN_RATE_BAR_S = 0.01;      // bar/s
 const float PRESSURE_RAMP_MAX_RATE_BAR_S = 0.5;       // bar/s
 const float PRESSURE_RAMP_CAP_MARGIN_BAR = 0.2;       // bar - the target may not come closer than this to STX_MAX_PRESSURE
-const float PRESSURE_RAMP_OVERSHOOT_STOP_BAR = 0.40;  // bar - NO LONGER USED (soft cap removed)
-const float PRESSURE_RAMP_SOFT_CAP_MARGIN_BAR = 0.1;  // bar - NO LONGER USED (soft cap removed)
 const uint16_t PRESSURE_RAMP_DEFAULT_HOLD_S = 20;     // s - PID holds the target
 const uint16_t PRESSURE_RAMP_DEFAULT_DECAY_S = 30;    // s - pump off, pressure read
-const uint8_t PRESSURE_RAMP_START_POWER = 15;         // % - the soft start ends here, then the PID takes over
+const uint8_t PRESSURE_RAMP_START_POWER = 15;         // % - applied at once, then the PID takes over
 const uint8_t PRESSURE_RAMP_MAX_POWER = 60;           // % - the PID output never goes above this (maxpower= can lower it)
-const uint8_t PUMP_MINIMUM_POWER_PERCENT = 10;        // % - below this, the pump stalls (deadband); PID commands below this become this value to avoid pulsing (F137)
-const uint8_t PRESSURE_RAMP_MAX_STEP_PERCENT = 3;     // % per PID update: below PUMP_RAMP_MIN_STEP_PERCENT, so Pump::set_power never blocks in a 4 s ramp (F132)
+const uint8_t PRESSURE_RAMP_MAX_STEP_PERCENT = 3;     // % per PID update (slew limit)
 const uint32_t PRESSURE_RAMP_UPDATE_MS = 100;         // ms - PID update; the cap is checked on every pass (about every 2 ms)
-const float PUMP_PID_KP = 200.0;                      // % per bar - the production PID, tuned by hand (user, 2026-10-15: "works"). main.cpp setup() and the defaults of pressure_ramp (kp= overrides)
-const float PUMP_PID_KI = 100.0;                      // per (bar x 100 ms update), MiniPID has no time base
-const float PUMP_PID_KD = 100.0;
 const float PRESSURE_RAMP_MAX_START_BAR = 0.3;        // bar - pressure_ramp refuses to start above this (a comparable run starts from an empty line)
 const float PRESSURE_RAMP_REVERSAL_PERCENT = 5.0;     // % - a power swing this big, then back, counts as one reversal (chatter metric)
+// Gains of the pressure tests. User decision 2026-10-19: the original ones. Calmer gains (kp 3, ki 0.2, kd 20) held the pressure
+// but at 8-12 % of power, which may be too little to move water. The ripple of about 1 bar is accepted (F146).
+const float PRESSURE_RAMP_PID_KP = 200.0;             // % per bar
+const float PRESSURE_RAMP_PID_KI = 100.0;             // per update (100 ms)
+const float PRESSURE_RAMP_PID_KD = 100.0;
+const float PRESSURE_RAMP_DEFAULT_FILTER_S = 0.0;     // s - low-pass on the pressure the PID reads (filter=); 0 = raw. The cap always reads the raw value
+// The verdict of pressure_ramp: "reached" also needs a not-too-wild run (the pump pulses by itself, F141)
+const float PRESSURE_RAMP_PASS_MAX_OVERSHOOT_BAR = 0.4; // bar - PLACEHOLDER: peak above the target
+const float PRESSURE_RAMP_PASS_MAX_RIPPLE_BAR = 0.8;    // bar - PLACEHOLDER: max - min in the second half of the hold
+// fill_test: pump a volume through the filter; at the pressure limit the pump pauses and waits for the pressure to fall
+const float FILL_DEFAULT_ML = 1000.0;                 // mL
+// Everything below is derived from STX_MAX_PRESSURE (top of this file): change the cap there, and the pause, the resume and the
+// maximum target follow (2026-10-19, user: one place in the field). The offsets are the only other numbers to edit.
+const float FILL_PAUSE_BELOW_CAP_BAR = 0.25;          // bar - offset: the pump pauses when the RAW pressure comes this close to the cap
+const float FILL_RESUME_BELOW_PAUSE_BAR = 0.2;        // bar - offset: and resumes when the filtered pressure is this far below the pause pressure
+const float FILL_PAUSE_BAR = STX_MAX_PRESSURE - FILL_PAUSE_BELOW_CAP_BAR;   // bar - 3.35 with the 3.6 cap
+const float FILL_RESUME_BAR = FILL_PAUSE_BAR - FILL_RESUME_BELOW_PAUSE_BAR; // bar - 3.15 with the 3.6 cap
+const float FILL_TARGET_BELOW_CAP_BAR = 0.6;          // bar - offset: the highest target is this far below the cap (user, 2026-10-19: 3.0 with the 3.6 cap)
+const float FILL_MAX_TARGET_BAR = STX_MAX_PRESSURE - FILL_TARGET_BELOW_CAP_BAR; // bar - 3.0. The default target; a higher target= is refused (it must sit under FILL_RESUME_BAR)
+const float FILL_CLOG_FRACTION = 0.3;                 // PLACEHOLDER: a window below this share of the first window = CLOG? warning; the mean of two windows below it = stop "clogged" (src/Core/fill_stop.h)
+const float FILL_BACKOFF_FACTOR = 0.85;               // the power is cut by this on every pause
+const uint16_t FILL_DEFAULT_TIMEOUT_S = 1800;         // s - every procedure has a timeout
+const uint16_t FILL_DEFAULT_STALL_S = 60;             // s - less than FILL_STALL_MIN_ML of PUMPING time in this long = clogged, stop (pauses do not count)
+const float FILL_STALL_MIN_ML = 3.0;                  // mL - PLACEHOLDER, the flowmeter (calibrated, user 2026-10-23) reads almost nothing at low flow (F150)
+const float PUMP_START_RATE_PERCENT_PER_S = 5.0;      // %/s - PLACEHOLDER (F196): the operation pump rises from 0 % at this rate after a start or a restart (0 to 15 % in 3 s)
+// F192 vent (user, 2026-10-23): pump off, wait PRESSURE_DECAY_WAIT_MS so the line drops by itself, then open the air vent V1 for
+// PRESSURE_AIR_VENT_MS. Nothing here stops the sample: the O-ring unlock goes on whatever the reading (only a faulty sensor stops it).
+const float PRESSURE_RELEASE_BAR = 0.3;              // bar - PLACEHOLDER (F192): the reading the vent reports as released (log only, it does not stop the run)
+const uint32_t PRESSURE_DECAY_WAIT_MS = 20000;        // ms - PLACEHOLDER (F192): the line drops with the pump off and the vent shut
+const uint32_t PRESSURE_AIR_VENT_MS = 5000;           // ms - PLACEHOLDER (F192): the air vent V1 is open this long, then shut
+// Flowmeter confidence (2026-10-23, user; F150): the volume counted in a window of FLOW_TRUST_WINDOW_MS counts as confident only
+// when the window's mean flow is at least FLOW_TRUST_MIN_ML_PER_MIN. Logged as vol_trusted_ml; the plain total stays as vol_ml.
+const float FLOW_TRUST_MIN_ML_PER_MIN = 50.0;         // mL/min - set 2026-10-23 by the user (was 110 from interpolation). Note: the flowmeter read -32 % at about 50 mL/min (LOG, 2026-10-23), so the lower windows of this rule read low
+const uint32_t FLOW_TRUST_WINDOW_MS = 5000;           // ms - the window of the confident-volume rule
+const float FILL_CLOG_MIN_WINDOW_ML = 30.0;        // mL per 60 s pumping window - PLACEHOLDER (F194): below this = clogged, stop at once, from the first window. 50 until 2026-10-23; 30 (user: a new filter stopped at 382 mL, its 4th window was 36 mL). The relative rule (FILL_CLOG_FRACTION) still stops a slow decline. A new filter gave about 115 mL/min at 2.2 bar (S1-A); the clogged run gave 24 mL in its first minute and stopped only at 213 s
+const uint16_t FILL_PRESSURE_STUCK_S = 20;            // s - PLACEHOLDER: paused and still above the resume pressure this long = the filter holds the pressure, stop
+const uint8_t PUMP_MINIMUM_POWER_PERCENT = 10;        // % - below this, the pump stalls (deadband, F137); the pressure loops never command less while running
+const uint8_t PUMP_MAX_POWER_PERCENT = 60;           // % - the operation pressure loops (CtrlPump) with WATER: never more, whatever the pressure (user 2026-10-19). PLACEHOLDER: check on the bench
+const uint8_t PUMP_AIR_MAX_POWER_PERCENT = 100;      // % - the same loops once the emptying sees AIR (the pressure fell below the threshold): full power (user 2026-10-19)
+const float OPERATION_TARGET_BAR = 3.0f;             // bar - the pressure target of every operation pump run; the same as the fill_test target (user 2026-10-19)
+const uint32_t EMPTY_MAX_TIME_MS = 60 * 1000;        // ms - every emptying phase (air push through the line) ends after this at the latest; it ends earlier once the air hold is met. A timeout is printed with the last pressure (user 2026-10-21: 60 s)
+const uint32_t EMPTY_STX_AIR_HOLD_MS = 40000;         // ms - the sterivex air drying (after the water phase of a sample): doubled from 20 s (user, 2026-10-23). The purge emptying keeps EMPTY_AIR_HOLD_MS
+const uint32_t EMPTY_AIR_HOLD_MS = 20000;            // ms - the emptying ends early once the pressure stays below the air threshold this long. 20 s (user, 2026-10-23, F188): 1 s ended every air phase at once and did not empty the line
+const uint32_t EMPTY_STX_EXTRA_MAX_MS = EMPTY_STX_AIR_HOLD_MS - EMPTY_AIR_HOLD_MS; // ms - the sterivex phase may run this much longer than EMPTY_MAX_TIME_MS, so the longer hold can finish
+const float PUMP_PID_KP = 200.0;                      // % per bar - operation loops (CtrlPump, main.cpp): same as PRESSURE_RAMP_PID_* for now (F147)
+const float PUMP_PID_KI = 100.0;                      // per (bar x 100 ms update), MiniPID has no time base
+const float PUMP_PID_KD = 100.0;
 
 // O-ring lock/unlock, linear actuator (NEMA17 + A4988). The force sensor (FSR) that
 // used to detect contact was removed - readings were unreliable in practice - so
@@ -330,17 +379,17 @@ const float PRESSURE_RAMP_REVERSAL_PERCENT = 5.0;     // % - a power swing this 
 // Only two positions matter in practice: UNLOCKED (the reference, treated as
 // position 0) and LOCKED (LINEAR_ACT_LOCKED_STEPS backward from there, then
 // over-driven) - the old separate "partial" vs "full" unlock distinction is gone
-// since production code only ever used partial.
+// since operation code only ever used partial.
 //
 // Future option (not implemented yet): a physical button to confirm the o-ring has
 // actually made contact when locking, instead of trusting dead reckoning alone.
 // ORING_CONTACT_BUTTON_INSTALLED gates that check off for now - lock_oring() runs
 // fully open-loop as long as this stays false. To wire it up later: pick a free Due
-// pin (docs/PINOUT.md lists the free ones and whether the PCB shield brings them
+// pin (docs/hardware/pinout.md lists the free ones and whether the PCB shield brings them
 // out), add an ORING_CONTACT_BUTTON_PIN constant here, begin() a Button on it in
 // main.cpp, flip this to true, and fill in the confirm check in lock_oring().
 const bool ORING_CONTACT_BUTTON_INSTALLED = false;
-// const uint8_t ORING_CONTACT_BUTTON_PIN = <TBD - assign a free pin, see docs/PINOUT.md>;
+// const uint8_t ORING_CONTACT_BUTTON_PIN = <TBD - assign a free pin, see docs/hardware/pinout.md>;
 
 const long LINEAR_ACT_LOCKED_STEPS = 210;          // measured with calibrate_actuator on 2026-10-12 after the potentiometer was changed (was 160 before) (steps backward from unlocked to the point the motor stalls). Redo after any change of the A4988 Vref or the mechanism
 const float LINEAR_ACT_LOCK_OVERDRIVE_FACTOR = 1.10; // lock_oring() commands LINEAR_ACT_LOCKED_STEPS * this, so it always re-stalls at the same physical stop regardless of drift (see comment block above)

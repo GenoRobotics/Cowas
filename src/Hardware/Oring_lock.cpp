@@ -1,6 +1,6 @@
 /**
  * @file Oring_lock.cpp
- * @brief Production (unattended) lock/unlock of the manifold o-ring via the linear
+ * @brief Operation (unattended) lock/unlock of the manifold o-ring via the linear
  * actuator - the automated counterpart to Tests.cpp's interactive calibration/test
  * tools (calibrate_linear_actuator(), test_linear_actuator()), which stay separate
  * since they need operator keypresses at each step; this runs with no operator
@@ -38,6 +38,7 @@
 #include "Manifold.h"
 #include "Settings.h"
 #include "C_output.h"
+#include "Tests.h" // real_keypress_waiting(): an 'x' aborts actuator_home
 
 extern Linear_actuator linear_actuator;
 extern C_output output;
@@ -52,6 +53,35 @@ core::LockState oring_lock_state()
 const char *oring_lock_state_name()
 {
     return core::lock_state_name(oring_state);
+}
+
+bool oring_go_to(core::LockState target)
+{
+    switch (core::lock_move_to(oring_state, target))
+    {
+    case core::LOCK_MOVE_NONE:
+        return true;
+    case core::LOCK_MOVE_TO_LOCKED:
+        return lock_oring();
+    case core::LOCK_MOVE_TO_UNLOCKED:
+        return unlock_oring();
+    default:
+        output.println(String("REFUSED | O-ring is ") + oring_lock_state_name() + ", needs " +
+                       core::lock_state_name(target) + " - run actuator_home first");
+        return false;
+    }
+}
+
+OringScope::OringScope(core::LockState target) : ok_(oring_go_to(target))
+{
+}
+
+OringScope::~OringScope()
+{
+    if (ok_)
+    {
+        oring_go_to(core::LOCK_STATE_LOCKED); // rest state
+    }
 }
 
 bool is_oring_locked()
@@ -162,8 +192,42 @@ bool unlock_oring()
     return true;
 }
 
-bool actuator_home(int *slot_out, float *error_out)
+// The lock moves of actuator_home, one pulse at a time, so an 'x' typed on the console stops
+// them. Only actuator_home uses these: lock_oring / unlock_oring run unattended. False = aborted.
+static bool move_abortable(long steps, actuator_direction dir)
 {
+    linear_actuator.set_direction(dir);
+    for (long i = 0; i < steps; i++)
+    {
+        char k = real_keypress_waiting();
+        if (k == 'x' || k == 'X')
+        {
+            return false;
+        }
+        linear_actuator.step_pulses(1);
+    }
+    return true;
+}
+
+// The move stopped part way, so the O-ring may be part way too: the state is UNKNOWN
+// (rotation stays refused) until actuator_home runs again.
+static bool home_aborted(bool *aborted_out)
+{
+    oring_state = core::LOCK_STATE_UNKNOWN;
+    if (aborted_out)
+    {
+        *aborted_out = true;
+    }
+    output.println("ABORT | actuator_home: stopped by x during a move. The O-ring may be part way, lock state UNKNOWN (no rotation). Run actuator_home again");
+    return false;
+}
+
+bool actuator_home(int *slot_out, float *error_out, bool *aborted_out)
+{
+    if (aborted_out)
+    {
+        *aborted_out = false;
+    }
     float error = NAN;
     bool encoder_ok = false;
     int slot = manifold_nearest_slot(&error, &encoder_ok);
@@ -182,19 +246,31 @@ bool actuator_home(int *slot_out, float *error_out)
         output.println("REFUSED | actuator_home: no valid encoder reading - check the AMT22 (CS D38)");
         return false;
     }
+    // 2026-10-23 (user, D36): actuator_home runs whatever the angle. It moves only the O-ring, never the manifold.
+    // Alignment is reported (and the homing test records it), it no longer blocks the lock.
     if (d == core::HOME_REFUSED_NOT_ALIGNED)
     {
-        output.println("REFUSED | actuator_home: manifold not aligned to a slot (nearest slot " + String(slot) +
-                       ", error " + String(error, 2) + " deg, tolerance " + String(ACTUATOR_HOME_SLOT_TOLERANCE_DEG, 1) +
-                       " deg). The lock state stays " + oring_lock_state_name());
-        return false;
+        output.println("WARN | actuator_home: not aligned (nearest slot " + String(slot) + ", error " + String(error, 2) +
+                       " deg, tolerance " + String(ACTUATOR_HOME_SLOT_TOLERANCE_DEG, 1) +
+                       " deg). The manifold does not move: lock and unlock run anyway. Align with slotN before rotating-dependent tests");
     }
-
-    output.println("actuator_home: slot " + String(slot) + " aligned (error " + String(error, 2) +
-                   " deg) - overdrive lock to the physical stop, then unlock");
-    drive_lock_move();
+    else
+    {
+        output.println("actuator_home: slot " + String(slot) + " aligned (error " + String(error, 2) + " deg)");
+    }
+    output.println("actuator_home: overdrive lock to the physical stop, then unlock (x = abort)");
+    linear_actuator.enable();
+    linear_actuator.set_speed(LINEAR_ACT_SLOW_STEPS_PER_SEC);
+    if (!move_abortable(lround(LINEAR_ACT_LOCKED_STEPS * LINEAR_ACT_LOCK_OVERDRIVE_FACTOR), backward))
+    {
+        return home_aborted(aborted_out);
+    }
     oring_state = core::LOCK_STATE_LOCKED;
-    drive_unlock_move();
+    if (!move_abortable(LINEAR_ACT_LOCKED_STEPS, forward))
+    {
+        return home_aborted(aborted_out);
+    }
+    linear_actuator.disable();
     oring_state = core::LOCK_STATE_UNLOCKED;
     output.println("actuator_home: done, O-ring UNLOCKED (known)");
     return true;

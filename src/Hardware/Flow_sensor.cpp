@@ -118,7 +118,6 @@ void Flow_sensor::print(){
 
 
 // const uint8_t Pressure_1 = A1;    // pressure 0-16Mpa (water and air)
-// const uint8_t Pressure_2 = A2;    // pressure 0-12 bar (cheaper one, only water)
 // const uint8_t flow_small = 12;
 // const uint8_t flow_big = 13;
 
@@ -141,7 +140,6 @@ void Flow_sensor::print(){
 // unsigned long oldTime;
 
 // uint32_t pressure_val_1;
-// uint32_t pressure_val_2;
 
 // void pulseCounter_small();
 // void pulseCounter_big();
@@ -155,7 +153,6 @@ void Flow_sensor::print(){
 //   attachInterrupt(flow_big, pulseCounter_big, FALLING);
 
 //   pinMode(Pressure_1, INPUT);   // then read with analogRead(pinnumber)
-//   pinMode(Pressure_2, INPUT);
 //   pinMode(flow_small, INPUT);
 //   pinMode(flow_big, INPUT);
 
@@ -180,13 +177,10 @@ void Flow_sensor::print(){
 
 // void read_print_pres(){
 //   pressure_val_1 = analogRead(Pressure_1);
-//   pressure_val_2 = analogRead(Pressure_2);
 
 //   Serial.println("-------------------");
 //   Serial.print("Pressure 1 is (analog value) : ");
 //   Serial.println(pressure_val_1);
-//   Serial.print("Pressure 2 is (analog value) : ");
-//   Serial.println(pressure_val_2);
 //   Serial.println("-------------------");
 // }
 

@@ -29,7 +29,6 @@ def thread_function(worker):
             "reloadManifoldFunction" : lambda : reloadManifoldFunction(),
             "purgeSterivexFunction": lambda : purgeSterivexFunction(),
             "purgeContainerFunction": lambda : purgeContainerFunction(),
-            "purgePipesFunction": lambda : purgePipesFunction(),
             "fillContainerFunction": lambda : fillContainerFunction(),
             "sampleFunction": lambda : sampleFunction(depth),
             "rollingUp": lambda : rollingFunction('Up'),
@@ -77,11 +76,6 @@ def purgeSterivexFunction():
 
 def purgeContainerFunction():
     msg="purgeContainerFunction\n"
-    print("[Worker] Message sent to arduino: "+msg)
-    communicate_arduino(msg)
-
-def purgePipesFunction():
-    msg="purgePipesFunction\n"
     print("[Worker] Message sent to arduino: "+msg)
     communicate_arduino(msg)
 

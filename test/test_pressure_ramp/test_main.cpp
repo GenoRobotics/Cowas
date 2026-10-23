@@ -1,5 +1,5 @@
 // Native unit tests for src/Core/pressure_ramp (run: pio test -e native).
-// The setpoint profile, plan check, slew limit and soft limit of the `pressure_ramp` console test.
+// The setpoint profile, plan check, slew limit and the pressure low-pass of the `pressure_ramp` console test.
 #include <unity.h>
 
 #include "pressure_ramp.h"
@@ -73,27 +73,30 @@ void test_slew_limit(void)
     TEST_ASSERT_EQUAL_FLOAT(10.0f, slew_limit(10.0f, 10.0f, 3.0f));
 }
 
-void test_soft_limit(void)
+void test_lowpass(void)
 {
-    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 2.95f, ramp_soft_limit(2.8f, 0.15f, 3.5f, 0.1f)); // target + overshoot, far from the cap
-    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 2.9f, ramp_soft_limit(2.8f, 0.15f, 3.0f, 0.1f));  // the defaults: clipped to cap - margin
-    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 2.9f, ramp_soft_limit(2.8f, 0.5f, 3.0f, 0.1f));
-    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 1.15f, ramp_soft_limit(1.0f, 0.15f, 3.0f, 0.1f));
+    TEST_ASSERT_EQUAL_FLOAT(3.0f, lowpass_step(1.0f, 3.0f, 0.1f, 0.0f)); // filter off: the raw value
+    float f = 0.0f;
+    for (int i = 0; i < 300; i++)
+    {
+        f = lowpass_step(f, 1.5f, 0.1f, 2.0f);
+    }
+    TEST_ASSERT_FLOAT_WITHIN(1e-3f, 1.5f, f); // a constant input is reached
+    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 0.5f, lowpass_step(0.0f, 1.0f, 1.0f, 1.0f)); // dt = tau: halfway
 }
 
 void test_settings_are_consistent(void)
 {
-    // the defaults pass the plan check against the real cap
+    // the pressure_ramp defaults pass the plan check against the real cap
     TEST_ASSERT_EQUAL(RAMP_PLAN_OK, ramp_plan_check(PRESSURE_RAMP_DEFAULT_TARGET_BAR, STX_MAX_PRESSURE, PRESSURE_RAMP_CAP_MARGIN_BAR,
                                                     PRESSURE_RAMP_DEFAULT_RATE_BAR_S, PRESSURE_RAMP_MIN_RATE_BAR_S, PRESSURE_RAMP_MAX_RATE_BAR_S));
-    // the soft stop is above the target and below the cap
-    float soft = ramp_soft_limit(PRESSURE_RAMP_DEFAULT_TARGET_BAR, PRESSURE_RAMP_OVERSHOOT_STOP_BAR, STX_MAX_PRESSURE, PRESSURE_RAMP_SOFT_CAP_MARGIN_BAR);
-    TEST_ASSERT_TRUE(soft > PRESSURE_RAMP_DEFAULT_TARGET_BAR);
-    TEST_ASSERT_TRUE(soft < STX_MAX_PRESSURE);
-    // a PID step must never trigger the blocking 4 s ramp of Pump::set_power (F132)
-    TEST_ASSERT_TRUE(PRESSURE_RAMP_MAX_STEP_PERCENT < PUMP_RAMP_MIN_STEP_PERCENT);
-    TEST_ASSERT_TRUE(PRESSURE_RAMP_START_POWER <= PRESSURE_RAMP_MAX_POWER);
-    TEST_ASSERT_TRUE(PRESSURE_RAMP_MAX_POWER <= 100);
+    // fill_test: the target sits below the resume pressure, which sits below the pause pressure, which sits below the cap
+    const float pause_bar = STX_MAX_PRESSURE - FILL_PAUSE_BELOW_CAP_BAR;
+    const float resume_bar = pause_bar - FILL_RESUME_BELOW_PAUSE_BAR;
+    TEST_ASSERT_TRUE(FILL_MAX_TARGET_BAR <= resume_bar);
+    TEST_ASSERT_TRUE(FILL_RESUME_BAR == resume_bar && FILL_PAUSE_BAR == pause_bar);
+    TEST_ASSERT_TRUE(resume_bar < pause_bar && pause_bar < STX_MAX_PRESSURE);
+    TEST_ASSERT_TRUE(PUMP_MINIMUM_POWER_PERCENT == 10); // the deadband floor the controller relies on
 }
 
 int main(int argc, char **argv)
@@ -108,7 +111,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_duration);
     RUN_TEST(test_plan_check);
     RUN_TEST(test_slew_limit);
-    RUN_TEST(test_soft_limit);
+    RUN_TEST(test_lowpass);
     RUN_TEST(test_settings_are_consistent);
     return UNITY_END();
 }

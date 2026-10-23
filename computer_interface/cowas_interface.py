@@ -135,9 +135,6 @@ class Interface(QDialog):
     def purgeContainerFunction(self):
         self.send_data("purgeContainerFunction")
 
-    def purgePipesFunction(self):
-        self.send_data("purgePipesFunction")
-
     def fillContainerFunction(self):
         self.send_data("fillContainerFunction")
 
@@ -170,7 +167,6 @@ class Interface(QDialog):
             "Reload Manifold": self.reloadManifoldFunction,
 #            "Purge Sterivex": self.purgeSterivexFunction, 
             "Purge Container": self.purgeContainerFunction,
-            "Purge Pipes": self.purgePipesFunction,
             "Fill container": self.fillContainerFunction,
             "Sample": self.sampleFunction,
         }

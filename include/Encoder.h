@@ -40,6 +40,5 @@ public:
 };
 
 
-void ISR_encoder_z_signal();
 
 #endif

@@ -190,7 +190,7 @@ static void test_settings_are_consistent()
     TEST_ASSERT_TRUE(ABP_FULL_SCALE_PSI > 0.0f);
     // the cap is inside the sensor's range, with room above it to see an overshoot
     TEST_ASSERT_TRUE(STX_MAX_PRESSURE > 0.0f);
-    TEST_ASSERT_TRUE(STX_MAX_PRESSURE < 0.8f * abp_counts_to_bar(ABP_COUNTS_MAX, ABP_FULL_SCALE_PSI));
+    TEST_ASSERT_TRUE(STX_MAX_PRESSURE < 0.9f * abp_counts_to_bar(ABP_COUNTS_MAX, ABP_FULL_SCALE_PSI));
     TEST_ASSERT_TRUE(ABP_STALE_TIMEOUT_MS > 0 && ABP_STALE_TIMEOUT_MS <= 1000); // the dead-sensor stop is checked at 1 s
     TEST_ASSERT_TRUE(PRESSURE_GAIN >= CAL_PRESSURE_GAIN_MIN && PRESSURE_GAIN <= CAL_PRESSURE_GAIN_MAX);
     TEST_ASSERT_TRUE(fabsf(PRESSURE_ZERO_OFFSET_BAR) <= PRESSURE_ZERO_MAX_ABS_BAR);

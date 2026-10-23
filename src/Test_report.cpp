@@ -35,7 +35,7 @@ static void copy_trunc(char *dst, int cap, const char *src)
 
 static void print_line(const char *id, core::TestResult r, const char *kv)
 {
-    char line[200];
+    char line[480]; // pressure_ramp prints about 300 characters
     core::format_test_line(line, sizeof line, report_name, id, r, kv); // truncated if too long, still one line
     Serial.println(line);
 }

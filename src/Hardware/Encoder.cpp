@@ -100,18 +100,6 @@ void Encoder::reset()
 }
 
 /**
- * @brief Interrupt function when Z is detected. Not used.
- *
- */
-void ISR_encoder_z_signal()
-{
-    if (encoder.get_direction() == e_up)
-        encoder.set_pulses_Z(e_up);
-    else
-        encoder.set_pulses_Z(e_down);
-}
-
-/**
  * @brief For debugging purposes.
  *
  */

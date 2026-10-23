@@ -25,7 +25,9 @@ const float encoder_to_deg = 360.0 / 4096.0;
 // necessarily the purge hole itself - the purge hole sits PURGE_RAW_OFFSET raw
 // steps away from this reference (see below). Historically the two were the same
 // physical spot; they no longer have to be.
-const float purge_angle = 342.07;
+// The reference is raw 0, which is human slot 7 (the table walks from the purge at raw 8).
+// So `cal` is done with the rotor on slot 7 (2026-10-22). Not the purge hole.
+const float purge_angle = 344.27; // D40 (F191): 276.77 + 67.5 (3 slots). The rotor was aligned to the table, but the reference sat on slot 10: `slot7` landed on physical slot 10. Eye-checked by the user 2026-10-23. Replaces 276.77 (D39, did not fix it); was 276.42 (encoder 3145.00, D37); was 275.45 (encoder 3134.00, D35); was 279.58 (encoder 3181.00, D34, loose encoder); was 345.06 (cal 2026-10-22, encoder 3926.00, D33, loose encoder); was 270.44 (cal 2026-10-20, encoder 3077.00, F165); was 341.37 (cal 2026-10-12, encoder 3884.00)
 // for the diff of both:
 // * option 1
 // const float purge_angle = 88.24; //is the angle at which the purge hole is aligned with the rotor hole
@@ -41,6 +43,12 @@ const int MANIFOLD_RAW_POSITIONS = 16;
 
 const int omitted_angle_nb = 12; // raw steps from purge_angle (the calibration reference) to the no-hole position
 
+// F129: the wrap point of scale_angle(). rotateMotor() takes the direction from the sign of
+// (scaled goal - scaled current angle), so a move never crosses the wrap point: it goes the long way
+// round instead. It sits on the no-hole position (between slots 3 and 4), where no slot is.
+// scale_angle() wraps at +/-180 after adding half a pitch, hence the two terms.
+const float scale_reference_angle = purge_angle - omitted_angle_nb * angle_between_slots + 0.5f * angle_between_slots - 180.0f;
+
 // Raw steps from purge_angle (the calibrated reference, physically "top") to the
 // actual purge port (physically "bottom", 180 degrees away = half of 16 steps).
 // sterivex_angle[] is built starting from this offset, so index 0 = purge and
@@ -52,7 +60,7 @@ const uint16_t MANIFOLD_CAL_SPEED = 20; // slow but confirmed to actually move t
 // ! make them const again after testing
 extern float angle_offset_pos; // 3; //5.2 for 160 of speed
 // const float angle_offset_neg = 4.9+6.3;
-const float angle_offset_neg = -1.05; // when turning CCW
+const float angle_offset_neg = 2.5; // when turning CCW. 2026-10-22 (user): rotate_all dry, CCW moves mean -1.28 deg overshoot, so 1.2 + 1.28 (F128 history: was -1.05 at speed 40, 2026-10-12). Check with rotate_all dry order=fill auto
 
 enum slot_state
 {
@@ -100,7 +108,6 @@ float scale_angle(float angle);
 
 // FW2 encoder helpers (single reads, 3 attempts; no motion)
 bool read_manifold_angle(float *angle_deg);                    // raw encoder angle 0..360, false on a bad read
-float slot_encoder_angle(int slot);                            // table angle of a slot, NaN if out of range
 int manifold_nearest_slot(float *error_deg, bool *encoder_ok); // nearest slot + signed error, -1 on encoder failure
 bool manifold_slot_error(int slot, float *error_deg);          // signed error to `slot`, false on encoder failure
 void directionDetermination(float goal_angle);
