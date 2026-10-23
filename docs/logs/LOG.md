@@ -1880,3 +1880,23 @@ Condensed on 2026-10-23 at the user's request. The findings and decisions are in
 2. Push the rename and delete the old remote branch name.
 3. Open the pull request into `shield_V2`.
 4. No bench run was done in this session. The hardware checklist for this step is not run.
+
+---
+
+### Session 2026-10-23 (stage1-field merged): PR #5, shield_V2 replaced
+
+**What was done**
+- Branch `stage1-field` pushed to origin (tip `1fdecff`). Old remote name `CoWas-Stage1-Proto-FieldDeployment` deleted.
+- Old shield_V2 tip (`4503486`) kept at tag `archive/shield_V2-2026-10-23`.
+- PR #5 (`stage1-field` into `shield_V2`) merged. `shield_V2` is now the shared base and has the same tree as `stage1-field`. Verified by git: no difference between the two trees.
+- The shield_V2 merge had brought a second `test_all_components()` call and a second PID block into `setup()`, plus a duplicate declaration in `maintenance.h` and the removed `experiences.h`/`.cpp`. All were restored to the `stage1-field` version before the PR. No shield_V2 code is in the shared base other than through the tag.
+- Firmware: `pio run -e due` passes on the final tree.
+
+**Correction to the PR text.** PR #5 says "no bench run for this step". That was not checked against this log. Whether the bench was run for the run keys, fill stop, trusted volume, filter watch and pump start is still open.
+
+**Open**
+1. Hardware checklist for this step (CLAUDE.md rule 7: numeric pass criteria). Decide whether it is needed, after checking which of the new modules were bench-tested.
+2. `ABP_FULL_SCALE_PSI = 60` is still a PLACEHOLDER (F126).
+3. The `archive/shield_V2-2026-10-23` tag is the only record of the old shield_V2 code outside the branch history.
+
+Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>
