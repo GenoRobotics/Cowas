@@ -1129,12 +1129,14 @@ void abort_sample()
         stop_procedure("abort_sample"); // what can be done without pumping
         return;
     }
-    // emptying container
-    if (!step_purge())
-    {
-        output.println("ERROR | abort_sample: purge failed - abort stopped");
-        return;
-    }
+    // emptying container. Not installed anymore
+    // if (!step_purge())
+    // {
+    //     output.println("ERROR | abort_sample: purge failed - abort stopped");
+    //     return;
+    // }
+    // -----------------
+
     // rewinding hose
     step_rewind();
     // emptying the deplyoment module
