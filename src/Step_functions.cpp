@@ -1081,7 +1081,7 @@ bool step_DNA_shield(int slot_manifold)
     // F156 (2026-10-19): the micro pump is time-based (no flow sensor), so the log shows the time it really ran. The volume is
     // not measured here: weigh the bottle, or use shield_calibrate (LA3). A skip (s) ends this pump run only; the air push below still runs.
     const uint32_t t_shield = millis();
-    micro_pump.start(FILL_STERIVEX_TIME / 10.); // ! remove /100, only to be faster for testing
+    micro_pump.start(FILL_STERIVEX_TIME); // ! remove /100, only to be faster for testing
     output.println("Step DNA-shield: micro pump ran " + String(millis() - t_shield) + " ms (time-based, volume not measured)");
     if (aborted_stop("step_DNA_shield"))
     {
