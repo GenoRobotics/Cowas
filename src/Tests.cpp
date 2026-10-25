@@ -60,7 +60,6 @@ extern Button button_right;
 // extern Potentiometer potentiometer;
 extern struct Timer timer_control_pressure1;
 
-
 extern Linear_actuator linear_actuator;
 extern Manifold manifold;
 
@@ -340,6 +339,12 @@ void test_all_components()
                 micro_pump.stop();
             }
 
+            if (test_command == "fill_DNA")
+            {
+                Serial.println("Filling DNA shield tube");
+                fill_DNA_shield_tube();
+            }
+
             if (test_command == "linear_actuator")
             {
                 test_linear_actuator();
@@ -546,8 +551,8 @@ void print_pressure_once()
     }
 }
 
-char wait_for_keypress(); // defined below - forward declared for use here
-bool wait_for_keypress_or_abort(); // defined below - forward declared for use here
+char wait_for_keypress();            // defined below - forward declared for use here
+bool wait_for_keypress_or_abort();   // defined below - forward declared for use here
 bool ask_yes_no(const char *prompt); // defined below - forward declared for use here
 
 // Result of averaging the ABP's datasheet ("nominal") reading for a while.
@@ -573,8 +578,10 @@ static NominalAverage average_nominal_pressure(uint32_t duration_ms)
             a.ok = false;
             return a;
         }
-        if (a.n == 0 || reading < lowest) lowest = reading;
-        if (a.n == 0 || reading > highest) highest = reading;
+        if (a.n == 0 || reading < lowest)
+            lowest = reading;
+        if (a.n == 0 || reading > highest)
+            highest = reading;
         total += reading;
         a.n++;
         delay(20);
@@ -803,8 +810,10 @@ void print_abp_raw()
         char hex[12];
         snprintf(hex, sizeof hex, "%02X %02X %02X", f[0], f[1], f[2]);
         uint16_t counts = core::abp_frame_counts(f[0], f[1]);
-        if (i == 0 || counts < lowest) lowest = counts;
-        if (i == 0 || counts > highest) highest = counts;
+        if (i == 0 || counts < lowest)
+            lowest = counts;
+        if (i == 0 || counts > highest)
+            highest = counts;
         output.println(String("  ") + hex + "  status " + status_names[f[0] >> 6] + "  counts " + String(counts) +
                        "  (" + String(core::abp_counts_to_bar(counts, ABP_FULL_SCALE_PSI), 3) + " bar, datasheet conversion for " +
                        String(ABP_FULL_SCALE_PSI, 0) + " psi)  temp " + String((f[2] << 3) * 9.77e-2 - 50, 0) + " C");
@@ -1329,7 +1338,7 @@ void calibrate_linear_actuator()
 
     linear_actuator.enable();
     linear_actuator.set_speed(LINEAR_ACT_CAL_STEPS_PER_SEC); // deliberately slower than normal operation - see Settings.h
-    oring_mark_unknown("calibrate_actuator"); // FW2: it ends at the stall (physically locked) or wherever it was aborted
+    oring_mark_unknown("calibrate_actuator");                // FW2: it ends at the stall (physically locked) or wherever it was aborted
 
     // --- Stage 1: find and mark the UNLOCKED reference position ---
     output.println("Jog the actuator to the UNLOCKED (fully retracted / o-ring released) reference position:");
@@ -1862,8 +1871,8 @@ void identify_manifold_direction()
 
     const uint16_t TEST_SPEED = 30; // comfortable margin above the ~20 stall threshold found during manifold calibration
     const uint32_t TEST_DURATION_MS = 500;
-    const uint16_t RETURN_TOLERANCE = 8;  // encoder counts (~0.7 degrees)
-    const uint32_t RETURN_MAX_MS = 3000;  // safety timeout for the return move
+    const uint16_t RETURN_TOLERANCE = 8; // encoder counts (~0.7 degrees)
+    const uint32_t RETURN_MAX_MS = 3000; // safety timeout for the return move
 
     manifold_motor.start(TEST_SPEED, down);
     delay(TEST_DURATION_MS);
@@ -1903,8 +1912,8 @@ void identify_manifold_direction()
     }
 
     output.println((observed == 'c' || observed == 'C')
-                        ? "Recorded: commanding 'down' (Motor.h) produces clockwise rotation."
-                        : "Recorded: commanding 'down' (Motor.h) produces anticlockwise rotation.");
+                       ? "Recorded: commanding 'down' (Motor.h) produces clockwise rotation."
+                       : "Recorded: commanding 'down' (Motor.h) produces anticlockwise rotation.");
 }
 
 /**
