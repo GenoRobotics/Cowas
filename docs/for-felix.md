@@ -19,9 +19,4 @@ Guides: [operator tutorial](field/operator-tutorial.md) · [code map](software/c
 
 Values are in `include/Settings.h`, except the shield dose (task 3).
 
-## To finish
 
-1. `git pull origin stage1-field`
-2. Make the changes. Run `pio test -e native` (176 must pass) and `pio run -e due` (must build).
-3. Add one line per decision to `docs/logs/LOG.md`.
-4. Commit, then `git push origin stage1-field`. Tell Quentin when it is pushed.
