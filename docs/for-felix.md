@@ -1,13 +1,22 @@
-# For Felix: where things are and what is left
+# For Felix: what is left
 
-**Operator guide:** [field/operator-tutorial.md](field/operator-tutorial.md) · **Code map:** [software/code-guide.md](software/code-guide.md) · **Commands:** [software/commands.md](software/commands.md) · **Log tool:** [software/session-log.md](software/session-log.md) · **Stage 1:** [roadmap/stage1-FINISHED-prototype.md](roadmap/stage1-FINISHED-prototype.md)
+Guides: [operator tutorial](field/operator-tutorial.md) · [code map](software/code-guide.md) · [commands](software/commands.md) · [stage 1](roadmap/stage1-FINISHED-prototype.md)
 
-**Your tasks**
+## Decide these first
 
-1. **DNA shield dose.** Calibrate with `shield_calibrate` (procedure: [lab/shield-protocol.md](lab/shield-protocol.md)). Then put the dose time in the production run: in `step_DNA_shield()` (`src/Step_functions.cpp`), replace `FILL_STERIVEX_TIME / 10.` (the test shortcut, 25 s) with your value, `DNA_SHIELD_FILL_MS`.
-2. **Air push after the shield.** `PUMP_SHIELD_TIME` in `include/Settings.h` (300 ms, placeholder), with `PUMP_SHIELD_POWER` (13 %). The whole push takes about 4.8 s with the ramp.
-3. **Air drying of the filter.** `EMPTY_STX_AIR_HOLD_MS` in `include/Settings.h` (40 s, placeholder). The purge drying, `EMPTY_AIR_HOLD_MS` (20 s), is not in your list.
-4. **`cal_DNA` cap check** (F202): its pump run does not check the pressure cap. Add the check, or remove the routine.
-5. **Tubing:** clean it before your acquisition campaign.
+1. **DNA shield time.** In `step_DNA_shield()` (`src/Step_functions.cpp`) the micro pump runs the full `FILL_STERIVEX_TIME` (250 s). The `/10` test value (25 s, F4) was removed in `a4f7809`. Decide: keep 250 s, or bring `/10` back until you have the real value.
+2. **`abort_sample` without purge** (`b4f605e`). The `step_purge()` call in `abort_sample()` is commented out. Decide if an abort without purge is safe for the eDNA rules (ROADMAP §3.7).
+   - Not needed: delete the commented block and log the change as a behaviour change.
+   - Needed: restore the call.
 
-Every value above is in `include/Settings.h` except the shield dose line. Search for the name to find it.
+## Then
+
+3. **DNA shield dose.** Calibrate with `shield_calibrate` ([protocol](lab/shield-protocol.md)). Put your value in `DNA_SHIELD_FILL_MS` in `step_DNA_shield()`.
+4. **Air push after the shield.** `PUMP_SHIELD_TIME` (300 ms, placeholder) and `PUMP_SHIELD_POWER` (13 %) in `include/Settings.h`. The whole push takes about 4.8 s with the ramp.
+5. **Air drying of the filter.** `EMPTY_STX_AIR_HOLD_MS` (40 s, placeholder) in `include/Settings.h`. The purge drying, `EMPTY_AIR_HOLD_MS` (20 s), is not on your list.
+6. **`cal_DNA` pressure cap** (F202). Its pump run does not check the cap. Add the check, or remove the routine.
+7. **Tubing.** Clean it before the acquisition campaign.
+
+Values are in `include/Settings.h`, except the shield dose (task 3).
+
+

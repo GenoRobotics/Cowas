@@ -9,6 +9,7 @@
 #include "../Core/pump_ramp.h"
 #include "../Core/pressure_ramp.h"
 #include "../Core/pump_start.h"
+#include "../Core/pump_power.h"
 
 MiniPID pump_pid = MiniPID(200, 100, 0);    // at 10Hz
 
@@ -412,8 +413,9 @@ void CtrlPump::run(){
             n_pauses_++;
             pause_start_ = millis();
             resume_power_ = power_cmd * FILL_BACKOFF_FACTOR;
-            if (resume_power_ > (float)(air_now() ? PUMP_AIR_MAX_POWER_PERCENT : PUMP_MAX_POWER_PERCENT)){
-                resume_power_ = (float)(air_now() ? PUMP_AIR_MAX_POWER_PERCENT : PUMP_MAX_POWER_PERCENT);
+            const float resume_limit = core::pump_power_limit_percent(air_now(), full_power_, PUMP_MAX_POWER_PERCENT, PUMP_AIR_MAX_POWER_PERCENT, PUMP_PURGE_MAX_POWER_PERCENT);
+            if (resume_power_ > resume_limit){
+                resume_power_ = resume_limit;
             }
             if (resume_power_ < (float)PUMP_MINIMUM_POWER_PERCENT){
                 resume_power_ = (float)PUMP_MINIMUM_POWER_PERCENT;
@@ -441,9 +443,10 @@ void CtrlPump::run(){
             }
             else{
                 PID_output = pid_->getOutput(pressure_read);
-                const float power_limit = air_now() ? (float)PUMP_AIR_MAX_POWER_PERCENT : (float)PUMP_MAX_POWER_PERCENT;
+                // water: 60 %, air: 100 % (Settings.h, user 2026-10-19); the purge: 100 % (exception, user 2026-10-26)
+                const float power_limit = core::pump_power_limit_percent(air_now(), full_power_, PUMP_MAX_POWER_PERCENT, PUMP_AIR_MAX_POWER_PERCENT, PUMP_PURGE_MAX_POWER_PERCENT);
                 if (PID_output > power_limit){
-                    PID_output = power_limit; // water: 60 %, air: 100 % (Settings.h, user 2026-10-19)
+                    PID_output = power_limit;
                 }
                 // F196: after a start or a restart the output rises from 0 at a set rate
                 const float ramp_limit = core::pump_start_limit(millis() - ramp_t0_, PUMP_START_RATE_PERCENT_PER_S);

@@ -88,6 +88,8 @@ public:
     void set_max_pressure(float max_pressure){max_pressure_ = max_pressure;}
     void set_max_runtime(uint32_t max_runtime){max_runtime_ = max_runtime;}
     void set_end_cond_time(uint32_t time){time_end_valid_ = time;}
+    // the full-power exception (user 2026-10-26): the run may use PUMP_PURGE_MAX_POWER_PERCENT instead of the water limit. Call before run(). Only step_purge() sets it
+    void set_full_power(bool on){ full_power_ = on; }
     void virtual reset(){;}
     // why the last run() stopped: "cond" (end condition met), "timeout", "cap", "sensor", "stalled", "clogged", "refused"
     const char *end_reason() const { return end_reason_; }
@@ -134,6 +136,7 @@ protected:
     core::TrustedVolume trusted_; // the confident flowmeter volume of this run (F150, 2026-10-23)
 
     bool print_;
+    bool full_power_ = false; // the full-power exception of this run (set_full_power)
 public:
     // turns the pause on for this run (filter runs only). Call before run().
     void set_pause(float pause_bar, float resume_bar){ pause_enabled_ = true; pause_bar_ = pause_bar; resume_bar_ = resume_bar; }

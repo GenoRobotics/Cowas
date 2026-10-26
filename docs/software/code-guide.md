@@ -40,7 +40,7 @@ Removed code and how to restore it: [archive/code/README.md](../archive/code/REA
 
 `run_sample <slot>` (`Tests_mech.cpp`, `run_full_cycle()`):
 
-1. **Purge:** the volume is 500 mL, or 7 L with the spool (answered at `session`). The timeout is 3 min, or 13 min with the spool.
+1. **Purge:** the volume is 500 mL, or 3 L with the spool (answered at `session`). The timeout is 3 min, or 13 min with the spool. The purge runs at full power (100 %, `PUMP_PURGE_MAX_POWER_PERCENT`); every other water run is limited to 60 %.
 2. **Sample:** water through the filter until a stop rule ends it.
 3. **Shield:** the micro pump adds the DNA shield (timed), then air pushes it in (`step_DNA_shield`).
 4. **Unlock:** the O-ring unlocks at the end.

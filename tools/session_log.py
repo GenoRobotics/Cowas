@@ -8,9 +8,20 @@ docs/logs/test-logs/ (docs/software/session-log.md). One folder per run, numbere
     <date>/<NN>_<tag>/samples/      one JSON per sample or purge (the firmware's {"t":"sample",...} line + pc_received),
                                     and samples.csv, one row per sample
 NN is 01, 02, ... for the runs of that day. A new start with the same tag on the same day reuses its folder (appends).
+    <date>/<NN>_<tag>/slots.json    the sample availability (tools/sample_slots.py): asked at the start of a new folder
+    <date>/<NN>_<tag>/schedule.csv  with --schedule: the real start and finish time of each scheduled sample
+
+At the start of a new folder the tool asks how many samples are loaded and whether they are sorted on the device. Then
+`run_sample` (no slot) runs the next available sample in the loading order, and `run_sample <slot>` runs that sample
+(an erase question if it is used or not loaded).
+
+With --schedule FILE.csv (tools/sample_schedule.py) the tool shows the timed list of samples. Nothing runs until the
+operator types `schedule start` and confirms. Then each sample runs at its time (`run_sample`, with the name, condition
+and notes from the file). `schedule stop` stops the list; `schedule` shows it.
 
 Usage:
     python tools/session_log.py --port COM6 --tag s1-1b
+    python tools/session_log.py --port COM6 --tag field --schedule tools/schedule_example.csv
     python tools/session_log.py --port /dev/ttyACM0 --tag hw7 --baud 9600
 Quit with Ctrl+C or by typing :quit.
 
@@ -31,6 +42,9 @@ import re
 import shutil
 import sys
 import threading
+
+import sample_schedule as sched
+import sample_slots as ss
 
 RESULTS = ("PASS", "FAIL", "SKIP")
 TEST_CSV_COLUMNS = ["host_time", "tag", "name", "id", "result", "data", "raw"]
@@ -59,7 +73,9 @@ SAMPLE_CSV_COLUMNS = [
     "file",
 ]
 SAMPLE_PREFIX = '{"t":"sample"'
-RUN_START_LINE = "=== run_sample ==="  # printed by the Due when a run_sample pump run begins
+PC_LOG_HELLO = "log_on"  # sent to the Due when this tool starts: run_sample then knows its record is saved (Tests_mech.cpp)
+SAMPLE_META = re.compile(r"META\|sample;slot=(\d+)")  # printed by the Due when run_sample has its name: the sample is used
+RUN_START_LINE = "=== run_sample ===" # printed by the Due when a run_sample pump run begins
 # The default folder is found from this file (tools/ is inside the repository), so the tool works from any folder.
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_LOG_DIR = os.path.join(REPO_ROOT, "docs", "logs", "test-logs")
@@ -204,6 +220,7 @@ class Session:
         self.sample_records = []  # every record saved, for samples.csv
         self.run_start = None  # PC time of the run_sample that is running, or None
         self.run_records = []  # the records of that run: their run_finish_pc is written when it ends
+        self.open_slot = None  # the slot whose name the device took and whose run has not ended (a refusal frees it)
         self._lock = threading.Lock()
 
     def _fail(self, what, error):
@@ -400,16 +417,127 @@ def next_run_folder(run_dir):
     return os.path.join(day, f"{max(numbers, default=0) + 1:02d}_{tag}")
 
 
-def on_device_line(session, text):
-    """Shows a device line, logs it, and records it: a TEST line in the CSV, a sample as its own file."""
+def ask_yes_no(prompt, read):
+    """True for y or yes. Anything else (including an empty answer) is no."""
+    return read(prompt).strip().lower() in ("y", "yes")
+
+
+def ask_loaded(read, write):
+    """The start of a new folder: how many samples are loaded (the first ones of the loading order), and whether they are
+    sorted on the device as numbered. Asks again until the operator confirms. Returns the count."""
+    count = len(ss.LOADING_ORDER)
+    order = ", ".join(str(s) for s in ss.LOADING_ORDER)
+    while True:
+        write(f"How many samples are loaded? 0 to {count}. The loaded ones are the first in the loading order: {order}.")
+        answer = read("loaded> ").strip()
+        if not answer.isdigit() or int(answer) > count:
+            write(f"Type a number from 0 to {count}.")
+            continue
+        n = int(answer)
+        write(f"Loaded: {', '.join(str(s) for s in ss.LOADING_ORDER[:n]) or 'none'}. The others are not loaded.")
+        if ask_yes_no("Are these samples on the device, numbered as above and in this order? (y/n) ", read):
+            return n
+        write("Not confirmed. Sort the samples on the device, then answer again.")
+
+
+SCHEDULE_HELP = "Schedule commands: `schedule` (the list), `schedule start`, `schedule stop`."
+
+
+def schedule_command(args, scheduled, today, read, write):
+    """The `schedule` commands typed in the tool. `schedule start` shows the dates and asks for a yes before anything runs.
+    `today` is the day the schedule starts, for the +N dates."""
+    if scheduled is None:
+        write("No schedule: start the tool with --schedule FILE.csv.")
+        return
+    if not args:
+        for line in scheduled.table():
+            write(line)
+        return
+    if args == ["start"]:
+        if scheduled.active():
+            write("The schedule is running already.")
+            return
+        if not scheduled.pending():
+            write("Nothing left to run.")
+            return
+        write("The schedule will be:")
+        for line in scheduled.preview(today):
+            write(line)
+        write("The device needs `session` first (site, date, experiment).")
+        if not ask_yes_no("Start the schedule now? (y/n) ", read):
+            write("Not started.")
+            return
+        scheduled.start(today)
+        write("Schedule started. Each sample runs at its time. Type `schedule stop` to stop it.")
+        return
+    if args == ["stop"]:
+        if not scheduled.active():
+            write("The schedule is not running.")
+            return
+        scheduled.stop()
+        write("Schedule stopped: no further sample starts. The sample on the device now (if any) finishes. "
+              "`schedule start` runs the samples left.")
+        return
+    write(SCHEDULE_HELP)
+
+
+def route_run_sample(line, book, read, write):
+    """What to send to the Due for a typed line, or None when nothing must be sent.
+
+    `run_sample <slot>` sends that slot if it is available; if it is used or not loaded, asks to erase it first (y), and
+    sends nothing on n. A bare `run_sample` sends the next available sample of the loading order, or refuses when none is
+    left. Other lines (the sample's name, the condition, `stop`, ...) are sent as they are."""
+    words = line.split()
+    if not words or words[0].lower() != "run_sample":
+        return line
+    rest = words[1:]
+    if rest and rest[0].isdigit():
+        slot = int(rest.pop(0))
+        status = book.status(slot)
+        if status is None:
+            write(f"REFUSED | run_sample: {slot} is not a sample (1 to {len(ss.LOADING_ORDER)}). Not sent.")
+            return None
+        if status != ss.AVAILABLE:
+            if not ask_yes_no(f"Sample {slot} is {status}. Erase it and run it anyway? (y/n) ", read):
+                write("Not sent.")
+                return None
+            book.erase(slot)
+            write(f"Sample {slot} erased: available again.")
+    else:
+        slot = book.next_available()
+        if slot is None:
+            write("REFUSED | run_sample: every loaded sample is used or not loaded. Type run_sample <slot> to force one.")
+            return None
+        write(f"run_sample: next sample in the loading order: {slot}")
+    return " ".join(["run_sample", str(slot)] + rest)
+
+
+def on_device_line(session, text, book=None):
+    """Shows a device line, logs it, and records it: a TEST line in the CSV, a sample as its own file.
+    `book` (the sample availability) is told when a run_sample has its name: that sample is used from then on."""
     print(text, flush=True)
     session.line("<", text)
+    if book is not None:
+        meta = SAMPLE_META.match(text.strip())
+        if meta:
+            # The name is taken: the sample is used. Its pump run follows (the `=== run_sample ===` line of test_begin)
+            session.open_slot = int(meta.group(1))
+            book.mark_used(session.open_slot)
+        # refused after the name (O-ring unknown): no pump ran, so the sample is free again
+        if session.open_slot is not None and text.startswith((sched.REFUSED_PREFIX, sched.NOT_STARTED)):
+            slot, session.open_slot = session.open_slot, None
+            book.erase(slot)
+            session.run_end(now_iso())
+            message = f"sample {slot} is available again (its run did not start)"
+            session.line("!", message)
+            print(message, flush=True)
     if text.strip() == RUN_START_LINE:
         session.run_begin(now_iso())
     rec = parse_test_line(text)
     if rec:
         session.test(rec)
         if rec["name"] == "run_sample" and rec["id"] != "summary":
+            session.open_slot = None
             session.run_end(now_iso())  # the run_sample is done: PASS or FAIL
     try:
         doc = parse_sample(text)
@@ -447,6 +575,7 @@ def main(argv=None):
         help="log name suffix, e.g. the step (s1-1b) or the rig",
     )
     ap.add_argument("--dir", default=DEFAULT_LOG_DIR, help="folder for the logs (default: docs/logs/test-logs in this repository)")
+    ap.add_argument("--schedule", metavar="FILE.csv", help="the timed list of samples (CSV). Nothing runs until `schedule start` (tools/sample_schedule.py)")
     args = ap.parse_args(argv)
 
     if args.rebuild:
@@ -464,6 +593,32 @@ def main(argv=None):
         flush=True,
     )
     print("Ctrl+C or :quit to exit.", flush=True)
+
+    def say(message):
+        print(message, flush=True)
+        session.line("!", message)
+
+    def read_line(prompt):
+        print(prompt, end="", flush=True)
+        raw = sys.stdin.readline()
+        if not raw:
+            raise EOFError("the input is closed")
+        answer = raw.rstrip("\r\n")
+        session.line(">", answer)
+        return answer
+
+    book_path = os.path.join(os.path.dirname(session.log_path), ss.STATE_NAME)
+    try:
+        book = ss.SlotBook.load(book_path)
+        if book is None:  # a new folder: ask the samples (a restart with the same tag keeps its state)
+            book = ss.SlotBook.new(book_path, ask_loaded(read_line, say))
+        say(f"Samples (loading order): {book.summary()}")
+        state_path = os.path.join(os.path.dirname(session.log_path), sched.STATE_NAME)
+        plan = sched.load_plan(args.schedule, state_path, say)  # None when there is no list
+    except (EOFError, KeyboardInterrupt) as error:
+        say(f"Session not started: {error}.")
+        session.close()
+        return 1
 
     # DTR and RTS are set before the port opens, so the open does not pulse them (see the module doc)
     port = serial.Serial()
@@ -497,28 +652,83 @@ def main(argv=None):
             buf += chunk
             while b"\n" in buf:
                 raw, buf = buf.split(b"\n", 1)
-                on_device_line(
-                    session, raw.decode("utf-8", errors="replace").rstrip("\r")
-                )
+                text = raw.decode("utf-8", errors="replace").rstrip("\r")
+                on_device_line(session, text, book)
+                answer = scheduled.device_line(text) if scheduled is not None else None
+                if answer is not None:
+                    send_scheduled(answer)
+
+    def send_scheduled(text):
+        # a line the schedule sends: the run_sample, and the answers to the device's questions (logged with '>')
+        session.line(">", f"(schedule) {text}")
+        try:
+            port.write((text + "\n").encode("utf-8"))
+        except (serial.SerialException, OSError) as error:
+            lost(error)
+
+    scheduled = None
+    if plan:
+        scheduled = sched.Schedule(
+            plan,
+            state_path,
+            pick=lambda: route_run_sample("run_sample", book, None, say),  # the bare run_sample asks nothing
+            send=send_scheduled,
+            say=say,
+        )
+        for line in scheduled.table():
+            say(line)
+        note = sched.spool_note(plan)
+        if note:
+            say(note)
+
+    say(f"sent: {PC_LOG_HELLO} (the Due saves the sample records while this tool runs)")
+    try:
+        port.write((PC_LOG_HELLO + "\n").encode("utf-8"))
+    except (serial.SerialException, OSError) as error:
+        lost(error)
 
     t = threading.Thread(target=reader, daemon=True)
     t.start()
     try:
-        for line in sys.stdin:
-            line = line.rstrip("\r\n")
+        while True:
+            raw = sys.stdin.readline()
+            if not raw:
+                break
+            line = raw.rstrip("\r\n")
             if line == ":quit":
                 break
             session.line(">", line)
+            words = line.split()
+            if words and words[0].lower() == "schedule":
+                schedule_command(words[1:], scheduled, _dt.date.today(), read_line, say)
+                continue
+            if scheduled is not None and words and words[0].lower() == "run_sample":
+                if scheduled.active():  # the list would start a sample on top of this one: ask first
+                    if not ask_yes_no("The schedule is running. Stop it so you can run this sample by hand? (y/n) ", read_line):
+                        say("Not sent. The schedule keeps running.")
+                        continue
+                    scheduled.stop(hint=True)
+                    say("Schedule stopped: no further sample starts. Its sample on the device, if any, finishes first.")
+                if scheduled.busy():
+                    say("A sample of the schedule is still on the device. Type run_sample when its TEST line has appeared.")
+                    continue
+            outgoing = route_run_sample(line, book, read_line, say)
+            if outgoing is None:
+                continue
+            if outgoing != line:
+                say(f"sent: {outgoing}")
             try:
                 port.write(
-                    (line + "\n").encode("utf-8")
+                    (outgoing + "\n").encode("utf-8")
                 )  # LF only: a CR breaks the console (F37)
             except (serial.SerialException, OSError) as error:
                 lost(error)
                 break
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, EOFError):
         pass
     finally:
+        if scheduled is not None:
+            scheduled.stop_now()  # the list stops; the samples not started stay waiting in schedule.csv
         stop.set()
         t.join(timeout=1)
         try:

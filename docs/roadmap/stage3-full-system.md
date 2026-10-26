@@ -28,6 +28,7 @@ Work after the first lake data. Every step starts **after Pilot A**, some after 
 | P2-16 | Automated controls and decontamination flush | P2-2 | Pumps, reservoirs, valves |
 | P2-17 | Firmware updates of the Due from the Pi | HO4 | — |
 | P2-18 | Jetson migration | — | Jetson |
+| P2-19 | Sample records kept on the device: an SD card on the Due, or a slave microcontroller, so a `run_sample` without the PC log still saves its metadata (today it only warns; the PC session log saves it, `tools/sample_slots.py`) | P2-9 or a decision on the storage | SD card or slave MCU |
 
 ---
 

@@ -38,15 +38,15 @@ void test_other_lines_are_ignored(void)
     TEST_ASSERT_EQUAL(RUN_KEY_NONE, skip_or_abort("skipped_step_now_long_word"));
 }
 
-// the firmware values: PURGE_NO_SPOOL_ML 500, PURGE_SPOOL_ML 7000 (user 2026-10-23)
+// the firmware values: PURGE_NO_SPOOL_ML 500, PURGE_SPOOL_ML 3000 (user 2026-10-26)
 void test_purge_volume_without_spool(void)
 {
-    TEST_ASSERT_EQUAL_FLOAT(500.0f, purge_volume_ml(false, 500.0f, 7000.0f));
+    TEST_ASSERT_EQUAL_FLOAT(500.0f, purge_volume_ml(false, 500.0f, 3000.0f));
 }
 
 void test_purge_volume_with_spool(void)
 {
-    TEST_ASSERT_EQUAL_FLOAT(7000.0f, purge_volume_ml(true, 500.0f, 7000.0f));
+    TEST_ASSERT_EQUAL_FLOAT(3000.0f, purge_volume_ml(true, 500.0f, 3000.0f));
 }
 
 int main(int argc, char **argv)

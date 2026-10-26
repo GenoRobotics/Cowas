@@ -40,6 +40,42 @@ fill_test volume=100 label=a2 quick
 - Stop a pump run: `s` then ENTER skips the current pump run. `x` then ENTER aborts the whole command. Any other typed line during a run is ignored with a message.
 - Leave the tool with `:quit` or Ctrl+C. The session is closed cleanly.
 
+### Samples: loading order and availability (new folder only)
+
+The tool keeps the sample availability in `slots.json` in the run folder. The operator loads the samples in the loading order, which is the firmware's `FILL_ORDER` (`include/Settings.h`), so that neighbouring samples are not loaded one after the other (cross contamination). The tool reads it from there, so it is the same order `rotate_all` uses:
+
+**1, 2, 3, 14, 13, 12, 11, 10, 9, 8, 4, 5, 6, 7**
+
+Numbering on the manifold: the purge is slot 0. The samples then go **anticlockwise**, skipping the position with no hole, which sits between slots 3 and 4 (`include/Manifold.h`).
+
+- **Start of a new folder:** the tool asks *How many samples are loaded?* (0 to 14). The first ones of the loading order are marked **available**; the others are marked **unavailable**, which means "not loaded in this session" (their filter is not on the manifold). It then asks whether they are on the device, numbered as shown. Answer `n` to sort them and it asks the count again. A restart with the same tag does not ask again: it keeps the state.
+- **`run_sample`** (no slot): sends the next available sample of the loading order. When none is left it refuses.
+- **`run_sample <slot>`:** sends that sample if it is available. If it is **used** or **unavailable**, the tool asks *Erase it and run it anyway?* `y` makes it available and runs it; `n` sends nothing.
+- A sample becomes **used** when the device prints its name request (`META|sample`), so a sample that was started is not reused by mistake.
+- **Running a slot again:** a new run of the same slot is saved as a new record next to the old one. Nothing is overwritten. Both records carry the slot number; use the last one (the most recent `pc_received`).
+- The state is what the tool recorded, not a check against the device: the operator still has to load the samples as the file says.
+
+**Tag.** `--tag` is the name of the run, for example `field-test`. It names the folder (`docs/logs/test-logs/<date>/<NN>_<tag>/`). The same tag on the same day means the same folder, so a restart with the same tag keeps the sample state and the records. A different tag starts a new folder and asks the questions again.
+
+**Without the log.** The Due can run a sample without this tool. Then the sample runs, but its record is not saved, and `run_sample` prints a `WARNING`. Write down the slot, the name and the condition by hand. The tool sends `log_on` when it starts, which turns the warning off for that boot.
+### Scheduled samples: a list of times
+
+Operator steps: [operator-tutorial.md section 4](../field/operator-tutorial.md). Code: `tools/sample_schedule.py` (the list, the thread), `tools/session_log.py` (`--schedule`, the `schedule` commands, the hand-run check).
+
+- **Input:** CSV (`,` or `;`), columns `date, time, name, condition, spool, depth_m`. `date` is `2026-10-27`, `27/10/2026`, or `+N` (N days after the day `schedule start` is first typed). `time` is `HH:MM`. Errors give the line number. Any file name.
+- **Saved list:** the file read at launch is saved as `schedule.csv` in the run folder, with `+N` dates still unresolved. `schedule start` resolves the dates (`+N` from that day), sorts the list and saves it again. Each change is then written there (`slot`, `started_pc`, `finished_pc`, `status`). Restarting with the same tag loads it; an edited input file replaces the saved list only while nothing has started.
+- **Nothing starts by itself.** Loading the file only shows it. `schedule start` shows the resolved list and asks `y/n`, then runs the samples still waiting.
+- **Commands:** `schedule` (the list with statuses), `schedule start`, `schedule stop` (no further sample starts; the one on the device finishes).
+- **Each sample:** `run_sample` (the next available sample of the loading order), then the name, condition and notes from the row. A sample due while the one before is on the device waits for its `TEST` line.
+- **Hand run:** a `run_sample` typed while the list runs asks *stop the schedule?*. After `y` and the hand run, the tool says to type `schedule start`. While a list sample is on the device, a hand `run_sample` is refused.
+- **Statuses:** `waiting` (includes "not started yet"), `running`, `PASS` / `FAIL` / `SKIP` (the device's result), `refused` (the device did not start it: its slot is available again), `no sample left`, `interrupted` (closed while running: not run again).
+- **Device lines used:** `ASK | sample name`, `ASK | condition`, `ASK | notes`; `REFUSED | run_sample`, `CANCELLED`, `Sample not started`; `TEST|run_sample|<slot>|<result>|...`, which ends a sample (`TEST|run_sample|summary` does not). A run always ends with its TEST line; a refusal comes before the pump runs. If the firmware text changes, change the constants at the top of `sample_schedule.py`.
+- **Refused after the name:** when the device refuses a run after its name (O-ring state unknown), the tool frees the slot again (`book.erase`) and ends the run in the log.
+- **No fit check:** the tool does not know the cycle time. The operator checks the list (F208).
+- **Silent device:** if a sample has no TEST line, the log says *still waiting* every 10 minutes. The tool does not stop by itself.
+- **Errors in the thread:** an exception stops the list with a message on screen and in the log; the samples left stay saved, and `schedule start` continues them.
+- `s` and `x` still stop a pump run or cancel a question.
+
 ## 4. What you see and what is saved
 
 | On screen | Meaning | Saved in |

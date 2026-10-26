@@ -1,0 +1,4 @@
+date,time,name,condition,spool,depth_m
++0,09:30,,control,,
++0,10:45,lake A,filter A,,
++1,00:30,,,on,2.5

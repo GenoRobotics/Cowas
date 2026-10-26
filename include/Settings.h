@@ -136,9 +136,9 @@ const uint32_t PREPARATION_TIME = 60 * 30; // ms. system needs 30 minutes prepar
 // ! adapt here the volume for purge and sample
 // Purge volume, chosen by the user (2026-10-23). The spool answer is given in `session` (spool_installed_session).
 const float PURGE_NO_SPOOL_ML = 500.0f;  // mL - spool off (user 2026-10-23: 500 mL)
-const float PURGE_SPOOL_ML = 7000.0f;    // mL - spool on (user 2026-10-23: 7 L). F110's 3 x dead volume would be 7.7 L; 7 L is the user's value
-// Purge timeout (ms). Spool off: 3 min (the old value). Spool on: 13 min (user, confirmed 2026-10-23). Estimate from slot 10
-// (2026-10-23): 1001 mL took 97 s through the same tube, so 7 L takes about 11 min; 5 min would stop it at about 3 L.
+const float PURGE_SPOOL_ML = 3000.0f;    // mL - spool on (user 2026-10-26: 3 L, "enough"). Dead volume 2.57 L (INTAKE_PATH_ML + SPOOL_PATH_ML) + about 0.4 L. Was 7 L (2026-10-23); the F110 rule of 3 x dead volume (7.7 L) is not kept, see §3.7 rule 1
+// Purge timeout (ms). Spool off: 3 min (the old value). Spool on: 13 min (user, confirmed 2026-10-23). It is only a safety now: 3 L takes
+// about 5 min at 60 % (1001 mL took 97 s at 60 %, 2026-10-23), less at the full-power purge (PUMP_PURGE_MAX_POWER_PERCENT).
 const uint32_t PURGE_MAX_RUNTIME_MS = 3 * 60 * 1000;
 const uint32_t PURGE_SPOOL_MAX_RUNTIME_MS = 13 * 60 * 1000;
 // F130 (2026-10-12): dead volume of the water path (documentation and the calibrate_all check). Not used to set the purge.
@@ -349,6 +349,9 @@ const uint16_t FILL_PRESSURE_STUCK_S = 20;            // s - PLACEHOLDER: paused
 const uint8_t PUMP_MINIMUM_POWER_PERCENT = 10;        // % - below this, the pump stalls (deadband, F137); the pressure loops never command less while running
 const uint8_t PUMP_MAX_POWER_PERCENT = 60;           // % - the operation pressure loops (CtrlPump) with WATER: never more, whatever the pressure (user 2026-10-19). PLACEHOLDER: check on the bench
 const uint8_t PUMP_AIR_MAX_POWER_PERCENT = 100;      // % - the same loops once the emptying sees AIR (the pressure fell below the threshold): full power (user 2026-10-19)
+// % - the EXCEPTION (user 2026-10-26): the purge (step_purge) only, at full power. Its pressure target (OPERATION_TARGET_BAR) and the cap stay.
+// Every other water run keeps PUMP_MAX_POWER_PERCENT. Pressure spikes and leaks at 100 % were seen in 2026-10-19 (F161, F207).
+const uint8_t PUMP_PURGE_MAX_POWER_PERCENT = 100;
 const float OPERATION_TARGET_BAR = 3.0f;             // bar - the pressure target of every operation pump run; the same as the fill_test target (user 2026-10-19)
 const uint32_t EMPTY_MAX_TIME_MS = 60 * 1000;        // ms - every emptying phase (air push through the line) ends after this at the latest; it ends earlier once the air hold is met. A timeout is printed with the last pressure (user 2026-10-21: 60 s)
 const uint32_t EMPTY_STX_AIR_HOLD_MS = 40000;         // ms - the sterivex air drying (after the water phase of a sample): doubled from 20 s (user, 2026-10-23). The purge emptying keeps EMPTY_AIR_HOLD_MS

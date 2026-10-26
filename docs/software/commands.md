@@ -17,7 +17,8 @@ What the firmware does when you type a command. Version: stage 1, 2026-10-23. Hi
 | `actuator_home` | Finds the O-ring position and unlocks it. | Needs the manifold within 3° of a slot. Ends UNLOCKED. Run after every reset. `x` aborts (the lock state is then UNKNOWN). |
 | `oring_state` | Prints LOCKED, UNLOCKED or UNKNOWN. | Read only. |
 | `session` | Asks site, date, experiment, operator, and whether the spool is on the machine (y/n). | Sets the purge volume and the purge timeout for the session. |
-| `run_sample <slot>` | One full sample: purge, sample through the filter, DNA shield, unlock. | Asks sample name, condition, notes. Takes about 5–8 min without the spool, about 20 min with it. Prints `STEP TIMES` and the `TEST` line. |
+| `run_sample <slot>` | One full sample: purge, sample through the filter, DNA shield, unlock. | Asks sample name, condition, notes. Takes about 5–8 min without the spool, about 20 min with it. Prints `STEP TIMES` and the `TEST` line. Prints a `WARNING` first if no PC session log is running (its record is then not saved). |
+| `log_on` | Says the PC session log is running (sent by `tools/session_log.py` at its start). | Prints `META\|log;attached=yes`. Clears the `run_sample` warning until the next boot. Not a test. |
 | `full_cycle`, `full_all` | Same steps as `run_sample`, with options. | For tests. Not the operator path. |
 
 ## 2. Checks and small moves
