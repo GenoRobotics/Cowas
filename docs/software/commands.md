@@ -44,6 +44,7 @@ What the firmware does when you type a command. Version: stage 1, 2026-10-23. Hi
 | `multi_sample`, `sample_cycle`, `sample_cycle_full`, `multi_sample_full` | Older sample loops: per slot, with or without the shield. | Use `run_sample` in the field. |
 | `pump` | Runs the main pump at a power you type (1–100 %). | **No timeout.** Stopped by a key. |
 | `shield_only`, `prime_shield` | Runs the shield pump alone; `prime_shield` fills the line until a key. | Time-limited. |
+| `fill_DNA` | Fills the DNA shield tube. | To be done when DNA shield is loaded before an experiment. |
 
 ## 3. Calibrations (once, on the bench)
 
