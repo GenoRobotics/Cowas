@@ -17,6 +17,7 @@
 #include "Led.h"
 #include "C_output.h"
 #include "Settings.h"
+#include "Flow_sensor.h"
 #include "Timer.h"
 #include "maintenance.h"
 #include "Step_functions.h"
@@ -37,6 +38,7 @@ extern Micro_Pump micro_pump;
 extern Motor spool;
 extern Motor manifold_motor;
 extern Encoder encoder;
+extern Flow_sensor flow_sensor_small;
 extern Button button_start;
 extern Button button_container;
 extern Button button_spool_up;
@@ -55,7 +57,15 @@ enum DNA_state
     start_end
 };
 
-void run_pump(uint32_t max_time);
+bool run_pump(uint32_t max_time);
+bool run_pump_until_volume(float target_ml, uint32_t max_time);
+
+static void stop_purge_manifold()
+{
+    pump.stop();
+    valve_1.set_close_way();
+    valve_manifold.set_close_way();
+}
 
 void calibrate_DNA_pump()
 {
@@ -207,42 +217,158 @@ void calibrate_DNA_pump()
     output.println("Calibration of DNA pump done");
 }
 
+bool run_pump(uint32_t max_time)
+{
+    pump.start();
+    if (!pump.is_running())
+    {
+        Serial.println("ERROR | Ethanol slot flush: pump did not start");
+        return false;
+    }
+
+    const uint32_t start_time = millis();
+    do
+    {
+        if (pump.is_running() && pump.enforce_pressure_safety())
+        {
+            return false;
+        }
+        delay(20);
+    } while (button_start.isReleased() && millis() - start_time < max_time);
+
+    const bool stopped_by_operator = button_start.isPressed();
+    pump.stop();
+    if (stopped_by_operator)
+    {
+        button_start.waitPressedAndReleased();
+    }
+
+    if (stopped_by_operator)
+    {
+        Serial.println("ABORT | Ethanol slot flush stopped by operator");
+        return false;
+    }
+    return true;
+}
+
+bool run_pump_until_volume(float target_ml, uint32_t max_time)
+{
+    flow_sensor_small.reset_values();
+    const uint32_t start_time = millis();
+    pump.start();
+    if (!pump.is_running())
+    {
+        Serial.println("ERROR | Ethanol purge prime: pump did not start");
+        return false;
+    }
+
+    while (true)
+    {
+        flow_sensor_small.update();
+        const unsigned int volume_ml = flow_sensor_small.get_totalFlowMilliL();
+        if (volume_ml >= target_ml)
+        {
+            pump.stop();
+            Serial.print("Ethanol purge prime reached ");
+            Serial.print(volume_ml);
+            Serial.println(" mL indicated");
+            return true;
+        }
+
+        if (button_start.isPressed())
+        {
+            pump.stop();
+            button_start.waitPressedAndReleased();
+            Serial.println("ABORT | Ethanol purge prime stopped by operator");
+            return false;
+        }
+
+        if (pump.is_running() && pump.enforce_pressure_safety())
+        {
+            return false;
+        }
+
+        if (millis() - start_time >= max_time)
+        {
+            pump.stop();
+            Serial.print("ERROR | Ethanol purge prime timed out before reaching ");
+            Serial.print(target_ml, 0);
+            Serial.println(" mL indicated");
+            return false;
+        }
+        delay(20);
+    }
+}
+
 void purge_pipes_manifold()
 {
+    if (!require_pressure_sensor("purge_pipes_manifold"))
+    {
+        return;
+    }
+
     Serial.println("Ready to start purge of manifold pipes, please press start button");
 
     button_start.waitPressedAndReleased();
 
-    step_fill_container();
+    // step_fill_container();
     delay(1000);
     pump.set_power(25);
 
-    for (uint8_t slot = 0; slot < 15; slot++)
+    valve_1.set_close_way();
+    valve_23.set_L_way();
+    valve_manifold.set_close_way();
+
+    if (!rotateMotor(PURGE_SLOT))
     {
-        Serial.print("Filling and purging slot ");
+        Serial.println("ERROR | Ethanol purge prime: could not rotate to purge slot");
+        stop_purge_manifold();
+        return;
+    }
+
+    delay(500);
+    valve_manifold.set_open_way();
+    Serial.print("Priming ethanol through purge slot until ");
+    Serial.print(ETHANOL_MANIFOLD_PRIME_ML, 0);
+    Serial.println(" mL is indicated");
+    if (!run_pump_until_volume(ETHANOL_MANIFOLD_PRIME_ML, PURGE_MAX_RUNTIME_MS))
+    {
+        stop_purge_manifold();
+        return;
+    }
+    valve_manifold.set_close_way();
+    delay(500);
+
+    for (int slot = 0; slot < NB_SLOT; slot++)
+    {
+        if (slot == PURGE_SLOT)
+        {
+            continue;
+        }
+
+        Serial.print("Flushing ethanol through slot ");
         Serial.println(slot);
-
-        // valve_1.set_close_way();
-        // valve_23.set_I_way();
-        // run_pump(MAINT_FILL_TIME);
-
-        rotateMotor(slot);
+        if (!rotateMotor(slot))
+        {
+            Serial.print("ERROR | Ethanol slot flush: could not rotate to slot ");
+            Serial.println(slot);
+            stop_purge_manifold();
+            return;
+        }
         delay(500);
-
         valve_23.set_L_way();
         valve_manifold.set_open_way();
-        // run_pump(MAINT_PURGE_TIME);
-        run_pump(3000);
+        if (!run_pump(3000))
+        {
+            stop_purge_manifold();
+            return;
+        }
         valve_manifold.set_close_way();
-
         delay(500);
     }
 
-    valve_1.set_close_way();
-
-    // * no container left, but intake should be in the ethanol container, so this is emptying that one.
-    // If want to stop, just remove the eth container and it will empty the system.
-    step_purge(false); // emptying container in case some water is left
+    stop_purge_manifold();
+    Serial.println("Ethanol manifold flush complete");
 }
 
 void fill_DNA_shield_tube()
@@ -263,21 +389,6 @@ void fill_DNA_shield_tube()
         }
     }
     button_start.waitPressedAndReleased();
-}
-
-void run_pump(uint32_t max_time){
-    uint32_t start_time = millis();
-    pump.start();
-
-    do {
-        delay(20);
-        // Serial.println(millis() - start_time);
-    } while (button_start.isReleased() && (millis() - start_time) < max_time);
-
-    if (button_start.isPressed()) 
-        button_start.waitPressedAndReleased();
-
-    pump.stop();
 }
 
 #ifdef SYSTEM_CHECKUP

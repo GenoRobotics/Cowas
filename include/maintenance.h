@@ -10,7 +10,7 @@
 void calibrate_DNA_pump();
 
 /**
-    @brief: Disconnect the deployment module and put the connection into ethanol
+    @brief: Prime the manifold purge path with 50 mL indicated ethanol, then run each sample slot for 3 seconds
 */
 void purge_pipes_manifold();
 

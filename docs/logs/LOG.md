@@ -2268,3 +2268,18 @@ Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>
 3. The big pump duration was put to 5s instead of 6s (don't know if it includes the ramp). It pused some air inside during the venting. The pressure built up was already too much
 
 **This might be adapted based on field observations, as the filter will behaved differently depending how it is clogged**
+
+### Session 2026-10-26: ethanol manifold prime
+
+**What changed**
+- `purge_pipes_manifold()` now first pumps through `PURGE_SLOT` until the D13 flowmeter indicates 50 mL, with the existing 3-minute purge timeout. If the flow target is not reached, the pressure cap trips, the pump cannot start, the operator presses START, or a rotation fails, the routine stops without moving on to later slots.
+- Added the `ethanol_purge` test-menu command and help/documentation entry so the routine is reachable.
+- After priming, the routine runs each sample slot for 3 seconds after soft start and skips a timed run in the purge slot. The previous trailing `step_purge(false)` was removed because it added a separate 500 mL/3 L pump operation after the slot flushes.
+- The 3-second slot timer starts after the pump's soft start, so each slot gets the full requested dwell at the configured setting.
+- Preserved the existing uncommitted `step_fill_container()` edit (kept commented out).
+
+**Validation**
+- `pio run -e due`: passes.
+- `pio test -e native`: fails in existing tests outside this change: `test_golden_scale_angle_bit_exact` differs by one float bit, and `test_pressure_calibration` has a narrowing-conversion error for `INFINITY`.
+- Hardware: not run; firmware not flashed.
+- Before ethanol use: with no filters installed, verify at least 50 mL actual outlet volume before slot 1 starts; confirm each sample-slot run is 3 seconds; verify timeout and pressure-cap stops prevent subsequent slots. The flowmeter is known to read low around 50 mL/min (F150), so the indicated target needs a gravimetric bench check.

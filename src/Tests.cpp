@@ -165,6 +165,11 @@ void test_all_components()
                 calibrate_DNA_pump();
             }
 
+            if (test_command == "ethanol_purge")
+            {
+                purge_pipes_manifold();
+            }
+
             // all valves, both motors, pump, pressure sensors, push buttons(spool),
             // leds, control buttons + potentiometer, container
             if (test_command == "valves")

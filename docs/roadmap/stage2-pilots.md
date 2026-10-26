@@ -496,6 +496,7 @@ Go / no-go: tests 1–8 all pass. A failure in 9 or 10 needs a written workaroun
 | HW3 | Flowmeter D13 peak voltage (F26) | ≤ 3.3 V under pulses |
 | HW4 | Spare 150 psi sensor alive (optional) | Steady 0.0–0.1 bar at rest, a clear rise when blown into. Check pin 1 first (datasheet table 8) |
 | HW4 | Manifold alignment by airflow (F131) | Maximum flow within about 1° of the table value |
+| Maintenance | Ethanol manifold prime and slot flush | With no filters installed, at least 50 mL is delivered through slot 0 before slot 1 starts; the flowmeter indicates at least 50 mL; each sample slot runs for 3 s after the pump's soft start; timeout or pressure-cap stop prevents later slots |
 | HO1 | Host against the real Due | Native port found; reconnect after a cable pull with the same boot id; opening the port does not reset the Due |
 | LA2 | SOP dry run, two people, 14 Sterivex | Loading ≤ 30 min, unloading ≤ 20 min, no leftover caps, no drips, no label mismatch |
 | LA3 | Shield calibration (Felix) | CV ≤ 5 % per duration, R² ≥ 0.995 (shield protocol) |
@@ -518,6 +519,7 @@ Left out of stage 1. Nothing here blocks the field.
 | Water drips from the filter after the O-ring unlocks: decide the drain step | F205 | FW4 |
 | Sterivex emptying of a clogged filter prints about 940 `End cond` lines (kept as is, user) | F204 | FW8 |
 | Purge: stage 1 uses 500 mL / 3 L (D50); the stage 2 rule and the 13 min spool timeout need a bench check. The 3 L purge at full power (D51) needs a manifold pressure check (F207) | F30, F110, F130, F207 | FW4 |
+| Ethanol cleaning: prime through the purge slot to 50 mL indicated, then flush each sample slot for 3 s; confirm actual volume and timing on the bench before use | — | Felix |
 | Filter ID, site, weights and operator are on the paper sheet, not in the machine record | HO2 | HO2 |
 | `cal_DNA` pump run needs a cap check, or the routine is removed | F202 | Felix |
 | Code clean-up: two sample paths, `fill_test`'s own pump loop, legacy `maintenance.cpp`, `step_dive`. Removed code is in [the archive](../archive/code/README.md) | — | FW4 |

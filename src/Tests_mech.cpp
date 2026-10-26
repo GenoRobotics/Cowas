@@ -347,6 +347,7 @@ static void cmd_help()
     Serial.println("  slotN, slot0, clockMM, clocklist, manifold, cal, zero, manifold_direction, encoder_manifold, enc_rot");
     Serial.println("  linear_actuator, calibrate_actuator (both make the lock state UNKNOWN), calibrate_all");
     Serial.println("  pump, sample_cycle, sample_cycle_full, multi_sample_full, calibrate_flow, cal_DNA (need the pressure sensor)");
+    Serial.println("  ethanol_purge                prime the purge slot to 50 mL, then flush each sample slot for 3 s");
     Serial.println("  valves, micro_pump, calibrate_dna_volume, shield_calibrate (LA3)");
     Serial.println("  sample1m, demo, abort (need the pressure sensor), micro_switch, buttons_command, temp");
     Serial.println("  stop = leave the menu (panel + legacy Pi link)");
