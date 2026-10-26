@@ -342,6 +342,7 @@ static void cmd_help()
     Serial.println("  full_all [purge= shield= empty= volume=] [auto] [from= count= order=]");
     Serial.println("  session                       ask site, date, experiment, operator (once per day; written to the log)");
     Serial.println("  run_sample [slot] [volume=mL] ask sample name, condition, notes; then the whole sample. Needs `session` first");
+    Serial.println("  log_on                        the PC session log is running (sent by tools/session_log.py): run_sample saves its record");
     Serial.println("-- existing commands --");
     Serial.println("  slotN, slot0, clockMM, clocklist, manifold, cal, zero, manifold_direction, encoder_manifold, enc_rot");
     Serial.println("  linear_actuator, calibrate_actuator (both make the lock state UNKNOWN), calibrate_all");
@@ -1630,6 +1631,10 @@ struct FieldSession
 };
 static FieldSession field_session;
 
+// The PC session log (tools/session_log.py) says it is running with `log_on`, sent when it starts. Without it a run_sample
+// still runs, but its record is not saved, so run_sample warns first. Reset at every boot.
+static bool pc_log_attached = false;
+
 // A typed answer for the META line: no ';', '|' or '=' (they separate the fields), at most 48 characters.
 static String meta_clean(String s)
 {
@@ -1733,6 +1738,12 @@ static void cmd_session(const Cmd &c)
                    ";spool=" + (spool_installed_session ? "installed" : "absent"));
 }
 
+static void cmd_log_on()
+{
+    pc_log_attached = true;
+    Serial.println("META|log;attached=yes");
+}
+
 static void cmd_run_sample(const Cmd &c)
 {
     static const char *const keys[] = {"volume"};
@@ -1747,6 +1758,9 @@ static void cmd_run_sample(const Cmd &c)
         Serial.println("REFUSED | run_sample: no session yet - send `session` first (site, date, experiment)");
         return;
     }
+    if (!pc_log_attached)
+        Serial.println("WARNING | run_sample: no PC session log is running (tools/session_log.py). The sample WILL run, but its "
+                       "record is NOT saved: write down the slot, the name and the condition");
     if (slot < 0)
     {
         // F197 (user, 2026-10-23): no slot typed = the sample at the slot the manifold is on now (encoder), if it is on one
@@ -1800,7 +1814,7 @@ bool mech_tests_dispatch(const String &line)
     const char *known[] = {"help", "oring_state", "actuator_home", "oring_lock", "oring_unlock", "lock_cycle",
                            "lock_endurance", "rotate_all", "encoder_repeat", "valve_check", "leak_hold",
                            "multi_sample", "full_cycle", "full_all", "shield_only", "prime_shield", "pressure_ramp", "fill_test",
-                           "session", "run_sample"};
+                           "session", "run_sample", "log_on"};
     bool mine = false;
     for (unsigned i = 0; i < sizeof known / sizeof known[0]; i++)
     {
@@ -1856,5 +1870,7 @@ bool mech_tests_dispatch(const String &line)
         cmd_session(c);
     else if (!strcmp(c.name, "run_sample"))
         cmd_run_sample(c);
+    else if (!strcmp(c.name, "log_on"))
+        cmd_log_on();
     return true;
 }

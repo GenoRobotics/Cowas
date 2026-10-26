@@ -460,7 +460,7 @@ bool step_purge(bool stop_pressure)
     }
 
     // S1-C addendum item 3: the purge volume follows the spool answer given in `session` (spool_installed_session).
-    // User 2026-10-23: spool absent 500 mL, spool installed 7 L.
+    // User 2026-10-23: spool absent 500 mL, spool installed 7 L; 2026-10-26: spool installed 3 L.
     const float purge_ml = core::purge_volume_ml(spool_installed_session, PURGE_NO_SPOOL_ML, PURGE_SPOOL_ML);
     output.println("Step purge: " + String(purge_ml, 0) + " mL, spool " + (spool_installed_session ? "installed" : "absent"));
 
@@ -480,7 +480,9 @@ bool step_purge(bool stop_pressure)
 
     CtrlPumpFlow ctrl_flow;
     ctrl_flow.begin(&pump, &pump_pid, read_p_in, &flow_sensor_small, purge_ml, OPERATION_TARGET_BAR, true);
-    // the purge timeout follows the spool answer (Settings.h): 15 min with the spool, 3 min without
+    // the purge is the one water run at full power (PUMP_PURGE_MAX_POWER_PERCENT, user 2026-10-26); the 3 bar target and the cap stay
+    ctrl_flow.set_full_power(true);
+    // the purge timeout follows the spool answer (Settings.h): 13 min with the spool, 3 min without
     ctrl_flow.set_max_runtime(spool_installed_session ? PURGE_SPOOL_MAX_RUNTIME_MS : PURGE_MAX_RUNTIME_MS); // in ms
 
     uint32_t time1 = millis();

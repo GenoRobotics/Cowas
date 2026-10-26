@@ -107,7 +107,7 @@ Boot goes to RECOVERY_REQUIRED with the O-ring UNKNOWN. The boot default is SERV
 
 These are requirements, not options.
 
-1. **Purge large enough for the dead volume.** The rule is 3 × the dead volume (F110 suggests 5 for a mixed volume). Stage 1 uses the user's values: **500 mL without the spool, 7 L with it** (2026-10-23). The stage 2 rule is still to decide (§7b).
+1. **Purge large enough for the dead volume.** The rule was 3 × the dead volume (F110 suggests 5 for a mixed volume). Stage 1 uses the user's values: **500 mL without the spool, 3 L with it** (2026-10-26, D50). The dead volume with the spool is 2.57 L (30 mL intake + 2.54 L spool), so 3 L is about 1.2 × it, below the 3 × rule. The user accepted this for stage 1. The stage 2 rule is still to decide (§7b).
 2. **Filtered volume** from the calibrated flowmeter, checked by weighing the outlet (VA1). Every filter gets an `end_reason`: `volume_reached`, `clogged`, `timeout`, `pressure_cap`, `fault` or `stopped`.
 3. **Residual water and shield volume** measured by weighing (LA3).
 4. **Blanks in every deployment:** one equipment blank at the start and one at the end, plus one manual field blank.
@@ -355,6 +355,81 @@ Status: ☑ done, ☐ open. Stage 1 already covers parts of FW2–FW4 (see [stag
 - Remote access over a VPN; telemetry is not pushed over LTE.
 - Done when: a simulated critical alert reaches the phone and repeats until acknowledged; a delivery failure is retried.
 
+**HO6 · Sample timing from field records (P1, spec only: not started)** · needs HO3 (planner) and HO4 (trusted clock); needs two record fields first (see Prerequisites); field records from stage 1 and Pilot A.
+
+- **Purpose.** Estimate how long one `run_sample` takes from real field runs, keep that estimate in a table the host owns, check it against each new run, and warn when a planned mission does not fit it. The estimate comes only from measured times. Nothing is typed in as a guess, and the firmware never reads the table.
+- **Origin of "longest (while repeatable)".** The request asked for the longest repeatable timing. Confirmed by the user (2026-10-26): the 90th percentile of the repeatable group, which keeps one outlier from setting the value.
+
+**Prerequisites** (before the first estimate counts)
+1. **Sample record gets `spool` and `depth_m`.** Today `spool` is only on the TEST line (`spool=installed|absent`) and the record has no depth. Owner: the step that adds the record fields (firmware and session tool). Until then, `spool` is read from the TEST line and depth is not a key.
+2. **Trusted PC clock** (HO4). Timings are PC times (`run_start_pc`, `run_finish_pc`).
+
+**Inputs (per session folder `docs/logs/test-logs/<date>/<NN>_<tag>/samples/`)**
+- Fields used: `purpose`, `run_start_pc`, `run_finish_pc`, `end_reason`, `target_ml`, `fw`, `calib`, and the prerequisite fields above.
+- The step times `t_purge_s`, `t_sample_s`, `t_shield_s`, `t_unlock_s`, `t_total_s` (added to the firmware on 2026-10-23) are kept for a breakdown. No bench record has them yet (checked 2026-10-26), so the total `run_finish_pc − run_start_pc` is the timing used.
+
+**Definitions**
+- **Timed run:** a record with `purpose = sample`. The run is the whole `run_sample` (purge, sample, shield, unlock). Its duration is `run_finish_pc − run_start_pc`.
+- **Complete sample:** `end_reason = volume`. Other ends (`clogged`, `stalled`, `pressure`, `timeout`, `stop_key`, `skipped`, `refused`, `sensor`) are not timed. They are counted next to the value, so the report shows how often a run stopped early.
+- **Key:** the string `spool=<installed|absent>;depth_m=<m or ->;target_ml=<mL>;fw=<fw>;calib=<calib>`. Samples with the same key form one group. A change of `fw` or `calib` starts a new group, so old and new timings are never mixed.
+- **Not keys today:** pump power in the purge (fixed at 100 %, D51; add it as a key once it varies) and shield time (a placeholder, F4, constant in every record).
+- **Window:** the last **10 session folders** that hold timed samples, in folder-name order (date, then `NN`). All of them if there are fewer. Older folders are not read, so the start stays fast.
+- **Repeatable group:** at least **3 complete samples** in the window (PLACEHOLDER), and each within **±15 %** of the group median (PLACEHOLDER). A key without a repeatable group has no value. The estimator says "no timing for this key"; it does not guess.
+- **Candidate value per key (`window_s`):** the **90th percentile** of the group's durations in the window (linear interpolation), multiplied by **1.05** (the 5 % margin, applied once), rounded up to the second. Outliers are not in the group (the ±15 % rule), so they never set it.
+- **Stored value per key (`value_s`):** the **largest candidate value ever seen** for that key: `value_s = max(value_s, window_s)`. It never goes down. A slow run that leaves the window keeps its effect on the value. Confirmed by the user (2026-10-26): "never decreases, except the outliers". The outliers are excluded by the repeatability rule, not by a separate threshold.
+
+**Stored table: `timings.json`** in the host data folder. One file for all sessions. The run folders are not changed by it. Example (the numbers are illustrative only):
+```json
+{
+  "schema": 1,
+  "updated": "2026-11-02T08:15:00+01:00",
+  "keys": {
+    "spool=absent;depth_m=-;target_ml=100;fw=1.4.0;calib=77.0": {
+      "value_s": 1234, "window_s": 1190, "group_size": 5, "margin_pct": 5,
+      "window": ["2026-10-23/02_field-test-20261023"]
+    }
+  },
+  "history": [ { "updated": "2026-11-01T08:10:00+01:00", "keys": { "...": "previous values" } } ]
+}
+```
+An update replaces `keys` and appends the old `keys` to `history`. A reset (by hand) is logged in `history` with its reason.
+
+**At each host start**
+1. Read `timings.json` (missing: start with no values).
+2. Read the window. For each key, compare each complete sample with the stored `value_s`. A sample above it is **reported** ("does not fit the table"). Note that about 10 % of a window lies above its 90th percentile by definition, so these are information, not errors.
+3. Compute the candidate `window_s` per key from the window. Set `value_s = max(value_s, window_s)` and write `timings.json` (the values, the inputs used, and a history entry when `value_s` changes).
+4. Print a short report: keys updated, keys without a value, samples above the stored value, and the number of early stops per key.
+
+**Use in planning (HO3)**
+- A planned event whose time slot is shorter than the value of its key gets a **warning**, never a block.
+- An event that starts before the previous event's value has elapsed gets a warning.
+- An event whose key has no value gets the warning "no timing for this key".
+- The operator decides. The mission is not stopped by these warnings.
+
+**Structure for the developer**
+- The estimator is a pure function: `estimate(records, window, margin=0.05) -> table`. No file access inside it (rule §6.3 for the host: logic apart from I/O).
+- Reading the records and reading or writing `timings.json` are a thin layer around it.
+- The moving-math rule applies: the 2026-10-23 records and a synthetic fixture are the golden inputs, and the outputs are compared bit for bit.
+- A CLI command (proposed): `cowas timing` shows the table and runs the start check, with `--sim` as everywhere.
+
+**Done when**
+1. On the 2026-10-23 records (8 records: 4 purge, 4 sample; of the sample records 1 complete, 3 `clogged`) the estimator gives **no value** for any key. The one complete time is listed as it is.
+2. On a synthetic fixture with known durations, `value_s` equals the 90th percentile × 1.05, rounded up (golden, bit for bit).
+3. A key with 2 samples gives no value.
+4. With 12 folders on disk, only the last 10 are read.
+5. A record with another `fw` or `calib` is not mixed into a group.
+6. A planned slot one minute shorter than the value gives a warning in the planner.
+7. A sample above the stored value is reported at the next start, and the table is updated.
+8. Two starts on the same data give the same table (the update is repeatable).
+9. **Never decreases:** after a window in which the slow runs have left (the window moves on), `value_s` is unchanged, and `window_s` shows the lower candidate.
+10. **Outliers excluded:** a single sample outside ±15 % of its group's median does not change `value_s`, and it is listed as an outlier in the report.
+
+**Open questions for the user**
+- (a) **Decided (2026-10-26): the stored value never decreases; outliers are excluded** (see "Stored value per key"). The window still bounds what is read, and `window_s` is kept in the table so the current window stays visible. The "reel" check is the per-sample report at each start.
+- (b) The 3-sample and ±15 % numbers are placeholders until the first field data.
+
+**Depends on:** HO3 (planner warnings), HO4 (trusted clock), the record fields in Prerequisites (owner: firmware and session tool, in the step that enables the spool). Reduces the open item of F208.
+
 ### 7.3 Lab and eDNA
 
 **LA1 · Lab meeting (dropped 2026-10-23).** The values are set with Felix ([shield-protocol.md](../lab/shield-protocol.md) §8). The questions below stay useful for any lab meeting later: the extraction kit, the shield volume per filter, the residual-water limit, storage and transport, labels, blank policy, the metadata columns, the chain of custody, the markers.
@@ -442,10 +517,12 @@ Left out of stage 1. Nothing here blocks the field.
 | Manifold sometimes does not turn; a cable move made it turn once | F203 | HW9 |
 | Water drips from the filter after the O-ring unlocks: decide the drain step | F205 | FW4 |
 | Sterivex emptying of a clogged filter prints about 940 `End cond` lines (kept as is, user) | F204 | FW8 |
-| Purge: stage 1 uses 500 mL / 7 L; the stage 2 rule and the 13 min spool timeout need a bench check | F30, F110, F130 | FW4 |
+| Purge: stage 1 uses 500 mL / 3 L (D50); the stage 2 rule and the 13 min spool timeout need a bench check. The 3 L purge at full power (D51) needs a manifold pressure check (F207) | F30, F110, F130, F207 | FW4 |
 | Filter ID, site, weights and operator are on the paper sheet, not in the machine record | HO2 | HO2 |
 | `cal_DNA` pump run needs a cap check, or the routine is removed | F202 | Felix |
 | Code clean-up: two sample paths, `fill_test`'s own pump loop, legacy `maintenance.cpp`, `step_dive`. Removed code is in [the archive](../archive/code/README.md) | — | FW4 |
+| Timed sample list (`--schedule`) does not check that the samples fit the timeline: the cycle time is not measured yet. Add a check once it is known | F208 | HO6 |
+| `run_sample` typed in `pio device monitor` skips the session tool: no record, no loading order, no timed list. One console for the operator (the host channel on native USB) | F210 | FW7 |
 | Relief valve, E-stop and leak at 3 bar (F144): **accepted by the user 2026-10-23, not raised again** | HW2, F144 | — |
 
 ---

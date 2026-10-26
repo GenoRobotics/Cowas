@@ -1880,3 +1880,366 @@ Condensed on 2026-10-23 at the user's request. The findings and decisions are in
 2. Push the rename and delete the old remote branch name.
 3. Open the pull request into `shield_V2`.
 4. No bench run was done in this session. The hardware checklist for this step is not run.
+
+---
+
+### Session 2026-10-26: purge 3 L with the spool, and full power for the purge
+
+**Why.** The spool-on purge was 7 L (D44). At about 10 mL/s that is about 11 min of purge, most of it dead volume. The user's view: 3 L is enough with the spool. Also, the purge should run at 100 % power (the one exception to the 60 % water limit, D21), while the 3 bar target and the cap stay. The user's note that the pressure never rises in the purge is not what the log says: see F207.
+
+**Changes (built, not flashed; not committed):**
+1. **Purge volume with the spool: 3 L** (`PURGE_SPOOL_ML` = 3000, `include/Settings.h`). Dead volume is 2.57 L (30 mL intake + 2.54 L spool). Without the spool it stays 500 mL. Decision D50. Replaces the 3 × dead volume rule for stage 1: stage 2 §3.7 rule 1 is updated to say so.
+2. **Full-power exception for the purge** (D51). `PUMP_PURGE_MAX_POWER_PERCENT` = 100 (`Settings.h`). The limit moved into a pure function `core::pump_power_limit_percent()` (`src/Core/pump_power.{h,cpp}`): full power wins, then air, then water. `CtrlPump` got `set_full_power()` (`include/Pump.h`), used in the output clamp and the pause resume clamp (`src/Hardware/Pump.cpp`). `step_purge()` is the only caller that sets it. Pressure target (`OPERATION_TARGET_BAR` = 3.0) and cap (`STX_MAX_PRESSURE`) are unchanged.
+3. **Spool timeout kept at 13 min** (D46). At 3 L it is only a safety; the volume stops the run. The comment now says so. Not changed; lower it if you want it shorter.
+4. **Docs:** [stage2 §3.7 rule 1](../roadmap/stage2-pilots.md) and the §7b table row, [code-guide.md](../software/code-guide.md), [decisions.md](decisions.md) (D44 marked superseded in part; D50, D51), [findings.md](findings.md) (F207).
+
+**Behavior changes (for the PR):**
+- The spool-on purge is 3 L, not 7 L (purge time about 5 min at 60 %, less at 100 %).
+- The purge runs at 100 % power. All other water runs stay at 60 %.
+- The purge timeout is still 13 min with the spool (unchanged).
+
+**Checks (this session):**
+- `pio test -e native`: 176 of 176 pass (the new `test_pump_power` has 4 cases; `test_run_keys` now uses 3000).
+- `pio run -e due`: SUCCESS. RAM 8.7 %, flash 30.9 %.
+- Not run: host tests, the bench. Nothing was flashed.
+
+**Not decided / open:**
+1. **F207, the bench check (before the field):** run `full_cycle` or the purge with the spool on, with the pressure log (`VERBOSE_PURGE_PRESSURE`) and the manifold watched for leaks. Record `pressure_max` and the purge time. Pass if there is no leak at the seal and the cap is not reached. If the pressure rises a lot, reconsider the 100 %.
+2. The 2.54 L spool volume is still geometry (F130). Weigh one spool-on purge to confirm the 3 L covers it.
+3. Blank is not a purge: nothing was changed for it.
+4. The branch: the work stays on `stage1-field` (the user's decision, 2026-10-26; not `cowas-v2`). Nothing has been committed; the user will commit.
+
+
+---
+
+### Session 2026-10-26 (decisions): summary
+
+**Decided by the user:**
+- Spool on: purge 3 L (D50). Without the spool: 500 mL, unchanged.
+- Purge only: 100 % pump power, the one exception to the 60 % water limit (D51). The 3 bar target and the cap are unchanged.
+- Blank is not a purge. Nothing changed for it.
+- Work stays on `stage1-field`. Not `cowas-v2`. The user commits.
+
+**Changed:** see the entry above. Files: `include/Settings.h`, `include/Pump.h`, `src/Hardware/Pump.cpp`, `src/Step_functions.cpp`, new `src/Core/pump_power.{h,cpp}`, new `test/test_pump_power/`, `test/test_run_keys/test_main.cpp`, `docs/roadmap/stage2-pilots.md` §3.7 and §7b, `docs/roadmap/stage1-FINISHED-prototype.md` (to-do item 4), `docs/software/code-guide.md`, `docs/logs/decisions.md`, `docs/logs/findings.md`.
+
+**Checks:** `pio test -e native` 176/176; `pio run -e due` builds. Not run: host tests, bench, flash.
+
+**Open:**
+1. F207: bench check of the 100 % purge (pressure log, manifold watched) before the field.
+2. Stage 1 to-do item 4: weigh one spool-on purge (F130).
+3. The spool timeout stays 13 min (a safety only).
+4. `findings.md`: F207 row sits above F206. Reorder when convenient.
+
+---
+
+### Session 2026-10-26 (later): sample loading order and availability
+
+**Why.** The operator should not have to choose a sample number. `run_sample` picks the next loaded sample in the loading order, which keeps neighbouring samples apart (cross contamination).
+
+**Decisions (user, 2026-10-26):**
+- One loading order: `FILL_ORDER` (`include/Settings.h`) = 1, 2, 3, 14, 13, 12, 11, 10, 9, 8, 4, 5, 6, 7. The tool reads it from there; nothing else copies it. Slot 7 is last.
+- The state is kept by the PC tool per run folder, not on the Due. A `run_sample` without the tool still runs, with a warning, and its record is not saved.
+
+**Changes:**
+- `tools/sample_slots.py` (new): reads `FILL_ORDER`; `SlotBook` keeps each sample as available, used or unavailable in `slots.json`.
+- `tools/session_log.py`: a new folder asks how many samples are loaded, then asks for confirmation that they are sorted on the device. `run_sample` (no slot) sends the next available sample; `run_sample <slot>` asks to erase a used or unloaded one. The `META|sample` line marks a sample used. The tool sends `log_on` at its start.
+- `src/Tests_mech.cpp`: new `log_on` command (flag, reset at boot). `run_sample` prints a `WARNING` when no PC log is running. Help lines added.
+- Docs: [session-log.md](../software/session-log.md) (order, numbering, tag, unavailable, erase, appended records), [commands.md](../software/commands.md) (`log_on`, `run_sample`), [stage3](../roadmap/stage3-full-system.md) P2-19 (sample records on the device: SD card or slave MCU).
+
+**Behavior changes (for the PR):**
+- Firmware: new `log_on`. `run_sample` prints a `WARNING` line before its questions when no PC log is running. The sample still runs.
+- The tool: `run_sample` without a slot runs the next loaded sample in the loading order, not the slot the manifold is on.
+- `FILL_ORDER` is unchanged.
+
+**Checks:**
+- `python -m pytest tools/`: 135 pass.
+- `ruff check` and `ruff format --check` pass on the new files. `session_log.py` has one SIM115 (the `open()` in `Session`, from before this work) and was not ruff-formatted before.
+- `pio run -e due`: SUCCESS, not flashed.
+- A smoke run of `session_log.py` with a fake serial port (no hardware): the start questions, the next-sample pick, and the refusal of an unloaded slot behaved as specified.
+- Not run: `pio test -e native` (no native code changed), the bench.
+
+**Open:**
+1. Bench check, once the user approves the flash: `run_sample` with and without the tool (the warning appears only without `log_on`), and a full sample with the record saved.
+2. Anticlockwise direction: the user's statement. The code confirms only that the no-hole position is between slots 3 and 4 (`include/Manifold.h`).
+3. The tool's state is not checked against the device, and a `run_sample` typed in `pio device monitor` skips the loading order.
+4. A re-run of a slot is saved as a new record with the same slot number; the operator uses the last one.
+5. Not committed. Work is on `stage1-field`; CLAUDE.md asks for a branch from `cowas-v2`.
+
+---
+
+### Session 2026-10-26 (timed sample list in the session tool)
+
+**Why.** The night run needs samples at set times, without the operator typing each `run_sample` on time. The operator writes a list of samples and times; the tool runs it.
+
+**Decisions (user, 2026-10-26):**
+- A CSV file, one row per sample: `time` (HH:MM, PC clock), `name` (empty = the time), `condition`, optional `spool` (on/off) and `depth_m`.
+- Before the run the tool shows the list and asks whether the samples fit the timeline. No automatic check (D52, F208).
+- A sample due while the one before still runs waits until that one has finished.
+- The real start and finish times are recorded.
+- The spool depth is recorded only: the spool is disabled (`SPOOL_USE = false`).
+
+**Decisions made in the code (to change if you want):**
+- Rows stay in the order of the file. The first time is today. A time 6 hours or more before the row above is the next day (night run); a smaller step back is refused with its line number.
+- An empty condition becomes `not given` (the device needs one).
+- A run the device refuses releases its sample slot: the sample is still unused.
+- A `run_sample` typed by hand is refused while samples are pending.
+- While a run has no `TEST` line, the log says *still waiting* every 10 minutes.
+- An error in the scheduler stops it with a message. The samples not run then need `run_sample` by hand.
+
+**Changes:**
+- `tools/sample_schedule.py` (new): reads the CSV, shows the list, runs it (`Schedule`), writes `schedule.csv`.
+- `tools/session_log.py`: `--schedule FILE.csv`. Asks the fit question after the sample questions. Answers the device's name, condition and notes prompts. Refuses a hand-typed `run_sample` while samples are pending.
+- `tools/tests/test_sample_schedule.py` (new): 49 tests.
+- `tools/schedule_example.csv` (new).
+- [session-log.md](../software/session-log.md): section "Scheduled samples".
+- [stage 1](../roadmap/stage1-FINISHED-prototype.md): to-do item 6 and the quick field test ("Quick test: the timed sample list").
+- [decisions.md](decisions.md) D52, [findings.md](findings.md) F208.
+
+**Firmware:** no change. The tool relies on these device lines (`Tests_mech.cpp`): `ASK | sample name`, `ASK | condition`, `ASK | notes`; `REFUSED | run_sample`, `CANCELLED`, `Sample not started`; and `TEST|run_sample|<slot>|PASS|FAIL|...`. A run always ends with its `TEST` line (`cmd_run_sample` calls `test_result` after `run_full_cycle`). A `REFUSED | run_sample` line is printed only before the pump runs. If these texts change in the firmware, change the constants at the top of `tools/sample_schedule.py` too.
+
+**Logic review (before the field test):** the first version had these holes. All fixed:
+1. The list was sorted by clock time. A night run (23:30, 00:30) would be reordered, and 00:30 would count as already passed. Now: file order, next-day rule.
+2. A run refused after its `META` line (O-ring state unknown) had marked its slot used. Now the slot is released.
+3. A hand-typed `run_sample` during a schedule would collide with the scheduled one. Now refused.
+4. A silent device blocked the schedule with no message. Now a 10-minute *still waiting* line.
+5. An exception in the scheduler thread stopped it silently. Now reported.
+6. `schedule.csv` gained a `scheduled` column (date and time), so the due time is in the file next to the real times.
+
+**Tests:**
+- `python -m pytest tools/`: 184 pass (49 for the schedule).
+- End-to-end with a fake serial port (a scratch script, not in the repo): two samples, A at its time, B due during A. B waited for A's `TEST` line. The name, condition and notes reached the device. `schedule.csv` has the real times, both PASS. Exit code 0.
+- Not run: the Due (no bench; not flashed). No firmware build (no firmware change).
+
+**Open:**
+1. The field test ([stage 1, quick test](../roadmap/stage1-FINISHED-prototype.md#quick-test-the-timed-sample-list-field)): not done yet. Do it before the night run.
+2. F208: no check that the samples fit the timeline.
+3. The schedule needs `session` on the Due before the first time. Without it the first run is refused and its slot released. Check the first row.
+4. A `run_sample` typed in `pio device monitor` still skips the tool and the loading order (see the entry above).
+5. Not committed. Work is on `stage1-field`; the user commits.
+
+---
+
+### Session 2026-10-26 (timed sample list, second pass)
+
+**Why.** The user reviewed the timed list and asked for: dates in the file, a list that runs only when the operator starts it, a hand `run_sample` that asks first, a tutorial for Felix, and a logic check. This entry supersedes the 6-hour rule and the "fit your timeline" question of the entry above.
+
+**Decisions (user, 2026-10-26):**
+- The file has a `date` column: `2026-10-27`, `27/10/2026`, or `+N` (N days after the day the file is read). `+0` is today.
+- **Nothing runs when the file is loaded.** `schedule start`, then `y`, starts it (D53).
+- A `run_sample` typed by hand during the list asks to stop the list. After the hand run the tool says how to continue with `schedule start`.
+- The field test puts the two samples 15 minutes apart (spool rule, the user's estimate; see F208).
+
+**Decisions in the code (review them):**
+- The file's dates are converted to full dates once, when it is read. The full list is saved in the run folder as `schedule.csv`, with the status, slot and real times of each sample. Restarting with the same tag goes on from that file.
+- A saved list that has not started yet is replaced by an edited file. A list that has started is kept, and the message says so.
+- A sample that was running when the tool closed is `interrupted` and is not run again.
+- Rows are sorted by date and time. Equal times keep the file order.
+- `;` or `,` separators, `,` or `.` as decimal point, and an Excel byte-order mark are all accepted.
+- An empty condition becomes `not given` (the device needs one).
+- A run that the device refuses after its name frees the sample slot.
+
+**What the words mean (the user's questions):**
+- `TEST|run_sample|<slot>|<PASS|FAIL|SKIP>|<k=v;...>`: the line the Due prints at the end of every `run_sample`. The result is in the middle. The list uses it to know the sample is finished (`summary` lines do not count).
+- **The "watchdog":** if the Due goes quiet during a sample (no TEST line), the list would wait forever with no message. Now the log repeats "still waiting" every 10 minutes. It does not stop by itself.
+- **The thread errors:** a bug in the list stops it with a message on screen and in the log. The samples not run yet stay saved, and `schedule start` continues them.
+
+**Logic fixes (this pass):**
+1. **Refused after the name:** the O-ring refusal comes after the name, so the slot was left used. Now `on_device_line` frees the slot when the device refuses after the name. This works for hand runs too.
+2. **Stop race:** after `schedule stop`, a sample could still start: the waiting thread woke on the TEST line of the sample before, then sent the next one. The wait now checks the stop flag.
+3. **Hand run during the list:** the question *stop the schedule?* is asked only while the list runs. A hand run is refused while a list sample is on the device.
+4. **Midnight:** the old rule (6 hours) is gone. Each row has its date.
+5. **Restart:** the list is loaded from the run folder, so a closed and reopened tool does not repeat or lose samples.
+
+**Checked and corrected:** a run-start problem was first suspected (the tool's `=== run_sample ===` line). It is printed by `test_begin` (`src/Test_report.cpp`), after the name and before the pump run. No problem; the suspicion was wrong and no finding was kept.
+
+**Changes:**
+- `tools/sample_schedule.py`: rewritten. Dates, saved list, start and stop, thread, the refusal rule.
+- `tools/session_log.py`: `schedule`, `schedule start`, `schedule stop`; the hand-run question; the refusal handling in `on_device_line`; `--schedule` reads the list (nothing auto-starts).
+- `tools/schedule_example.csv`: new format.
+- `tools/tests/test_sample_schedule.py`: rewritten, 64 tests. `tools/tests/test_sample_slots.py`: 3 new tests (refusal, no run start on a refusal before the name, a finished run).
+- [operator-tutorial.md](../field/operator-tutorial.md): new section 4 (the CSV, starting, while it runs, restart).
+- [session-log.md](../software/session-log.md): the schedule section rewritten for the developer.
+- [stage 1](../roadmap/stage1-FINISHED-prototype.md): quick test (two samples 15 minutes apart, start, restart check, pass criteria).
+- [decisions.md](decisions.md) D53, [findings.md](findings.md) F208 (kept, open).
+
+**Checks:**
+- `python -m pytest tools/`: 202 pass.
+- End-to-end runs with a fake serial port (scratch scripts, not in the repo):
+  - A: the list is shown, `schedule start` asks `n` (nothing starts), then `y`; two samples run in order; `schedule.csv` has the dates and real times.
+  - B: a hand `run_sample` during the list asks to stop it; the hand run goes; the hint to `schedule start` appears.
+  - C: the same tag reopened without `--schedule` loads the list: one sample PASS, one left.
+- Not run on the bench. No firmware change. Not flashed.
+
+**Open:**
+1. The field test (stage 1, quick test): not done yet. Before the night run.
+2. F208: no check that the samples fit the timeline. The 15-minute rule is the user's estimate, not a measured cycle time.
+3. A `run_sample` typed in `pio device monitor` still skips the tool and the loading order.
+4. Not committed. Work is on `stage1-field`; the user commits.
+
+---
+
+### Session 2026-10-26 (timed sample list, third pass)
+
+**Why.** Review of the timed list (`--schedule`) before closing the session. Changes asked by the user: a generic file name, the `+N` base day, a simpler and better commented module, and tutorial text for Felix. This entry corrects the two earlier entries where they are now wrong.
+
+**Corrections to the entries above:**
+- `+N` counts from the day `schedule start` is first typed, not from the day the file is read (D54).
+- The file name is free. `night.csv` in the tutorial was too specific; it is `schedule.csv` now.
+- No "15 minutes between samples" rule is written anywhere. The 15 minutes in the stage 1 test are only the test's own spacing.
+- The `=== run_sample ===` line is printed by the firmware (`test_begin`, `src/Test_report.cpp`). The F209 finding raised earlier was wrong and is not kept.
+
+**Decisions (user, 2026-10-26):**
+- Dates: `2026-10-27`, `27/10/2026`, or `+N`. `+0` is the day `schedule start` is first typed.
+- The list runs only after `schedule start` and a `y`. The tool shows the dates before it asks.
+- Stop, hand runs, closing the tool to work on the code, and restart: all work with the same tag, from the saved list.
+- Rainbow CSV is only a colour aid. The repo does not use it; nothing needs it. The tutorial says so.
+
+**Changes:**
+- `tools/sample_schedule.py`: rewritten, shorter and simpler.
+  - Dates stay as text (`+N` or a full date) until `schedule start`. `resolve()` turns them into full dates and sorts, in one place.
+  - "Not run" status removed: a waiting sample stays `waiting` when the tool closes.
+  - `preview()` shows the resolved dates without changing the list.
+  - `start()` resolves, saves, then starts the thread.
+- `tools/session_log.py`: `schedule_command` takes the day of the start. `--schedule` no longer takes a base day. Removed the duplicate launch message. Smaller refusal branch in `on_device_line`.
+- `tools/tests/test_sample_schedule.py`: rewritten, 71 tests. `tools/tests/test_sample_slots.py`: no change in this pass.
+- `tools/schedule_example.csv`: new column layout (`date` first).
+- Docs: [operator-tutorial.md](../field/operator-tutorial.md) section 4 (generic file name, `+N` rule, no spacing rule, the optional CSV viewer); [session-log.md](../software/session-log.md) schedule section; [stage 1](../roadmap/stage1-FINISHED-prototype.md) quick test (`schedule.csv`, `+0` at start, restart check).
+- [decisions.md](decisions.md) D54.
+
+**Checks:**
+- `python -m pytest tools/`: 209 pass.
+- `ruff format` and `ruff check` on the new files: clean. One `SIM115` remains in `session_log.py` (the `open()` in `Session`), from before this work.
+- End-to-end runs with a fake serial port (scratch, not in the repo):
+  - A: the list shows; `schedule start` shows the `+N` dates and asks; the `+1` sample waits for tomorrow; the `+0` sample runs and gets PASS.
+  - B: a hand `run_sample` during the list asks to stop it; the hand run goes; the hint to `schedule start` appears.
+  - C: the same tag reopened without `--schedule` loads the saved list with one sample PASS and one waiting.
+- Not run on the bench. No firmware change. Not flashed.
+
+**Open:**
+1. The field test (stage 1, quick test): not done yet. Before the night run.
+2. F208: no check that the samples fit the timeline.
+3. A sample that was running when the tool closed is not run again. The operator checks the device.
+4. A `run_sample` typed in `pio device monitor` still skips the tool and the loading order.
+5. Not committed. Work is on `stage1-field`; the user commits.
+
+---
+
+### Session 2026-10-26 (timed list, fourth pass: tests and open items)
+
+**Why.** The user asked for only the useful tests, and for the open items to be parked in stage 2.
+
+**Open items, moved to stage 2 [§7b](../roadmap/stage2-pilots.md#7b-carried-from-the-stage-1-operator-test):**
+- F208: the timed list does not check that the samples fit the timeline (host, new step).
+- A `run_sample` typed in `pio device monitor` skips the session tool: no record, no loading order, no timed list (FW7). A line in the stage 1 "Limits" also tells the operator to use the tool for every sample.
+- The stage 1 field test (quick test) is still to be done before the night run. It stays in stage 1, not in stage 2.
+
+**Tests:**
+- `tools/`: 209 → 184 pass.
+- Schedule tests (`tools/tests/test_sample_schedule.py`): 71 → 47. Removed: repeated date and time formats, one test per spool variant, variants of the plan-loading checks, a second clock test covered by the next-day test, and a stop test that repeated another. Each kept test checks one behaviour that matters (reading errors, saved list, start and resolve, device answers, end of a sample, waiting, stop, restart, hint, reminder, thread error).
+- Slot tests (`tools/tests/test_sample_slots.py`): 29 → 28. Removed one trivial pass-through check. The rest cover the loading order and the run flow.
+- Not touched: the earlier tests of `analyze_la3`, `analyze_la4`, `compare_tune`, `hw_test_log` and `session_log` (109 tests, from before this feature).
+- `ruff check` and `ruff format --check` pass on the new files.
+
+**Not run:** the bench, the flash. Not committed. Work is on `stage1-field`; the user commits.
+
+---
+
+### Session 2026-10-26: summary of the timed sample list (for closing the chat)
+
+**Where it stands.** The session tool (`tools/session_log.py`) can run a list of samples at set times from a CSV file (`--schedule`). Nothing starts until the operator types `schedule start` and confirms. The list can be stopped, the operator can run samples by hand, and the tool can be closed and reopened with the same tag; the list resumes from `schedule.csv` in the run folder. Entries above give the detail: first pass (design), second pass (review and fixes), third pass (dates, names, cleanup), fourth pass (tests, open items).
+
+**Decisions:** D52 (timed list), D53 (explicit start, saved list), D54 (`+N` counts from the first `schedule start`; no 15-minute rule written).
+
+**Findings:** F208 (no fit check for the timeline, open), F210 (`run_sample` in `pio device monitor` bypasses the tool, open, fix FW7). Both are in stage 2 [§7b](../roadmap/stage2-pilots.md#7b-carried-from-the-stage-1-operator-test).
+
+**Still to do:**
+1. Stage 1 field test, the quick test in [stage 1](../roadmap/stage1-FINISHED-prototype.md#quick-test-the-timed-sample-list-field). Before the night run.
+2. Bench: none needed for the tool. The firmware is unchanged.
+3. Commit: the user, on `stage1-field`.
+
+**Files of this work:** `tools/session_log.py`, `tools/sample_schedule.py`, `tools/sample_slots.py`, `tools/schedule_example.csv`, `tools/tests/test_sample_schedule.py`, `tools/tests/test_sample_slots.py`, `docs/field/operator-tutorial.md` (section 4), `docs/software/session-log.md`, `docs/roadmap/stage1-FINISHED-prototype.md`, `docs/roadmap/stage2-pilots.md` (§7b), `docs/logs/LOG.md`, `docs/logs/decisions.md`, `docs/logs/findings.md`.
+
+**Tests:** `python -m pytest tools/`: 184 pass. Ruff clean on the new files.
+
+---
+
+### Session 2026-10-26 (stage 2 spec: sample duration from field logs)
+
+**Why.** The timed list (`--schedule`) cannot yet tell whether a planned mission fits the time it takes. The user wants the sample time estimated from real field runs, and a warning when a plan does not fit. This is a spec only: nothing is implemented.
+
+**What was specified** ([stage 2 §7.2, HO6](../roadmap/stage2-pilots.md), P1, after HO5):
+- Input: the sample records and the step times of the session folders. The parameters that change the duration: spool or no spool, intake depth, target volume, pump power, filter state (clogged or stalled), shield time.
+- Rule: read the last 10 session folders at each host start (all of them if there are fewer). Group the samples by parameter. A group is repeatable when its spread is within ±15 % of its median (placeholder). The estimate is the longest repeatable total plus 5 %. No repeatable group, no estimate.
+- Use: warnings in the mission runner, never a block. The firmware does not read these timings.
+- Trace: each estimate writes its inputs to the run folder.
+
+**Open, for the user:** (a) "longest repeatable" as the maximum, or a percentile such as the 90th; (b) the repeatability numbers (3 samples, ±15 %) are placeholders until field data exists.
+
+**Registers:** D55 (proposed). F208 now points to HO6.
+
+**Not changed:** code, firmware, tests. Not committed; work is on `stage1-field`.
+
+---
+
+### Session 2026-10-26 (HO6 spec: verified and completed)
+
+**Why.** Check the HO6 spec against the request before closing the chat.
+
+**Decided by the user:** the value per key is the **90th percentile** of the repeatable group (not the maximum). The 3-sample and ±15 % numbers stay placeholders until field data.
+
+**What the check found, and what changed in [HO6](../roadmap/stage2-pilots.md):**
+- The spec had no stored table and no check of measured times against it. Added: `timings.json` in the host data folder (one file, history kept), checked and updated at each host start, with a report.
+- "Longest" replaced by the 90th percentile (D55).
+- Only runs that reached their full volume (`end_reason = volume`) are timed. Other runs are counted, not timed.
+- Firmware version (`fw`) and calibration (`calib`) are keys: a change starts a new group.
+- Only `purpose = sample` records are timed; each run is one timing, taken from its sample record.
+- The total is `run_finish_pc − run_start_pc`. The step times `t_*_s` exist in the firmware source (added 2026-10-23), but no record on disk has them yet (checked 2026-10-26).
+
+**Facts checked on disk:** `docs/logs/test-logs/2026-10-23/` has 8 records: 4 purge and 4 sample records. Of the 4 sample records, 1 is complete (`volume`) and 3 ended `clogged`. No key reaches 3 complete samples, so the estimator's first run on this data must give "no value". That is the first test of HO6.
+
+**Registers:** D55 updated (90th percentile, stored table, placeholders). F208 points to HO6.
+
+**Not changed:** code, firmware, tests. Not committed; work is on `stage1-field`.
+
+---
+
+### Session 2026-10-26 (HO6 recheck against the request)
+
+**Gaps found and fixed in [HO6](../roadmap/stage2-pilots.md):**
+- **Spool and depth are not in the sample record.** Spool is only on the TEST line; depth is not recorded at all. Added as prerequisites (owner: firmware and session tool).
+- **Shield time and pump power were listed as keys.** Both are constant today, so they are not keys yet.
+- **Keys were not defined as a string.** Defined: `spool; depth_m; target_ml; fw; calib`.
+- **Clock:** the durations use the PC clock, so HO4 (trusted clock) is a dependency.
+- **Structure for developers:** definitions, the `timings.json` schema, the run steps, a pure estimator with I/O apart, golden tests, and eight "done when" checks.
+
+**Open, for the user:** whether the stored value follows the 10-session window (recommended) or only goes up. The request's "keeping the longest" can mean either. D55 and HO6 both list it.
+
+**Not changed:** code, firmware, tests. Not committed; work is on `stage1-field`.
+
+---
+
+### Session 2026-10-26 (HO6: the stored value never decreases)
+
+**Decided by the user:** the stored value per key never decreases: it is the largest candidate value seen. Outliers are excluded by the ±15 % repeatability rule. (Read as the second of the two options offered; the user's "yes except the outliers" was taken as this choice.)
+
+**Changed in [HO6](../roadmap/stage2-pilots.md):** `value_s = max(value_s, window_s)`, where `window_s` is the candidate from the current window. Schema, start steps and done-when list updated (two new checks: never decreases, outliers excluded). D55 updated.
+
+**Not changed:** code, firmware, tests. Not committed; work is on `stage1-field`.
+
+---
+
+### Session 2026-10-26: closing state (timed list and stage 2 specs)
+
+**Done in code (`stage1-field`, not committed):**
+- Timed sample list in the session tool: `--schedule FILE.csv`, shown at start, run only after `schedule start` and `y`. Stop, hand runs, close and reopen (same tag) all work. Dates `+N` count from the first start.
+- Refused runs free their slot. Run times and tool tests: `python -m pytest tools/` 184 pass. Ruff clean on the new files.
+- Firmware: unchanged. Not flashed. Not run on the bench.
+
+**Done in docs:** operator tutorial section 4; session-log tutorial section; stage 1 quick test; stage 2 HO6 spec (sample timing from field records); decisions D52 to D55; findings F208 (now HO6) and F210 (FW7).
+
+**Open:**
+1. Stage 1 field test (quick test, two real samples). To do before the night run.
+2. HO6 (P1, spec only): needs `spool` and `depth_m` in the sample record (firmware and session tool), HO3 and HO4 first. The 3-sample and ±15 % numbers stay placeholders until field data.
+3. F210: a `run_sample` typed in `pio device monitor` bypasses the tool. Fix in FW7.
+4. The 2026-10-23 records give no timing value yet (only one complete sample). The `t_*_s` step times are not on disk yet.
+5. Commit: the user, on `stage1-field`.
