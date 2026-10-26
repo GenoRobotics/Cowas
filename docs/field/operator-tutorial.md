@@ -21,8 +21,9 @@ Open a terminal in the **project folder** (the one with `tools` and `docs`).
    - experiment name
    - operator
    - **spool module on the machine? (y/n)**
+5. Type `fill_DNA` to load the DNA shield until the check valve.
 
-Steps 3 and 4 again after any reset or flash.
+Steps 3 and 4 again after any reset or flash. **Unplug and plug the USB cable or closing and reopenng the serial port** is also a reset.
 
 ---
 

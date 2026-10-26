@@ -63,7 +63,7 @@ void calibrate_DNA_pump()
     { // runs the big pump (cap)
         return;
     }
-    if (!rotateMotor(1))
+    if (!rotateMotor(12))   // is chosen to match a clogged filter
     { // FW2: refused (lock state) or failed -> nothing else runs
         return;
     }
@@ -101,7 +101,7 @@ void calibrate_DNA_pump()
                 micro_pump.stop();
                 button_start.waitPressedAndReleased();
                 state = start_micro;
-                output.println("Press right to start micro pump, Start to calibrate big pump");
+                output.println("Press right to start micro pump, Start move on to calibrate big pump");
             }
             break;
         case start_micro:
@@ -111,7 +111,7 @@ void calibrate_DNA_pump()
                 start_time_stamp = millis();
                 DNA_running = true;
                 state = stop_micro;
-                output.println("Press left when enough dyed fluid is in pipe");
+                output.println("Press left when enough dyed fluid is in sterivex");
             }
             else if (button_start.isPressed())
             {                      // next step
@@ -128,13 +128,13 @@ void calibrate_DNA_pump()
                 time_micro_pump += millis() - start_time_stamp;
                 state = start_micro;
                 button_left.waitPressedAndReleased();
+                output.println("Press right to start micro pump, Start move on to calibrate big pump");
             }
             break;
         case start_big:
             if (button_right.isPressed())
             {
-                valve_manifold.set_open_way();
-                valve_23.set_L_way();
+                valve_1.set_open_way();
                 pump.set_power(speed_big);
                 pump.start();
                 start_time_stamp = millis();
@@ -176,7 +176,7 @@ void calibrate_DNA_pump()
             output.println(speed_big);
 
             state = start_end;
-            pump.start(4000);
+
             output.println("Press Start to go again, right to stop calibrating");
             break;
         case start_end:
@@ -200,7 +200,7 @@ void calibrate_DNA_pump()
         delay(20);
     }
 
-    // turning "off" valves, no voltage applied
+    // turning "off" valves, no voltage applied (even those that should not have been opened, just in case)
     valve_23.set_L_way();
     valve_manifold.set_close_way();
     valve_1.set_close_way();

@@ -151,12 +151,12 @@ static bool vent_wait(uint32_t ms)
  * sample for the pressure: the O-ring unlock goes on whatever the readings (the readings are logged). Only a faulty
  * sensor read or an abort returns false, and the caller stops with the O-ring LOCKED.
  */
-static bool vent_line(const char *who)
+static bool vent_line(const char *who, uint32_t pressure_decay_ms = PRESSURE_DECAY_WAIT_MS)
 {
     pump.stop();
     valve_1.set_close_way();
     valve_manifold.set_close_way();
-    output.println(String("Vent: pump off, V1 and Vman closed for ") + String(PRESSURE_DECAY_WAIT_MS / 1000) +
+    output.println(String("Vent: pump off, V1 and Vman closed for ") + String(pressure_decay_ms / 1000) +
                    " s, then air vent V1 open for " + String(PRESSURE_AIR_VENT_MS / 1000) + " s");
 
     const float p_before = read_p_in();
@@ -1099,10 +1099,18 @@ bool step_DNA_shield(int slot_manifold)
     delay(500);
     const uint32_t t_push = millis();
     pump.start(PUMP_SHIELD_TIME);
-    output.println("Step DNA-shield: air push ran " + String(millis() - t_push) + " ms at " + String(PUMP_SHIELD_POWER) + " %");
+    // there is a 500ms delay to close the 24V valve of the pump before reaching the print
+    output.println("Step DNA-shield: air push ran " + String(millis() - t_push - 500) + " ms at " + String(PUMP_SHIELD_POWER) + " %");
     delay(500);
     if (aborted_stop("step_DNA_shield"))
     {
+        return false;
+    }
+
+    // also vent here, not only when sampling water. Pressure builds up withh the DNA shield. waiting lets it move into the filter
+    if (!vent_line("step_DNA_shield", 40000))
+    {
+        stop_procedure("step_DNA_shield");
         return false;
     }
 

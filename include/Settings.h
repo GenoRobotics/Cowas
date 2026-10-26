@@ -30,7 +30,7 @@ const uint32_t FILL_CONTAINER_TIME = 60 * 1000 * 11;         // ms. Experimental
 // micro pump DNA-shield variables
 const uint32_t FILL_STERIVEX_TIME = 250000; //
 const int8_t PUMP_SHIELD_POWER = 13;        // power of big pump to push the DNA-shield into the sterivex
-const uint32_t PUMP_SHIELD_TIME = 300;      // ms for the big pump's run AFTER its 4 s soft ramp. The air push measures 4.8 s in total (ramp + this + the 500 ms relay stop); user accepted 4.8 s, 2026-10-19. Time for big pump to push DNA-shield
+const uint32_t PUMP_SHIELD_TIME = 6000; // was 300      // ms for the big pump's run AFTER its 4 s soft ramp. The air push measures 4.8 s in total (ramp + this + the 500 ms relay stop); user accepted 4.8 s, 2026-10-19. Time for big pump to push DNA-shield
 
 // shield micro pump calibration (LA3, console `shield_calibrate`, docs/lab/shield-protocol.md Part A).
 // The prompts offer these as defaults; nothing in operation reads them.
@@ -217,9 +217,9 @@ const uint8_t STATUS_LED_PIN = 23;
 const uint8_t GREEN_LED_PIN = 22;
 const uint8_t PRESSURE1_PIN = 8;
 const uint8_t pressure_3_pin = A1; // pressure 0-12 bar (cheaper one, only water)
-const uint8_t VALVE_1_PIN = 44;
+const uint8_t VALVE_1_PIN = 44;     // is connected to the air
 const uint8_t VALVE_23_PIN = 40;
-const uint8_t VALVE_MANIFOLD = 46; // valve manifold
+const uint8_t VALVE_MANIFOLD = 46; // was manifold, is now the valve conencted to the water intake
 const uint8_t PUMP_PIN = DAC1;
 const uint8_t PUMP_ENABLE = 42;
 // Output controlled by transistor, digital pin is toggeling voltage on and off
