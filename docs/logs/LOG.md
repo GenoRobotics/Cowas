@@ -2260,3 +2260,11 @@ Condensed on 2026-10-23 at the user's request. The findings and decisions are in
 3. The `archive/shield_V2-2026-10-23` tag is the only record of the old shield_V2 code outside the branch history.
 
 Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>
+
+### Pre-field session (26-10-26)
+
+1. modified the CW offset and the encoder manifold 0 beause it misaligned
+2. Adapted DNA shield times. Reduced the filling time by 1 minute, because the sterivex was already filled.
+3. The big pump duration was put to 5s instead of 6s (don't know if it includes the ramp). It pused some air inside during the venting. The pressure built up was already too much
+
+**This might be adapted based on field observations, as the filter will behaved differently depending how it is clogged**

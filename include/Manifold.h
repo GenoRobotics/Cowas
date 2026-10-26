@@ -27,7 +27,7 @@ const float encoder_to_deg = 360.0 / 4096.0;
 // physical spot; they no longer have to be.
 // The reference is raw 0, which is human slot 7 (the table walks from the purge at raw 8).
 // So `cal` is done with the rotor on slot 7 (2026-10-22). Not the purge hole.
-const float purge_angle = 344.27; // D40 (F191): 276.77 + 67.5 (3 slots). The rotor was aligned to the table, but the reference sat on slot 10: `slot7` landed on physical slot 10. Eye-checked by the user 2026-10-23. Replaces 276.77 (D39, did not fix it); was 276.42 (encoder 3145.00, D37); was 275.45 (encoder 3134.00, D35); was 279.58 (encoder 3181.00, D34, loose encoder); was 345.06 (cal 2026-10-22, encoder 3926.00, D33, loose encoder); was 270.44 (cal 2026-10-20, encoder 3077.00, F165); was 341.37 (cal 2026-10-12, encoder 3884.00)
+const float purge_angle = 342.51; // D40 (F191): 276.77 + 67.5 (3 slots). The rotor was aligned to the table, but the reference sat on slot 10: `slot7` landed on physical slot 10. Eye-checked by the user 2026-10-23. Replaces 276.77 (D39, did not fix it); was 276.42 (encoder 3145.00, D37); was 275.45 (encoder 3134.00, D35); was 279.58 (encoder 3181.00, D34, loose encoder); was 345.06 (cal 2026-10-22, encoder 3926.00, D33, loose encoder); was 270.44 (cal 2026-10-20, encoder 3077.00, F165); was 341.37 (cal 2026-10-12, encoder 3884.00)
 // for the diff of both:
 // * option 1
 // const float purge_angle = 88.24; //is the angle at which the purge hole is aligned with the rotor hole

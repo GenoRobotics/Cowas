@@ -14,7 +14,7 @@ const uint16_t speed = 40; // Refers to power, min 70 to move
 
 // ! move back to .h
 //float angle_offset_neg = -1.05;   // when turning CCW
-float angle_offset_pos = 2.3;   // when turning CW. 2026-10-22 (user): rotate_all dry, CW moves mean +1.09 deg overshoot, so 1.2 + 1.09 (F128 history: was 5.2 at speed 40, 2026-10-12). Check with rotate_all dry order=fill auto
+float angle_offset_pos = 5.6;// 26/10/26 to 5.6 from 2.3   // when turning CW. Larger offset means stopping earlier. 2026-10-22 (user): rotate_all dry, CW moves mean +1.09 deg overshoot, so 1.2 + 1.09 (F128 history: was 5.2 at speed 40, 2026-10-12). Check with rotate_all dry order=fill auto
 
 motor_direction direction = down; // 1 or -1
 int nb_turns = 0;
