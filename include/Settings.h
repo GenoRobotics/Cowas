@@ -30,7 +30,7 @@ const uint32_t FILL_CONTAINER_TIME = 60 * 1000 * 11;         // ms. Experimental
 // micro pump DNA-shield variables
 const uint32_t FILL_STERIVEX_TIME = 190000; // 26-10-26 reduced by a minute
 const int8_t PUMP_SHIELD_POWER = 13;        // power of big pump to push the DNA-shield into the sterivex
-const uint32_t PUMP_SHIELD_TIME = 5000; // was 300      // ms for the big pump's run AFTER its 4 s soft ramp. The air push measures 4.8 s in total (ramp + this + the 500 ms relay stop); user accepted 4.8 s, 2026-10-19. Time for big pump to push DNA-shield
+const uint32_t PUMP_SHIELD_TIME = 1000; // was 300      // ms for the big pump's run AFTER its 4 s soft ramp. The air push measures 4.8 s in total (ramp + this + the 500 ms relay stop); user accepted 4.8 s, 2026-10-19. Time for big pump to push DNA-shield
 
 // shield micro pump calibration (LA3, console `shield_calibrate`, docs/lab/shield-protocol.md Part A).
 // The prompts offer these as defaults; nothing in operation reads them.
