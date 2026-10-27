@@ -217,48 +217,16 @@ void calibrate_DNA_pump()
     output.println("Calibration of DNA pump done");
 }
 
-bool run_pump(uint32_t max_time)
-{
-    pump.start();
-    if (!pump.is_running())
-    {
-        Serial.println("ERROR | Ethanol slot flush: pump did not start");
-        return false;
-    }
-
-    const uint32_t start_time = millis();
-    do
-    {
-        if (pump.is_running() && pump.enforce_pressure_safety())
-        {
-            return false;
-        }
-        delay(20);
-    } while (button_start.isReleased() && millis() - start_time < max_time);
-
-    const bool stopped_by_operator = button_start.isPressed();
-    pump.stop();
-    if (stopped_by_operator)
-    {
-        button_start.waitPressedAndReleased();
-    }
-
-    if (stopped_by_operator)
-    {
-        Serial.println("ABORT | Ethanol slot flush stopped by operator");
-        return false;
-    }
-    return true;
-}
-
-bool run_pump_until_volume(float target_ml, uint32_t max_time)
+bool run_pump_until_volume(float target_ml, uint32_t max_time, const char *stage)
 {
     flow_sensor_small.reset_values();
     const uint32_t start_time = millis();
     pump.start();
     if (!pump.is_running())
     {
-        Serial.println("ERROR | Ethanol purge prime: pump did not start");
+        Serial.print("ERROR | Ethanol ");
+        Serial.print(stage);
+        Serial.println(": pump did not start");
         return false;
     }
 
@@ -269,7 +237,9 @@ bool run_pump_until_volume(float target_ml, uint32_t max_time)
         if (volume_ml >= target_ml)
         {
             pump.stop();
-            Serial.print("Ethanol purge prime reached ");
+            Serial.print("Ethanol ");
+            Serial.print(stage);
+            Serial.print(" reached ");
             Serial.print(volume_ml);
             Serial.println(" mL indicated");
             return true;
@@ -279,7 +249,9 @@ bool run_pump_until_volume(float target_ml, uint32_t max_time)
         {
             pump.stop();
             button_start.waitPressedAndReleased();
-            Serial.println("ABORT | Ethanol purge prime stopped by operator");
+            Serial.print("ABORT | Ethanol ");
+            Serial.print(stage);
+            Serial.println(" stopped by operator");
             return false;
         }
 
@@ -291,7 +263,9 @@ bool run_pump_until_volume(float target_ml, uint32_t max_time)
         if (millis() - start_time >= max_time)
         {
             pump.stop();
-            Serial.print("ERROR | Ethanol purge prime timed out before reaching ");
+            Serial.print("ERROR | Ethanol ");
+            Serial.print(stage);
+            Serial.print(" timed out before reaching ");
             Serial.print(target_ml, 0);
             Serial.println(" mL indicated");
             return false;
@@ -329,9 +303,9 @@ void purge_pipes_manifold()
     delay(500);
     valve_manifold.set_open_way();
     Serial.print("Priming ethanol through purge slot until ");
-    Serial.print(ETHANOL_MANIFOLD_PRIME_ML, 0);
+    Serial.print(ETHANOL_MANIFOLD_FLUSH_ML, 0);
     Serial.println(" mL is indicated");
-    if (!run_pump_until_volume(ETHANOL_MANIFOLD_PRIME_ML, PURGE_MAX_RUNTIME_MS))
+    if (!run_pump_until_volume(ETHANOL_MANIFOLD_FLUSH_ML, PURGE_MAX_RUNTIME_MS, "purge prime"))
     {
         stop_purge_manifold();
         return;
@@ -358,13 +332,28 @@ void purge_pipes_manifold()
         delay(500);
         valve_23.set_L_way();
         valve_manifold.set_open_way();
-        if (!run_pump(3000))
+        if (!run_pump_until_volume(ETHANOL_MANIFOLD_FLUSH_ML, PURGE_MAX_RUNTIME_MS, "slot flush"))
         {
             stop_purge_manifold();
             return;
         }
         valve_manifold.set_close_way();
         delay(500);
+    }
+
+    if (!rotateMotor(PURGE_SLOT))
+    {
+        Serial.println("ERROR | Ethanol final purge: could not rotate to purge slot");
+        stop_purge_manifold();
+        return;
+    }
+    delay(500);
+    valve_manifold.set_open_way();
+    Serial.println("Sending the remaining ethanol through the purge slot (50 mL indicated)");
+    if (!run_pump_until_volume(ETHANOL_MANIFOLD_FLUSH_ML, PURGE_MAX_RUNTIME_MS, "final purge"))
+    {
+        stop_purge_manifold();
+        return;
     }
 
     stop_purge_manifold();

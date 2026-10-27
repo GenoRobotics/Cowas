@@ -37,7 +37,7 @@ What the firmware does when you type a command. Version: stage 1, 2026-10-23. Hi
 | `micro_pump` | Runs the DNA-shield pump for 10 s. | |
 | `micro_switch`, `buttons_command` | Tests the spool switches and the panel buttons. | Until a key. |
 | `linear_actuator` | Moves the O-ring actuator by hand (`f`, `b`, `e`, `s`, `p`, `v<n>`, `x`). | Does not update the lock state. |
-| `ethanol_purge` | Pumps through the purge slot until the flowmeter indicates 50 mL, then runs the pump for 3 s after soft start in each sample slot. | Needs the pressure sensor. 3 min timeout for the prime; a timeout, stop, pressure cap, or failed rotation skips later slots. The 50 mL indication needs gravimetric bench verification before ethanol use. |
+| `ethanol_purge` | Pumps through the purge slot until the flowmeter indicates 50 mL, pumps 50 mL through each sample slot, then pumps a final 50 mL through the purge slot to carry the remaining ethanol out. | Needs the pressure sensor. Each metered run has a 3 min timeout; a timeout, stop, pressure cap, or failed rotation skips later runs. Verify actual volumes gravimetrically before ethanol use. |
 | `oring_lock`, `oring_unlock` | Locks or unlocks the O-ring. | Refuse while UNKNOWN. |
 | `lock_cycle`, `lock_endurance` | Repeats lock and unlock for timing or wear. | |
 | `rotate_all`, `encoder_repeat` | Checks every slot, or one slot repeatedly, for alignment. | |
