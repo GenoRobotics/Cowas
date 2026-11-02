@@ -22,6 +22,9 @@
 #include "maintenance.h"
 #include "Step_functions.h"
 #include "Manifold.h"
+#include "Oring_lock.h"
+#include "Core/clean_plan.h"
+#include "Core/lock_rules.h"
 
 extern int manifold_slot;
 extern C_output output;
@@ -56,9 +59,6 @@ enum DNA_state
     results,
     start_end
 };
-
-bool run_pump(uint32_t max_time);
-bool run_pump_until_volume(float target_ml, uint32_t max_time);
 
 static void stop_purge_manifold()
 {
@@ -217,147 +217,313 @@ void calibrate_DNA_pump()
     output.println("Calibration of DNA pump done");
 }
 
-bool run_pump_until_volume(float target_ml, uint32_t max_time, const char *stage)
+// ---------------------------------------------------------------------------------------------------------------------
+// Ethanol cleaning of the tubing (`ethanol_purge`, user 2026-11-02). 70 % ethanol at the inlet and outlet, NO filter in
+// the manifold. 1) ethanol through the purge slot (prime: 3 L with the spool module, else 0.5 L), 2) 0.5 L through each
+// slot that was used, in FILL_ORDER, 3) air through each of those slots to dry them (30 s), 4) a last air push at the purge
+// slot (1 min). All air goes in by the air valve V1, like the drying of the filters (load_slot_air); the inlet is not used
+// for air, so the tubes can stay in the ethanol. The water runs use full power: the second exception to the water limit.
+// ---------------------------------------------------------------------------------------------------------------------
+
+extern float read_p_in(); // main.cpp - the pressure sensor backing the pump control and the cap
+
+static const uint32_t CLEAN_SETTLE_MS = 1000; // pause after a valve or a rotation, before the pump starts
+
+enum CleanRun
 {
-    flow_sensor_small.reset_values();
-    const uint32_t start_time = millis();
-    pump.start();
-    if (!pump.is_running())
+    CLEAN_RUN_OK,   // the run ended as planned
+    CLEAN_RUN_WARN, // not as planned, but harmless: the procedure goes on and says so at the end
+    CLEAN_RUN_FAIL  // cap, sensor, abort, refusal...: the procedure stops
+};
+
+// One typed line (ENTER ends it). False = x typed (cancel) or nobody answered within 10 min.
+static bool read_clean_answer(String &answer)
+{
+    const uint32_t start = millis();
+    while (millis() - start < 600000UL)
     {
-        Serial.print("ERROR | Ethanol ");
-        Serial.print(stage);
-        Serial.println(": pump did not start");
-        return false;
+        if (Serial.available() <= 0)
+        {
+            delay(20);
+            continue;
+        }
+        answer = Serial.readStringUntil('\n');
+        answer.trim();
+        return !answer.equalsIgnoreCase("x");
     }
+    return false;
+}
 
-    while (true)
+static void flush_console_input()
+{
+    while (Serial.available())
     {
-        flow_sensor_small.update();
-        const unsigned int volume_ml = flow_sensor_small.get_totalFlowMilliL();
-        if (volume_ml >= target_ml)
-        {
-            pump.stop();
-            Serial.print("Ethanol ");
-            Serial.print(stage);
-            Serial.print(" reached ");
-            Serial.print(volume_ml);
-            Serial.println(" mL indicated");
-            return true;
-        }
-
-        if (button_start.isPressed())
-        {
-            pump.stop();
-            button_start.waitPressedAndReleased();
-            Serial.print("ABORT | Ethanol ");
-            Serial.print(stage);
-            Serial.println(" stopped by operator");
-            return false;
-        }
-
-        if (pump.is_running() && pump.enforce_pressure_safety())
-        {
-            return false;
-        }
-
-        if (millis() - start_time >= max_time)
-        {
-            pump.stop();
-            Serial.print("ERROR | Ethanol ");
-            Serial.print(stage);
-            Serial.print(" timed out before reaching ");
-            Serial.print(target_ml, 0);
-            Serial.println(" mL indicated");
-            return false;
-        }
-        delay(20);
+        Serial.read();
     }
 }
 
-void purge_pipes_manifold()
+enum CleanAnswer
 {
-    if (!require_pressure_sensor("purge_pipes_manifold"))
+    CLEAN_ANSWER_YES,
+    CLEAN_ANSWER_NO,
+    CLEAN_ANSWER_CANCEL // x typed, or no answer in time
+};
+
+static CleanAnswer clean_ask_yes_no(const char *question)
+{
+    flush_console_input();
+    Serial.println(String("ASK | ") + question + " (y/n, x = cancel)");
+    String a;
+    if (!read_clean_answer(a))
     {
-        return;
+        return CLEAN_ANSWER_CANCEL;
     }
+    return (a.equalsIgnoreCase("y") || a.equalsIgnoreCase("yes")) ? CLEAN_ANSWER_YES : CLEAN_ANSWER_NO;
+}
 
-    Serial.println("Ready to start purge of manifold pipes, please press start button");
+static void stop_clean(const char *why)
+{
+    stop_purge_manifold();
+    Serial.println(String("ERROR | ethanol cleaning stopped: ") + why + " - pump off, valves closed, O-ring " + oring_lock_state_name());
+}
 
-    button_start.waitPressedAndReleased();
+static CleanRun judge_flush(const CtrlPump &run, const char *what, int slot)
+{
+    const char *r = run.end_reason();
+    if (strcmp(r, "cond") == 0)
+    {
+        return CLEAN_RUN_OK;
+    }
+    if (strcmp(r, "skipped") == 0)
+    {
+        Serial.println(String("WARNING | ") + what + " slot " + String(slot) + ": skipped with s, less than the planned ethanol went through");
+        return CLEAN_RUN_WARN;
+    }
+    Serial.println(String("ERROR | ") + what + " slot " + String(slot) + ": the pump run ended with " + r);
+    return CLEAN_RUN_FAIL;
+}
 
-    // step_fill_container();
-    delay(1000);
-    pump.set_power(25);
-
+// Ethanol through `slot` until the flowmeter indicates `ml` mL, at full power. Deployment line open, air inlet shut.
+static CleanRun clean_flush_slot(int slot, float ml, uint32_t max_ms, const char *what)
+{
+    if (!goto_slot_locked(slot))
+    {
+        return CLEAN_RUN_FAIL;
+    }
     valve_1.set_close_way();
-    valve_23.set_L_way();
-    valve_manifold.set_close_way();
-
-    if (!rotateMotor(PURGE_SLOT))
-    {
-        Serial.println("ERROR | Ethanol purge prime: could not rotate to purge slot");
-        stop_purge_manifold();
-        return;
-    }
-
-    delay(500);
     valve_manifold.set_open_way();
-    Serial.print("Priming ethanol through purge slot until ");
-    Serial.print(ETHANOL_MANIFOLD_FLUSH_ML, 0);
-    Serial.println(" mL is indicated");
-    if (!run_pump_until_volume(ETHANOL_MANIFOLD_FLUSH_ML, PURGE_MAX_RUNTIME_MS, "purge prime"))
+    delay(CLEAN_SETTLE_MS);
+
+    Serial.println(String("Ethanol ") + what + ": slot " + String(slot) + ", " + String(ml, 0) + " mL, full power");
+    const uint32_t t0 = millis();
+    pump_pid.reset(); // no integral left from the run before
+    CtrlPumpFlow ctrl;
+    ctrl.begin(&pump, &pump_pid, read_p_in, &flow_sensor_small, ml, OPERATION_TARGET_BAR, true);
+    ctrl.set_full_power(true); // the exception, shown to the operator before the run
+    ctrl.set_max_runtime(max_ms);
+    ctrl.run();
+    valve_manifold.set_close_way();
+    Serial.println(String("Ethanol ") + what + ": slot " + String(slot) + " end=" + ctrl.end_reason() + ", " +
+                   String((millis() - t0) / 1000) + " s, peak " + String(ctrl.pressure_max(), 2) + " bar");
+    return judge_flush(ctrl, what, slot);
+}
+
+// Air through `slot` for at least `hold_ms` (the pressure must stay at air level that long): V1 open, Vman closed, as in
+// load_slot_air() (the filter drying). Whatever is in the pump, V1 line and the slot is pushed out through the slot.
+static CleanRun clean_air_slot(int slot, uint32_t hold_ms, const char *what)
+{
+    if (!goto_slot_locked(slot))
     {
-        stop_purge_manifold();
+        return CLEAN_RUN_FAIL;
+    }
+    valve_manifold.set_close_way(); // the deployment line stays shut: the ethanol bottle is not touched
+    valve_1.set_open_way();         // take ambient air
+    delay(CLEAN_SETTLE_MS);
+
+    Serial.println(String("Air ") + what + ": slot " + String(slot) + ", " + String(hold_ms / 1000) + " s");
+    const uint32_t t0 = millis();
+    pump_pid.reset();
+    CtrlPumpNoWater ctrl;
+    ctrl.begin(&pump, &pump_pid, read_p_in, OPERATION_TARGET_BAR, true);
+    ctrl.set_end_cond_time(hold_ms);
+    ctrl.set_max_runtime(hold_ms + CLEAN_AIR_EXTRA_MAX_MS);
+    ctrl.run();
+    valve_1.set_close_way();
+    valve_manifold.set_close_way();
+    Serial.println(String("Air ") + what + ": slot " + String(slot) + " end=" + ctrl.end_reason() + ", " +
+                   String((millis() - t0) / 1000) + " s");
+
+    const char *r = ctrl.end_reason();
+    if (strcmp(r, "cond") == 0)
+    {
+        return CLEAN_RUN_OK;
+    }
+    if (strcmp(r, "timeout") == 0 || strcmp(r, "skipped") == 0)
+    {
+        Serial.println(String("WARNING | air ") + what + " slot " + String(slot) + ": ended with " + r +
+                       " (the pressure did not stay at air level for " + String(hold_ms / 1000) + " s): check the slot is dry");
+        return CLEAN_RUN_WARN;
+    }
+    Serial.println(String("ERROR | air ") + what + " slot " + String(slot) + ": the pump run ended with " + r);
+    return CLEAN_RUN_FAIL;
+}
+
+// The unused slots: from the command line (`ethanol_purge skip=3,7,12`) or asked. False = cancelled.
+static bool ask_unused_slots(const char *args, bool *unused)
+{
+    String text = args ? String(args) : String("");
+    text.trim();
+    bool given = text.length() > 0;
+    for (;;)
+    {
+        if (!given)
+        {
+            const CleanAnswer a = clean_ask_yes_no("Were some of the slots 1-14 not used, so they do not need cleaning?");
+            if (a == CLEAN_ANSWER_CANCEL)
+            {
+                return false;
+            }
+            if (a == CLEAN_ANSWER_NO)
+            {
+                for (int i = 0; i < NB_SLOT; i++)
+                {
+                    unused[i] = false;
+                }
+                return true;
+            }
+            Serial.println("ASK | Type the UNUSED slot numbers, separated by commas or spaces (ranges like 3-5 work), then ENTER. x = cancel");
+            if (!read_clean_answer(text))
+            {
+                return false;
+            }
+        }
+        given = false;
+        int bad = -1;
+        const int n = core::parse_unused_slots(text.c_str(), NB_SLOT, PURGE_SLOT, unused, &bad);
+        if (n >= 0)
+        {
+            return true;
+        }
+        if (n == core::UNUSED_OUT_OF_RANGE)
+        {
+            Serial.println(String("REFUSED | slot ") + String(bad) + " does not exist: use 1 to " + String(NB_SLOT - 1) + " (slot " +
+                           String(PURGE_SLOT) + " is the purge)");
+        }
+        else
+        {
+            Serial.println("REFUSED | could not read the list. Examples: 3,7,12   or   3 7 12   or   2-5,9   or   none");
+        }
+        text = "";
+    }
+}
+
+void purge_pipes_manifold(const char *args)
+{
+    if (!require_pressure_sensor("ethanol_purge"))
+    {
         return;
     }
-    valve_manifold.set_close_way();
-    delay(500);
 
-    for (int slot = 0; slot < NB_SLOT; slot++)
+    if (!core::may_rotate(oring_lock_state()))
     {
-        if (slot == PURGE_SLOT)
-        {
-            continue;
-        }
+        Serial.println(String("REFUSED | ethanol_purge: O-ring lock state is ") + oring_lock_state_name() +
+                       " - run actuator_home first (the manifold must rotate between slots)");
+        return;
+    }
 
-        Serial.print("Flushing ethanol through slot ");
-        Serial.println(slot);
-        if (!rotateMotor(slot))
+    Serial.println("====================== ETHANOL CLEANING OF THE TUBING ======================");
+    Serial.println("WARNING | NO FILTER may be installed: take every Sterivex out of the manifold first.");
+    Serial.println("WARNING | The pump runs at FULL POWER (100 %), the exception to the 60 % water limit, because nothing is in the way.");
+    Serial.println("WARNING | Inlet AND outlet tubes go in 70 % ethanol (and stay there, the air comes in by the air valve); the outlets must drain into a waste container.");
+    Serial.println("WARNING | The pressure cap, the timeouts and x (abort) / s (skip this run) stay active.");
+
+    bool unused[NB_SLOT];
+    if (!ask_unused_slots(args, unused))
+    {
+        Serial.println("CANCELLED | ethanol cleaning: nothing was started");
+        return;
+    }
+
+    int slots[NB_SLOT];
+    const int n_slots = core::build_clean_list(FILL_ORDER, sizeof FILL_ORDER / sizeof FILL_ORDER[0], NB_SLOT, PURGE_SLOT, unused, slots, NB_SLOT);
+    if (n_slots < 0)
+    {
+        Serial.println("ERROR | ethanol cleaning: slot list too long (internal), nothing was started");
+        return;
+    }
+
+    const float prime_ml = spool_installed_session ? CLEAN_PRIME_SPOOL_ML : CLEAN_SLOT_ML;
+    const uint32_t prime_timeout = spool_installed_session ? PURGE_SPOOL_MAX_RUNTIME_MS : CLEAN_FLUSH_MAX_RUNTIME_MS;
+    const float total_ml = prime_ml + n_slots * CLEAN_SLOT_ML;
+    Serial.print("Slots to clean (" + String(n_slots) + "), in this order:");
+    for (int i = 0; i < n_slots; i++)
+    {
+        Serial.print(" " + String(slots[i]));
+    }
+    Serial.println();
+    Serial.println(String("Spool module: ") + (spool_installed_session ? "ON" : "off") + "; ethanol needed: about " + String(total_ml / 1000.0f, 1) +
+                   " L (prime " + String(prime_ml, 0) + " mL + " + String(n_slots) + " x " + String(CLEAN_SLOT_ML, 0) + " mL)");
+    Serial.println(String("Then air: ") + String(CLEAN_AIR_SLOT_MS / 1000) + " s through each of those slots (air valve), then " + String(CLEAN_AIR_FINAL_MS / 1000) +
+                   " s at the purge slot.");
+
+    if (clean_ask_yes_no("Filters removed, inlet and outlet in 70 % ethanol, outlets draining to waste? Start the cleaning?") != CLEAN_ANSWER_YES)
+    {
+        Serial.println("CANCELLED | ethanol cleaning: nothing was started");
+        return;
+    }
+
+    int warnings = 0;
+    CleanRun r;
+
+    // 1) prime through the purge slot
+    r = clean_flush_slot(PURGE_SLOT, prime_ml, prime_timeout, "prime");
+    if (r == CLEAN_RUN_FAIL)
+    {
+        stop_clean("prime through the purge slot");
+        return;
+    }
+    warnings += (r == CLEAN_RUN_WARN);
+
+    // 2) ethanol through each slot
+    for (int i = 0; i < n_slots; i++)
+    {
+        r = clean_flush_slot(slots[i], CLEAN_SLOT_ML, CLEAN_FLUSH_MAX_RUNTIME_MS, "flush");
+        if (r == CLEAN_RUN_FAIL)
         {
-            Serial.print("ERROR | Ethanol slot flush: could not rotate to slot ");
-            Serial.println(slot);
-            stop_purge_manifold();
+            stop_clean("ethanol flush of a slot");
             return;
         }
-        delay(500);
-        valve_23.set_L_way();
-        valve_manifold.set_open_way();
-        if (!run_pump_until_volume(ETHANOL_MANIFOLD_FLUSH_ML, PURGE_MAX_RUNTIME_MS, "slot flush"))
-        {
-            stop_purge_manifold();
-            return;
-        }
-        valve_manifold.set_close_way();
-        delay(500);
+        warnings += (r == CLEAN_RUN_WARN);
     }
 
-    if (!rotateMotor(PURGE_SLOT))
+    // 3) air through each slot (V1, the tubes can stay in the ethanol)
+    for (int i = 0; i < n_slots; i++)
     {
-        Serial.println("ERROR | Ethanol final purge: could not rotate to purge slot");
-        stop_purge_manifold();
+        r = clean_air_slot(slots[i], CLEAN_AIR_SLOT_MS, "dry");
+        if (r == CLEAN_RUN_FAIL)
+        {
+            stop_clean("air drying of a slot");
+            return;
+        }
+        warnings += (r == CLEAN_RUN_WARN);
+    }
+
+    // 4) last push at the purge slot
+    r = clean_air_slot(PURGE_SLOT, CLEAN_AIR_FINAL_MS, "final");
+    if (r == CLEAN_RUN_FAIL)
+    {
+        stop_clean("final air push at the purge slot");
         return;
     }
-    delay(500);
-    valve_manifold.set_open_way();
-    Serial.println("Sending the remaining ethanol through the purge slot (50 mL indicated)");
-    if (!run_pump_until_volume(ETHANOL_MANIFOLD_FLUSH_ML, PURGE_MAX_RUNTIME_MS, "final purge"))
-    {
-        stop_purge_manifold();
-        return;
-    }
+    warnings += (r == CLEAN_RUN_WARN);
 
     stop_purge_manifold();
-    Serial.println("Ethanol manifold flush complete");
+    Serial.println(String("Ethanol cleaning complete: ") + String(n_slots) + " slots cleaned and dried, " + String(warnings) +
+                   " warning(s). Pump off, valves closed, O-ring " + oring_lock_state_name() + ".");
+    if (warnings > 0)
+    {
+        Serial.println("WARNING | read the lines above that start with WARNING before sampling.");
+    }
 }
 
 void fill_DNA_shield_tube()

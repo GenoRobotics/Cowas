@@ -127,7 +127,7 @@ void setup()
     micro_pump.begin(ON_OFF_33V, "DNA Shield pump");
     spool.begin();
     manifold_motor.begin("MANIFOLD");
-    encoder.begin(ENCODER_A_PIN, ENCODER_B_PIN, ENCODER_Z_PIN, 720, 10);
+    encoder.begin(ENCODER_A_PIN, ENCODER_B_PIN, ENCODER_Z_PIN, 720, SPOOL_DRUM_DIAMETER_CM);
     button_left.begin(BUTTON_LEFT_PIN, "B_left");
     button_right.begin(BUTTON_RIGHT_PIN, "B_right");
     button_start.begin(BUTTON_START_PIN, "B_start");

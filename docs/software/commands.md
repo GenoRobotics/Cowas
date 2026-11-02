@@ -17,7 +17,7 @@ What the firmware does when you type a command. Version: stage 1, 2026-10-23. Hi
 | `actuator_home` | Finds the O-ring position and unlocks it. | Needs the manifold within 3° of a slot. Ends UNLOCKED. Run after every reset. `x` aborts (the lock state is then UNKNOWN). |
 | `oring_state` | Prints LOCKED, UNLOCKED or UNKNOWN. | Read only. |
 | `session` | Asks site, date, experiment, operator, and whether the spool is on the machine (y/n). | Sets the purge volume and the purge timeout for the session. |
-| `run_sample <slot>` | One full sample: purge, sample through the filter, DNA shield, unlock. | Asks sample name, condition, notes. Takes about 5–8 min without the spool, about 20 min with it. Prints `STEP TIMES` and the `TEST` line. Prints a `WARNING` first if no PC session log is running (its record is then not saved). |
+| `run_sample <slot> [depth=m]` | One full sample: purge, sample through the filter, DNA shield, unlock. `depth=` (spool answer `y` in `session`): dive first, roll up after the shield. | Asks sample name, condition, notes. With `depth=` it ends by asking `spool: next sample depth` (ENTER = roll up; a depth = the tube stays out and the next run goes straight there). Refused if `depth=` is above the range or the spool answer is `n`. Takes about 5–8 min without the spool, about 20 min with it plus the spool moves. Prints `STEP TIMES` and the `TEST` line. Prints a `WARNING` first if no PC session log is running (its record is then not saved). |
 | `log_on` | Says the PC session log is running (sent by `tools/session_log.py` at its start). | Prints `META\|log;attached=yes`. Clears the `run_sample` warning until the next boot. Not a test. |
 | `full_cycle`, `full_all` | Same steps as `run_sample`, with options. | For tests. Not the operator path. |
 
@@ -37,7 +37,7 @@ What the firmware does when you type a command. Version: stage 1, 2026-10-23. Hi
 | `micro_pump` | Runs the DNA-shield pump for 10 s. | |
 | `micro_switch`, `buttons_command` | Tests the spool switches and the panel buttons. | Until a key. |
 | `linear_actuator` | Moves the O-ring actuator by hand (`f`, `b`, `e`, `s`, `p`, `v<n>`, `x`). | Does not update the lock state. |
-| `ethanol_purge` | Pumps through the purge slot until the flowmeter indicates 50 mL, pumps 50 mL through each sample slot, then pumps a final 50 mL through the purge slot to carry the remaining ethanol out. | Needs the pressure sensor. Each metered run has a 3 min timeout; a timeout, stop, pressure cap, or failed rotation skips later runs. Verify actual volumes gravimetrically before ethanol use. |
+| `ethanol_purge [skip=3,7,12]` | Ethanol cleaning of the tubing (user 2026-11-02). **No filter installed**, inlet and outlet in 70 % ethanol. Prints a warning, asks which of slots 1-14 were unused (or reads them after `skip=`; numbers separated by commas or spaces, ranges like `3-5`, `none`), then y/n to start. Prime through the purge slot (3 L with the spool on in `session`, else 0.5 L), 0.5 L through each used slot in `FILL_ORDER`, all at **full power** (second exception to the 60 % water limit). Then pushes air 30 s through each used slot, and 1 min at the purge slot, all by the air valve V1 (no question, the tubes stay in the ethanol; the intake line before Vman is not emptied). | Needs the pressure sensor. The cap, the timeouts, `x` (abort) and `s` (skip a run) stay active. A cap, sensor, abort or rotation failure stops everything (pump off, valves closed, O-ring locked); a skip or an air run that never reached air level only warns. The flowmeter reads low at slow flow (F150), so the real volume is not below the indicated one. Settings: `CLEAN_*` in Settings.h. Ethanol needed: prime + 0.5 L per slot (about 10 L with the spool, 7.5 L without). |
 | `oring_lock`, `oring_unlock` | Locks or unlocks the O-ring. | Refuse while UNKNOWN. |
 | `lock_cycle`, `lock_endurance` | Repeats lock and unlock for timing or wear. | |
 | `rotate_all`, `encoder_repeat` | Checks every slot, or one slot repeatedly, for alignment. | |
@@ -61,7 +61,12 @@ What the firmware does when you type a command. Version: stage 1, 2026-10-23. Hi
 | `cal_DNA` | DNA pump calibration, button driven. | **Its pump run has no cap check** (F202). Do not use until fixed. |
 | `calibrate_all` | Runs the calibrations in order, asking y/n for each. | |
 | `manifold_direction` | Checks the turning direction. | |
-| `motor_spool`, `spool`, `40m`, `encoder_spool` | Spool tests. | The spool is disabled (`SPOOL_USE = false`). They do nothing useful. |
+| `spool_status` | Position, height, drum diameter, switches, encoder pulses. | |
+| `spool_height [cm]` | Distance from the top switch to the water surface. | RAM only: again after a reset. |
+| `spool_home [drain=n]` | Rolls up to the top switch. `drain=y` (default) goes to the purge slot and opens V1 and Vman so the tube empties, then unlocks. | Needs the O-ring state known unless `drain=n`. Stops on stall, wrong way, 15 min, `x`. |
+| `spool_goto <m>`, `spool_goto length=<m>` | Intake depth (adds the height), or tube length from the top. | Same limits. 40 m maximum (`SPOOL_MAX_LENGTH_CM`); only 0 to 15 m is calibrated. |
+| `spool_calibrate` | Dry: tube out to 2, 5, 10, 15 m, you type the tape reading, prints the drum diameter. | `y` applies it until the next reset. |
+| `motor_spool`, `spool`, `40m`, `encoder_spool` | Old spool tests (`spool` and `40m` now go through the safe move, limited to 40 m). | Bench only. |
 
 ## 4. Legacy Pi protocol (after `stop`)
 
@@ -74,7 +79,7 @@ Sent by `computer_interface/cowas_loop.py` at 9600 baud. Not used by the operato
 | `sample<depth>` | Full sample. Depth is printed only. |
 | `startDNA`, `stopDNA` | Micro pump on and off. No timeout. |
 | `reloadManifoldFunction` | Marks all slots available again. |
-| `rollingFunctionUp`, `rollingFunctionDown`, `stopRolling` | Spool. Disabled. |
+| `rollingFunctionUp`, `rollingFunctionDown`, `stopRolling` | Spool, plain motor on/off (no encoder limit; the end switch stops the roll up). |
 
 ## 5. Button panel (after `stop`)
 
@@ -105,6 +110,8 @@ The slot counter starts at 0 at boot, whatever the real position.
 | Keys typed during an O-ring move are ignored | O-ring | F190 |
 | Shield dose is timed, not measured | `run_sample`, shield | F156 |
 | `temp`, `zero`, `pump` have no timeout (`temp` never leaves the menu) | menu | |
+| The spool has never run with this code. Switch polarity, encoder direction and speed are unmeasured | spool | F211 |
+| The spool position is RAM only: unknown after a reset, the next move rolls up first | spool | F211 |
 
 ## 8. Removed
 

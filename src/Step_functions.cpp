@@ -32,6 +32,7 @@
 #include "Oring_lock.h"
 #include "Run_keys.h"
 #include "Core/sample_record.h"
+#include "Core/spool_motion.h"
 
 // Delay when actuating valves
 #define DELAY_ACTIONS 1000
@@ -215,43 +216,63 @@ static bool ensure_locked_at_slot(int slot)
 }
 
 /**
- * @brief Unroll the spool at the correct depth
- *
- * @param _depth Absolute depth in centimeters at which to go.
+ * @brief True when the cycle may move the spool: SPOOL_USE is on and `session` said the spool is on the machine.
  */
-void step_dive(int _depth)
+bool spool_active()
+{
+    return SPOOL_USE && spool_installed_session;
+}
+
+/**
+ * @brief Unroll the spool to the intake depth. The air inlet V1 is open during the move so the air in the tube escapes
+ * while it fills with lake water; V1 is closed again at the end, whatever happened. The move is from wherever the spool is
+ * now (deeper, shallower, or rolled up), so a sample that follows another one goes straight to its depth. After a reset the
+ * position is unknown and Motor::move_to_length() rolls up to the origin switch first.
+ * Pumps nothing. No-op (true) when the spool is not active.
+ *
+ * @param _depth Depth of the intake below the water, in centimeters.
+ * @return false if the spool did not get there (the caller must not pump).
+ */
+bool spool_move_depth(int _depth)
 {
     if (!SPOOL_USE)
     {
-        output.println("Spool disabled (SPOOL_USE=false in Settings.h) - skipping dive");
-        return;
+        output.println("REFUSED | spool: SPOOL_USE is false in Settings.h");
+        return false;
     }
-
-    if (VERBOSE_DIVE)
+    if (aborted_stop("step_dive"))
     {
-        output.println("Step dive started");
+        return false;
     }
-
-    valve_23.set_L_way();
+    float length = 0;
+    if (!core::spool_depth_to_length_cm(_depth / 100.0f, spool_height_cm, SPOOL_MAX_LENGTH_CM, &length))
+    {
+        output.println("ERROR | step_dive: depth " + String(_depth) + " cm + height " + String(spool_height_cm, 0) +
+                       " cm is outside 0.." + String(SPOOL_MAX_LENGTH_CM, 0) + " cm of tube");
+        return false;
+    }
+    valve_manifold.set_close_way();
     valve_1.set_open_way(); // let air escape the system while diving
     delay(DELAY_ACTIONS);
-
-    uint32_t time1 = millis();
-
-    spool.set_speed(SPEED_DOWN, down);
-    spool.start(_depth);
-
-    if (VERBOSE_DIVE)
-    {
-        output.println("Time to dive : " + String(millis() - time1) + " ms");
-    }
-
+    const uint32_t time1 = millis();
+    output.println("Step dive: spool from " + String(spool.is_homed() ? String(spool.length_cm(), 0) + " cm out" : String("an unknown position")) +
+                   " to " + String(length, 0) + " cm out (depth " + String(_depth / 100.0f, 2) + " m)");
+    const char *why = "";
+    const bool ok = spool.move_to_length(length, &why);
     valve_1.set_close_way();
-
-    if (VERBOSE_DIVE)
+    if (!ok)
     {
-        output.println("Step dive ended");
+        output.println(String("ERROR | step_dive: the spool did not get to the depth: ") + why +
+                       ". Nothing was pumped. Check the tube, then spool_home");
+        return false;
     }
+    output.println("Step dive ended: " + String(spool.length_cm(), 1) + " cm out, " + String((millis() - time1) / 1000.0, 1) + " s");
+    return true;
+}
+
+bool step_dive(int _depth)
+{
+    return spool_active() ? spool_move_depth(_depth) : true;
 }
 
 // ! Useless function now
@@ -768,46 +789,55 @@ bool load_slot_full(int slot_manifold)
  * @brief Roll the spool back. Step_dive first.
  *
  */
-void step_rewind()
+bool spool_roll_up(bool drain)
 {
     if (!SPOOL_USE)
     {
-        output.println("Spool disabled (SPOOL_USE=false in Settings.h) - skipping rewind");
-        return;
+        output.println("REFUSED | spool: SPOOL_USE is false in Settings.h");
+        return false;
     }
-
-    if (VERBOSE_REWIND)
+    if (aborted_stop("step_rewind"))
     {
-        output.println("Step rewind started");
+        return false;
     }
-
-    // connection from air inlet to deployment, it will empty partly the tubes
-    valve_1.set_open_way(); // let air enter the system
+    if (!drain)
+    {
+        const char *why_dry = "";
+        const bool ok_dry = spool.go_home(&why_dry);
+        output.println(ok_dry ? String("Spool home (no drain)") : String("ERROR | spool: did not get home: ") + why_dry);
+        return ok_dry;
+    }
+    // The manifold goes to the purge slot first (an open tube, no filter): the water that drains out of the deployment line
+    // must never go through a sterivex that holds the DNA shield. The pump stays off.
+    if (!ensure_locked_at_slot(PURGE_SLOT))
+    {
+        stop_procedure("step_rewind");
+        return false;
+    }
+    // air inlet and deployment line both open: the tube empties by itself while it comes out of the water
+    valve_1.set_open_way();
     valve_manifold.set_open_way();
-
-    // the remaining water will pe pumped with the empty() step
-
     delay(DELAY_ACTIONS);
-
-    uint32_t time1 = millis();
-
-    // ! 11.08: is ok to do with broken encoder, as it only uses the UP button
-    spool.set_speed(SPEED_UP, up);
-    // go to origin
-    spool.start(-1);
-
-    if (VERBOSE_REWIND)
-    {
-        output.println("Time to rewind : " + String(millis() - time1) + " ms");
-    }
-
-    delay(DELAY_ACTIONS);
+    const uint32_t time1 = millis();
+    output.println("Step rewind: V1 and Vman open, spool rolling up from " +
+                   String(spool.is_homed() ? String(spool.length_cm(), 0) + " cm out" : String("an unknown position")));
+    const char *why = "";
+    const bool ok = spool.go_home(&why);
+    delay(DELAY_ACTIONS); // the last water runs out
     valve_1.set_close_way();
-
-    if (VERBOSE_REWIND)
+    valve_manifold.set_close_way();
+    if (!ok)
     {
-        output.println("Step rewind ended");
+        output.println(String("ERROR | step_rewind: the spool did not get home: ") + why + ". Valves closed. Check it, then spool_home");
+        return false;
     }
+    output.println("Step rewind ended: home, " + String((millis() - time1) / 1000.0, 1) + " s");
+    return true;
+}
+
+bool step_rewind()
+{
+    return spool_active() ? spool_roll_up(true) : true;
 }
 
 /**

@@ -7,6 +7,8 @@ extern C_output output;
 uint8_t FILTER_IN_SYSTEM = 2;           // max samples currently inserted in the system
 bool ENABLE_OUTPUT = true;
 bool spool_installed_session = SPOOL_INSTALLED; // the session's answer to "spool on the machine?"
+float spool_height_cm = HEIGHT_FROM_WATER;      // cm between the origin switch and the water; `spool_height` changes it (RAM only)
+float spool_diameter_cm = SPOOL_DRUM_DIAMETER_CM; // effective drum diameter in use; `spool_calibrate` can change it (RAM only)
 
 System_state system_state = state_starting;
 

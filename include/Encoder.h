@@ -27,6 +27,9 @@ public:
     void begin(byte _pin_signal_A, byte _pin_signal_B, byte _pin_signal_Z, const int _pulse_per_rev, const float _diameter);
     void begin(byte _pin_signal_A, byte _pin_signal_B, byte _pin_signal_Z, const int _pulse_per_rev, const float _diameter, String _ID);
     int get_distance();
+    float get_distance_f();            // same in cm, not truncated
+    void set_diameter(float _diameter); // cm. New effective drum diameter (calibration)
+    float get_diameter();
     int32_t get_goal_pulses();
     int32_t get_pulses_A();
     int32_t get_pulses_B();

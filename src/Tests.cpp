@@ -165,9 +165,10 @@ void test_all_components()
                 calibrate_DNA_pump();
             }
 
-            if (test_command == "ethanol_purge")
+            if (test_command == "ethanol_purge" || test_command.startsWith("ethanol_purge "))
             {
-                purge_pipes_manifold();
+                // optional list of the unused slots after the name: `ethanol_purge skip=3,7,12`
+                purge_pipes_manifold(test_command.c_str() + strlen("ethanol_purge"));
             }
 
             // all valves, both motors, pump, pressure sensors, push buttons(spool),

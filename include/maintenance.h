@@ -10,9 +10,12 @@
 void calibrate_DNA_pump();
 
 /**
-    @brief: Prime the manifold purge path with 50 mL indicated ethanol, then run each sample slot for 3 seconds
-*/
-void purge_pipes_manifold();
+ * @brief Ethanol cleaning of the tubing (console `ethanol_purge`). No filter installed, inlet and outlet in 70 % ethanol.
+ * Warns, asks which slots were unused (or reads them from `args`, e.g. "skip=3,7,12"), then: prime through the purge slot
+ * (3 L with the spool module, else 0.5 L), 0.5 L through each used slot at full power, 30 s of air through each, and 1 min of
+ * air at the purge slot. Settings: CLEAN_* in Settings.h.
+ */
+void purge_pipes_manifold(const char *args = nullptr);
 
 /**
  * @brief: steps to fill tube until T-connection with DNA shield

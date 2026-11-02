@@ -98,7 +98,7 @@ def test_defaults_are_no_name_condition_not_given_and_spool_off(tmp_path):
         "2026-10-26",
         "09:30",
         "",
-        "not given",
+        "not_given",
         False,
         "",
     )
@@ -156,7 +156,12 @@ def test_bom_empty_rows_and_a_quoted_line_break_in_a_name_are_handled(tmp_path):
         tmp_path, 'date,time,name,\n\n+0,09:00,"lake\nA",\n,,,\n', bom=True
     )
     samples = sc.read_schedule(path)
-    assert [s.name for s in samples] == ["lake A"]
+    assert [s.name for s in samples] == ["lake_A"]
+
+
+def test_spaces_in_a_name_and_a_condition_become_underscores(tmp_path):
+    samples = read(tmp_path, "date,time,name,condition\n+0,09:00,lake  A B,filter A\n+0,10:00,  x ,  \n")
+    assert [(s.name, s.condition) for s in samples] == [("lake_A_B", "filter_A"), ("x", "not_given")]
 
 
 @pytest.mark.parametrize(
@@ -517,3 +522,73 @@ def test_an_error_in_the_thread_is_reported_and_the_list_can_be_started_again(tm
     assert schedule.pending()
     assert schedule.start(TODAY) is True
     assert wait_for(lambda: device.sent == ["run_sample 1"])
+
+
+# --- the spool: the depth goes to the device, and the next-depth question (2026-11-02)
+
+ASK_NEXT = "ASK | spool: next sample depth in m (ENTER = none, the spool rolls up)  (type the answer + ENTER, x = none)"
+
+
+def test_a_spool_sample_is_sent_with_its_depth_and_a_spool_off_sample_is_not(tmp_path):
+    on = sample(name="deep", spool=True, depth_m="2.50")
+    off = sample(name="surface")
+    schedule, device = make([on, off], tmp_path)
+    started(schedule, on, "run_sample 4")
+    assert device.sent == ["run_sample 4 depth=2.5"]
+    schedule.device_line("TEST|run_sample|4|PASS|")
+    started(schedule, off, "run_sample 5")
+    assert device.sent[-1] == "run_sample 5"
+
+
+def test_the_next_waiting_spool_sample_keeps_the_tube_out(tmp_path):
+    first = sample("11:50", name="first", spool=True, depth_m="2")
+    second = sample("12:05", name="second", spool=True, depth_m="7,5".replace(",", "."))
+    schedule, _ = make([first, second], tmp_path)  # now = noon: the second is due in 5 minutes
+    started(schedule, first)
+    assert schedule.device_line(ASK_NEXT) == "7.5"
+
+
+def test_the_tube_rolls_up_when_the_next_sample_is_far_off_or_has_no_spool_or_is_none(tmp_path):
+    for second in (
+        sample("14:00", name="later", spool=True, depth_m="3"),  # due in 2 h
+        sample("12:01", name="no spool"),  # due now but spool off
+    ):
+        first = sample("11:50", name="first", spool=True, depth_m="2")
+        schedule, _ = make([first, second], tmp_path)
+        started(schedule, first)
+        assert schedule.device_line(ASK_NEXT) == ""
+    alone = sample("11:50", name="alone", spool=True, depth_m="2")
+    schedule, _ = make([alone], tmp_path)
+    started(schedule, alone)
+    assert schedule.device_line(ASK_NEXT) == ""
+
+
+def test_the_tube_rolls_up_after_schedule_stop(tmp_path):
+    first = sample("11:50", name="first", spool=True, depth_m="2")
+    second = sample("12:00", name="second", spool=True, depth_m="4")
+    schedule, _ = make([first, second], tmp_path)
+    started(schedule, first)
+    schedule.stop()
+    assert schedule.device_line(ASK_NEXT) == ""
+
+
+def test_equal_rows_do_not_confuse_the_next_sample(tmp_path):
+    # two identical rows (same time, same default name): the next one is still the second, not the first again
+    one = sample("11:50", name="same", spool=True, depth_m="2")
+    two = sample("11:50", name="same", spool=True, depth_m="2")
+    three = sample("12:00", name="third", spool=True, depth_m="9")
+    schedule, _ = make([one, two, three], tmp_path)
+    started(schedule, two)
+    assert schedule.device_line(ASK_NEXT) == "9"
+
+
+def test_samples_at_the_same_time_keep_the_order_of_the_file(tmp_path):
+    rows = [sample("09:30", name=n, date="+0") for n in ("b", "a", "c")]
+    resolved = sc.resolve(rows, dt.date(2026, 10, 26))
+    assert [s.name for s in resolved] == ["b", "a", "c"]
+
+
+def test_a_depth_above_the_longest_tube_is_refused_and_the_longest_is_kept(tmp_path):
+    with pytest.raises(ValueError, match="more than 40"):
+        read(tmp_path, "date,time,spool,depth_m\n+0,12:00,on,40.5\n")
+    assert read(tmp_path, "date,time,spool,depth_m\n+0,12:00,on,40\n")[0].depth_m == "40"

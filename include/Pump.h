@@ -88,7 +88,7 @@ public:
     void set_max_pressure(float max_pressure){max_pressure_ = max_pressure;}
     void set_max_runtime(uint32_t max_runtime){max_runtime_ = max_runtime;}
     void set_end_cond_time(uint32_t time){time_end_valid_ = time;}
-    // the full-power exception (user 2026-10-26): the run may use PUMP_PURGE_MAX_POWER_PERCENT instead of the water limit. Call before run(). Only step_purge() sets it
+    // the full-power exception (user 2026-10-26): the run may use PUMP_PURGE_MAX_POWER_PERCENT instead of the water limit. Call before run(). Only step_purge() and the ethanol cleaning (maintenance.cpp) set it
     void set_full_power(bool on){ full_power_ = on; }
     void virtual reset(){;}
     // why the last run() stopped: "cond" (end condition met), "timeout", "cap", "sensor", "stalled", "clogged", "refused"

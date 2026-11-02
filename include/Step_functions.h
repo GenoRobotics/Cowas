@@ -9,7 +9,7 @@
  * @note step_process: the sample function to call, regroups all necessery steps
  */
 
-void step_dive(int _depth);                 // unroll deplayment module to given depth
+bool step_dive(int _depth);                 // unroll the spool to the given depth (cm below the water); false = it did not get there. No-op without the spool
 bool step_purge(bool stop_pressure = true); // emptying container
 void step_purge_flow(float milliliters);    // purge amount of water through slot 0
 void step_fill_container();
@@ -22,7 +22,10 @@ void load_slot_water(float volume_ml); // load_slot()'s water phase (caller lock
 void load_slot_air();                  // load_slot()'s air phase
 bool load_slot(float volume_ml); // lock, pump water+air through the CURRENT slot, unlock - see Step_functions.cpp
 bool load_slot_full(int slot_manifold); // FULL operation sequence (step_sampling + step_DNA_shield) at the CURRENT slot, then unlock - see Step_functions.cpp
-void step_rewind();                                               // rewind deployment module
+bool step_rewind();                                               // purge slot, V1+Vman open so the tube drains, spool to the origin; false = it did not get home. No-op without the spool
+bool spool_active();                                              // SPOOL_USE and the session said the spool is on the machine
+bool spool_move_depth(int _depth);                                 // step_dive without the session check (the spool_goto command)
+bool spool_roll_up(bool drain);                                    // step_rewind without the session check; drain=false: no manifold or valve, just roll up (spool_home)
 bool step_empty();                                                // drains water from deployment module
 bool step_DNA_shield(int slot_manifold);                          // insert DNA shield to sterivex
 void sample_process(int depth, int manifold_slot = -1);

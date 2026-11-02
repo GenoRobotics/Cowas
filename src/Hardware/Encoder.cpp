@@ -56,6 +56,12 @@ encoder_direction Encoder::get_direction() { return direction; }
 
 int32_t Encoder::get_goal_pulses() { return goal_pulses_A; }
 
+float Encoder::get_distance_f() { return rad_per_pulse * diameter * pulses_A; }
+
+void Encoder::set_diameter(float _diameter) { diameter = _diameter; }
+
+float Encoder::get_diameter() { return diameter; }
+
 int Encoder::get_distance() { 
     //Serial.print("\nEncoder distance: "+String(rad_per_pulse * diameter * pulses_A)+ " ,  cast in int ="+ String((int)(rad_per_pulse * diameter * pulses_A)));
     return (int)(rad_per_pulse * diameter * pulses_A); }

@@ -2283,3 +2283,84 @@ Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>
 - `pio test -e native`: fails in existing tests outside this change: `test_golden_scale_angle_bit_exact` differs by one float bit, and `test_pressure_calibration` has a narrowing-conversion error for `INFINITY`.
 - Hardware: not run; firmware not flashed.
 - Before ethanol use: with no filters installed, verify at least 50 mL actual volume at the purge prime, each sample slot, and the final purge; verify timeout and pressure-cap stops prevent subsequent runs. The flowmeter is known to read low around 50 mL/min (F150), so each indicated target needs a gravimetric bench check.
+
+
+### Session 2026-11-02: ethanol cleaning procedure (`ethanol_purge` rewritten)
+
+**What changed (behavior change, user request)**
+- `purge_pipes_manifold()` ([maintenance.cpp](../../src/Hardware/maintenance.cpp)) now cleans the tubing with 70 % ethanol, no filter installed: prime through the purge slot (`CLEAN_PRIME_SPOOL_ML` = 3 L with the spool on in `session`, else `CLEAN_SLOT_ML` = 0.5 L), then 0.5 L through each used slot in `FILL_ORDER`, then `CLEAN_AIR_SLOT_MS` = 30 s of air through each of those slots, then `CLEAN_AIR_FINAL_MS` = 1 min at the purge slot. All air goes in by V1 (V1 open, Vman closed, the `load_slot_air` setup), so the tubes stay in the ethanol and nothing is asked in between (user, same day: 1 L was 17 L of ethanol; no tube-lifting prompt). The intake line before Vman is therefore not emptied.
+- Refuses at once if the O-ring lock state is UNKNOWN (run `actuator_home`). The shared pump PID is reset before every run.
+- It uses `CtrlPumpFlow` (water) and `CtrlPumpNoWater` (air), so the pressure cap, the implausible-sensor stop, the timeouts and the `x` / `s` keys stay active. The old 50 mL open-loop routine (`ETHANOL_MANIFOLD_FLUSH_ML`) is replaced.
+- **Safety exception:** the water runs use `set_full_power(true)` (100 %), the second use of the full-power exception after `step_purge`. A WARNING block is printed at every run and a y/n is required before anything moves. Comments in Pump.h, pump_power.h and Settings.h name both users.
+- Unused slots: asked (y/n, then the numbers; commas, spaces or ranges), or given on the command line `ethanol_purge skip=3,7,12`. Pure parsing and list building in [clean_plan](../../src/Core/clean_plan.h), 10 native tests. The firmware has no file system, so a "file" option would have to be sent by the host as that command line.
+- An air run that never reaches air level only warns (`timeout`, `skipped`); cap, sensor, abort, refusal or a failed rotation stops the procedure with pump off, valves closed, O-ring locked.
+
+**Validation**
+- `pio test -e native`: 196 passed (includes `test_clean_plan`).
+- `pio run -e due`: passes (an earlier run failed in Tests_mech.cpp on the uncommitted spool-depth work, fixed meanwhile; not this change).
+- Hardware: not run, not flashed. Review against the tested code: water runs = `step_purge` setup (`CtrlPumpFlow`, full power, V1 closed, Vman open, `goto_slot_locked`); air runs = `load_slot_air` setup (`CtrlPumpNoWater`, V1 open, Vman closed).
+
+**Docs**
+- [operator-tutorial.md](../field/operator-tutorial.md) §3b, run at the start of the day (§1 step 5, after `session`, before `fill_DNA`) and at the end (§3 step 1): the procedure, the full-power warning, the `skip=` option, what a WARNING means. [commands.md](../software/commands.md) row updated.
+
+**Hardware checklist (before real ethanol)**
+1. Dry run with water, no filters, outlets over a container: the prime and 0.5 L per slot reach 500 mL (weigh each); the flush at full power stays below `PRESSURE_CAP` (peak printed).
+2. `ethanol_purge skip=3,7`: slots 3 and 7 are not visited; `skip=15` and `skip=0` are refused; `none` and a lone ENTER clean all 14.
+3. Air: each slot ends `end=cond` after 30 s or more and the outlet tubing is dry. The final push at the purge slot goes in by V1: the intake line before Vman stays full (run the normal purge before sampling).
+4. `x` during a flush and during an air push stops the pump and ends the procedure; the O-ring is LOCKED afterwards.
+5. Check the flowmeter on ethanol (viscosity differs from water; F150).
+
+### Session 2026-11-02: spool dive, sample, roll up, calibration
+
+**Goal (user):** run samples at a depth from the schedule: unroll to the depth, purge, sample, shield, roll up with the tube emptying itself; go straight to the next depth if the next sample is waiting; samples at the same time one after the other in file order; a way to calibrate the unrolled length (2, 5, 10, 15 m only).
+
+**Status:** built, `pio run -e due` and `pio test -e native` pass. **Not flashed, not run on hardware.** Bench checklist below.
+
+**Decision:** D56. Findings: F211 (unmeasured spool facts), F212 (old bugs fixed), F213 (drain path unverified).
+
+**Changes**
+- `src/Core/spool_motion.{h,cpp}` (pure, native tests `test/test_spool_motion/`): depth to length, the move checks (arrived, wrong way, stalled, timeout), the approach speed, the calibration fit (drum diameter = old x tape/encoder, least squares, worst deviation).
+- `Motor::drive / move_to_length / go_home` replace the unbounded loops: stops on stall (`SPOOL_STALL_MS` 4 s with no pulse), wrong way (5 cm), `SPOOL_MOVE_MAX_MS` (15 min), down end-stop, up switch, `x` or `stop`; counts the coast after the brake; slow at the ends. The position is `homed` or unknown (unknown after every boot: the first move rolls up to the top switch slowly). `Motor::start(int)` (the old `spool` test commands) goes through the same code.
+- `Encoder`: `get_distance_f()`, `set_diameter()`. The 10 cm diameter moved to `SPOOL_DRUM_DIAMETER_CM`.
+- `Step_functions.cpp`: `step_dive` (V1 open while the tube goes down), `step_rewind` (manifold to the purge slot, V1 and Vman open, roll up, both closed), `spool_active()` (= `SPOOL_USE` and the `session` answer), `spool_move_depth`, `spool_roll_up(drain)`. Without the spool answer `y` they do nothing, so spool-less days are unchanged.
+- `run_sample [slot] [volume=] [depth=m]`: depth checked before anything is asked; dive before the purge (a failed dive pumps nothing); after the shield the device asks `spool: next sample depth` (ENTER or `x` = none), then keeps the tube out or rolls up; then the O-ring unlocks. TEST line gets `depth_m`, `spool_end`, `next_depth_m`, `t_dive_s`, `t_rewind_s`; `STEP TIMES` gets dive and rewind. A failed roll up = `FAIL`, `failed_at=rewind`.
+- New commands: `spool_status`, `spool_height`, `spool_home [drain=]`, `spool_goto`, `spool_calibrate`.
+- `tools/sample_schedule.py`: sends `depth=`, answers the next-depth question (next waiting spool sample due within 10 min, else nothing; nothing after `schedule stop`), depth limit 15 m. Same-time rows keep file order (stable sort, now tested).
+- Settings: `SPOOL_USE = true`, `SPOOL_DRUM_DIAMETER_CM`, `SPOOL_MAX_LENGTH_CM = 4000` (40 m, raised from 1500 at the user's request; only 0 to 15 m is calibrated), `SPOOL_MOVE_MAX_MS`, `SPOOL_STALL_MS`, `SPOOL_WRONG_WAY_CM`, speeds, `SPOOL_CAL_MAX_DEV_PCT`. All PLACEHOLDER except the stall time. Runtime: `spool_height_cm`, `spool_diameter_cm`.
+- Docs: operator tutorial (sections 1, 2, 4, 5), commands.md, session-log.md.
+
+**Behavior changes**
+1. `SPOOL_USE` true: the old `spool`, `40m`, `motor_spool`, panel and Pi spool commands are live again (bounded by the end switches; the encoder-based ones by 15 m).
+2. `run_sample` takes `depth=` and asks one extra question when it is used.
+3. `sample_process`, `abort_sample` and `demo` now really roll the tube up when the session says the spool is installed.
+
+**Tests:** `pio run -e due` OK. `pio test -e native` 196 passed (10 new). `pytest tools/` 191 passed (7 new). `host/` untouched (its venv points at another checkout, not run).
+
+**Minimum if there is no time:** (a) `spool_status`: switch `PRESSED` at the top; (b) `spool_goto length=1`: tape = 1.05 m ± 8 cm, else `spool_calibrate quick` and `y`; (c) `spool_home drain=n`. Why: the encoder maths multiplies the angle by 10 where a length needs a radius, so the constant acts as a 10 cm radius (20 cm drum), which is the full roll (user: drum 10 cm, tube 8 mm, 22 cm rolled, about 45 m of tube, 12 turns per layer). Layer model: reads about 5 % short at 1-2 m, 3 % at 5 m, 1 % at 10 m, 2 % long at 15 m. Assumes the encoder is on the drum shaft.
+
+**Hardware checklist (before any water)**
+1. `spool_status`: origin switch `PRESSED` with the intake at the top, `released` when moved down by hand; down end-stop `released`. If reversed: stop, F211.
+2. `spool_home drain=n` from the top: returns at once. `spool_goto length=0.5`: the tube goes out about 50 cm, `PASS`, `length_cm` within 3 cm of the tape. A `wrong way` stop = encoder wiring (swap A and B).
+3. Time a 2 m move. If it is longer than a few minutes, raise `SPOOL_MOVE_MAX_MS` and `SPOOL_HOME_SPEED`.
+4. `spool_calibrate`: `PASS` (every stop within 3 % of the line). Put the diameter in Settings.h.
+5. `x` during a move: stops within 1 s, `ERROR ... aborted`. Pull the encoder plug during a move: stops after 4 s with `stalled`.
+6. Wet: `spool_goto 1`, then `spool_home` with a container under the purge outlet: the tube empties (F213).
+7. `run_sample 7 depth=1` then a schedule of two spool samples 1 min apart: the second goes straight to its depth without a roll up (`spool_end=kept_out`).
+
+### Session 2026-11-02: schedule file, no spaces in names and conditions
+
+**What changed (tool only, no firmware change)**
+- [sample_schedule.py](../../tools/sample_schedule.py): a space in the `name` and `condition` columns becomes `_` when the row is read (`lake A` -> `lake_A`, `filter A` -> `filter_A`). The device never gets a space in these answers. Empty condition is now `not_given` (was `not given`).
+- The names saved in the run folder (`schedule.csv`) already hold the `_` form.
+- [schedule_example.csv](../../tools/schedule_example.csv): example rows use `lake_A` and `filter_A`.
+- [operator-tutorial.md](../field/operator-tutorial.md) section 4: explains how to prepare the file (copy the example to the project folder, columns, PC clock, room between samples, what a bad row does) and the `_` rule. Section 2 keeps "no spaces" for the live `run_sample` answers, which the operator types by hand.
+
+**Behavior change**
+- Only the schedule tool. Schedule rows with spaces now run with `_`. A manual `run_sample` is not changed.
+
+**Validation**
+- `pytest tools/tests`: 191 passed. New test `test_spaces_in_a_name_and_a_condition_become_underscores`; the name test that expected `lake A` now expects `lake_A`; the default-condition test expects `not_given`.
+- Hardware: not run (no schedule was run on the Due).
+
+**Open**
+- The spool is still disabled, so `spool` and `depth_m` in a schedule only reach the log (unchanged).

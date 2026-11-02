@@ -15,10 +15,16 @@ run again; a sample that was running when the tool closed is `interrupted` and i
 Columns of the input file (first line, any case; ',' or ';' as separator, so French Excel works):
     date        2026-10-27, or 27/10/2026, or +N = N days after the day `schedule start` is first typed (+0 = that day).
     time        clock time of the PC, 24 h, HH:MM (09:30). Required.
-    name        empty = the date and time.
-    condition   e.g. control, blank, filter A. Empty = "not given" (the device needs one).
-    spool       on or off. Empty = off. The spool is disabled in the firmware (SPOOL_USE = false): on is only recorded.
-    depth_m     metres, only when spool is on (2.5 or 2,5). Empty otherwise.
+    name        empty = the date and time. A space becomes _ (lake A -> lake_A): the device takes no space in a name.
+    condition   e.g. control, blank, filter A. A space becomes _ (filter A -> filter_A). Empty = "not_given" (the device needs one).
+    spool       on or off. Empty = off. On = the device dives to depth_m before the purge and rolls the tube up after the shield.
+                Off = the spool is not moved (the session must still say whether the module is on the machine: it sets the purge).
+    depth_m     metres, 0 to 40, only when spool is on (2.5 or 2,5). Empty otherwise.
+
+Samples at the same time run one after the other in the order of the file (the sort is stable). When the sample on the device
+has ended its shield step, the device asks `spool: next sample depth`. The tool answers with the depth of the next waiting
+sample if it has the spool on and is due within NEXT_GRACE_MIN minutes (the tube stays out and goes straight to that depth),
+and with nothing otherwise (the tube rolls up with the air and water valves open so it empties).
 
 Pure logic and one thread. No serial port here: session_log.py sends the lines and passes in the device's lines.
 """
@@ -34,7 +40,9 @@ from dataclasses import dataclass, replace
 INPUT_COLUMNS = ["date", "time", "name", "condition", "spool", "depth_m"]
 STATE_COLUMNS = ["slot", "started_pc", "finished_pc", "status"]
 STATE_NAME = "schedule.csv"  # in the run folder
-NO_CONDITION = "not given"
+NO_CONDITION = "not_given"  # no space: the device takes none in a name or condition
+MAX_DEPTH_M = 40.0  # the longest tube of the spool (SPOOL_MAX_LENGTH_CM in Settings.h; the device also checks the height)
+NEXT_GRACE_MIN = 10  # the next sample counts as waiting if it is due within this many minutes of the end of the sample
 POLL_S = 0.5  # how often the waits look at the clock
 REMIND_S = 600  # while a sample has no TEST line, the log says so this often
 
@@ -81,6 +89,11 @@ class Sample:
     def due(self):
         """The clock time of the sample. Only for a resolved date."""
         return dt.datetime.strptime(f"{self.date} {self.time}", "%Y-%m-%d %H:%M")
+
+
+def depth_arg(depth_m):
+    """'2.50' -> '2.5': the depth as the device reads it."""
+    return f"{float(depth_m):g}"
 
 
 def stamp():
@@ -143,11 +156,15 @@ def sample_from_cells(cells):
             )
         if value < 0:
             raise ValueError("depth_m cannot be negative")
+        if value > MAX_DEPTH_M:
+            raise ValueError(
+                f"depth_m cannot be more than {MAX_DEPTH_M:g} m (the longest tube of the spool)"
+            )
     return Sample(
         date=parse_date(cells["date"]),
         time=parse_time(cells.get("time", "")),
-        name=cells.get("name", ""),
-        condition=cells.get("condition", "") or NO_CONDITION,
+        name=cells.get("name", "").replace(" ", "_"),  # the device takes no space in a sample name
+        condition=cells.get("condition", "").replace(" ", "_") or NO_CONDITION,
         spool=spool,
         depth_m=depth,
     )
@@ -324,7 +341,10 @@ def table_lines(samples, now):
 def spool_note(samples):
     """The line about the spool, or None when no sample has it on."""
     if any(s.spool for s in samples):
-        return "Spool: the depth is only written to the log. The spool is disabled in the firmware (SPOOL_USE = false)."
+        return (
+            "Spool: the device dives to each depth, samples, then rolls up (or goes straight to the next depth if that "
+            "sample is waiting). The session must have the spool answer y, and spool_height must be set after a reset."
+        )
     return None
 
 
@@ -511,6 +531,9 @@ class Schedule:
                 "notes": "",
             }
             sample.slot = line.split()[1] if len(line.split()) > 1 else ""
+            if sample.spool:
+                line += f" depth={depth_arg(sample.depth_m)}"
+                self.answers["spool: next sample depth"] = lambda: self._next_depth(sample)
             sample.started = stamp()
             sample.status = RUNNING
             self._idle.clear()
@@ -520,6 +543,23 @@ class Schedule:
         )
         self.send(line)
         return True
+
+    def _next_depth(self, sample):
+        """The answer to `spool: next sample depth`: the depth of the next waiting sample when it is already due (or due
+        within NEXT_GRACE_MIN minutes) and has the spool on, else "" (the tube rolls up). Called with the lock held."""
+        if self._halt.is_set():
+            return ""  # `schedule stop`: no further sample starts
+        position = next(i for i, s in enumerate(self.samples) if s is sample)  # identity: equal rows can exist
+        following = next(
+            (s for s in self.samples[position + 1 :] if s.status == WAITING), None
+        )
+        if following is None or not following.spool:
+            return ""
+        try:
+            wait = (following.due - self.now()).total_seconds()
+        except ValueError:  # a date not resolved yet: roll up, the safe answer
+            return ""
+        return depth_arg(following.depth_m) if wait <= NEXT_GRACE_MIN * 60 else ""
 
     # --- the device's lines (called by the reader thread)
 
@@ -541,7 +581,8 @@ class Schedule:
                 label = text[len(ASK_PREFIX) :]
                 for key in list(self.answers):
                     if label.startswith(key):
-                        return self.answers.pop(key)
+                        answer = self.answers.pop(key)
+                        return answer() if callable(answer) else answer
                 self.say(
                     f"schedule: the device asks something the list does not answer ({label.strip()}): "
                     "answer it by hand"

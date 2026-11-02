@@ -22,6 +22,9 @@
 #include "Manifold.h"
 #include "Step_functions.h"
 #include "Valve_2_2.h"
+#include "Motor.h"
+#include "Encoder.h"
+#include "Button.h"
 #include "Micro_pump.h"
 #include "Pump.h"
 #include "Flow_sensor.h"
@@ -32,6 +35,7 @@
 #include "Core/pressure_ramp.h"
 #include "Core/fill_stop.h"
 #include "Core/pid_metrics.h"
+#include "Core/spool_motion.h"
 
 extern Valve_2_2 valve_1;
 extern Valve_2_2 valve_manifold;
@@ -39,6 +43,10 @@ extern Micro_Pump micro_pump;
 extern Pump pump;
 extern Flow_sensor flow_sensor_small;
 extern Manifold manifold;
+extern Motor spool;
+extern Encoder encoder;
+extern Button button_spool_up;
+extern Button button_spool_down;
 extern float read_p_in(); // main.cpp - the ABP, backs the cap and the PID loops
 
 static const int FILL_ORDER_LEN = sizeof FILL_ORDER / sizeof FILL_ORDER[0];
@@ -341,13 +349,19 @@ static void cmd_help()
     Serial.println("  full_cycle [slot] purge=y/n shield=y/n empty=y/n volume=mL   real step functions (needs the sensor)");
     Serial.println("  full_all [purge= shield= empty= volume=] [auto] [from= count= order=]");
     Serial.println("  session                       ask site, date, experiment, operator (once per day; written to the log)");
-    Serial.println("  run_sample [slot] [volume=mL] ask sample name, condition, notes; then the whole sample. Needs `session` first");
+    Serial.println("  run_sample [slot] [volume=mL] [depth=m]  ask sample name, condition, notes; then the whole sample. Needs `session` first. depth= moves the spool (session spool=y): dive, sample, roll up");
+    Serial.println("-- spool (depth) --");
+    Serial.println("  spool_status                  position, height, drum diameter, end-stops, encoder");
+    Serial.println("  spool_height [cm]             cm from the origin switch to the water surface (RAM only: type it after each reset)");
+    Serial.println("  spool_home [drain=y/n]        roll up to the origin switch; drain=y (default) opens V1+Vman at the purge slot so the tube empties");
+    Serial.println("  spool_goto <m> | length=<m>   go to an intake depth (adds the height) or to a tube length from the origin");
+    Serial.println("  spool_calibrate [quick]       DRY: tube out to 2, 5, 10, 15 m (quick: 2 m only), you type the tape reading, prints the drum diameter");
     Serial.println("  log_on                        the PC session log is running (sent by tools/session_log.py): run_sample saves its record");
     Serial.println("-- existing commands --");
     Serial.println("  slotN, slot0, clockMM, clocklist, manifold, cal, zero, manifold_direction, encoder_manifold, enc_rot");
     Serial.println("  linear_actuator, calibrate_actuator (both make the lock state UNKNOWN), calibrate_all");
     Serial.println("  pump, sample_cycle, sample_cycle_full, multi_sample_full, calibrate_flow, cal_DNA (need the pressure sensor)");
-    Serial.println("  ethanol_purge                prime through purge, flush each sample slot to 50 mL, then purge 50 mL");
+    Serial.println("  ethanol_purge [skip=3,7,12]  ethanol cleaning, NO filter, FULL power: prime (3 L spool on / 0.5 L), 0.5 L per slot, air 30 s per slot, air 1 min at purge");
     Serial.println("  valves, micro_pump, calibrate_dna_volume, shield_calibrate (LA3)");
     Serial.println("  sample1m, demo, abort (need the pressure sensor), micro_switch, buttons_command, temp");
     Serial.println("  stop = leave the menu (panel + legacy Pi link)");
@@ -1357,8 +1371,13 @@ static String secs(uint32_t ms)
 }
 
 // One full operation cycle at `slot`; returns the TEST result.
-static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool empty, float volume, String *kv)
+static bool ask_next_spool_depth(float *next_m); // below, next to ask()
+
+// depth_m = NAN: the spool is not touched. Otherwise (spool active): dive to that depth before the purge; after the shield ask
+// for the next sample's depth, and either keep the tube out (the next sample is waiting) or roll it up with V1 and Vman open.
+static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool empty, float volume, String *kv, float depth_m = NAN)
 {
+    const bool use_depth = depth_m == depth_m; // not NaN
     const String given = *kv; // F198 (2026-10-23): the caller's fields (run_sample: name, condition, site ...) are kept on the TEST line
     *kv = "slot=" + String(slot) + ";purge=" + (purge ? "y" : "n") + ";shield=" + (shield ? "y" : "n") +
           ";empty=" + (empty ? "y" : "n") + ";volume_ml=" + String(volume, 0) +
@@ -1366,6 +1385,7 @@ static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool e
     // S1-C item 3: the purge volume and whether the spool is on the machine (answered in `session`)
     *kv += ";purge_ml=" + String(core::purge_volume_ml(spool_installed_session, PURGE_NO_SPOOL_ML, PURGE_SPOOL_ML), 0) +
            ";spool=" + (spool_installed_session ? "installed" : "absent");
+    *kv += ";depth_m=" + (use_depth ? String(depth_m, 2) : String("-"));
     if (given.length() > 0)
     {
         *kv += ";" + given;
@@ -1377,10 +1397,19 @@ static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool e
     }
     // step times (user, 2026-10-23): each step is timed and printed, and goes on the TEST line as t_*_s
     const uint32_t t_begin = millis();
-    bool ok = !purge || step_purge();
-    const uint32_t t_purge = millis() - t_begin;
+    uint32_t t_dive = 0, t_rewind = 0;
+    bool ok = true;
+    if (use_depth)
+    {
+        ok = step_dive((int)lroundf(depth_m * 100.0f)); // false = the spool did not get there: nothing is pumped
+        t_dive = millis() - t_begin;
+    }
+    const uint32_t t_purge_start = millis();
+    const bool dive_failed = !ok;
+    ok = ok && (!purge || step_purge());
+    const uint32_t t_purge = millis() - t_purge_start;
     uint32_t t_sample = 0, t_shield = 0, t_unlock = 0;
-    const char *failed = ok ? "" : "purge";
+    const char *failed = dive_failed ? "dive" : (ok ? "" : "purge");
     bool skipped = false; // s typed during a step: that step ended early and is not counted as a PASS (S1-C item 1)
     if (ok && purge && strcmp(last_purge_end, "skipped") == 0)
     {
@@ -1417,6 +1446,38 @@ static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool e
         // the deployment-line emptying is no longer part of the cycle (user, 2026-10-19): the flag is kept on the TEST line, nothing runs
         *kv += ";empty_step=removed";
     }
+    bool rewind_failed = false;
+    if (ok && use_depth)
+    {
+        // the shield is on: now the tube. If the next sample is waiting, stay out (the next run_sample goes straight to its depth)
+        float next_m = NAN, next_len = 0;
+        ask_next_spool_depth(&next_m);
+        const bool next_given = next_m == next_m;
+        const bool keep = next_given && core::spool_depth_to_length_cm(next_m, spool_height_cm, SPOOL_MAX_LENGTH_CM, &next_len);
+        if (next_given && !keep)
+        {
+            Serial.println("WARNING | run_sample: next depth " + String(next_m, 2) + " m is outside the spool range: rolling up");
+        }
+        if (keep)
+        {
+            *kv += ";spool_end=kept_out;next_depth_m=" + String(next_m, 2);
+            Serial.println("META|spool;kept_out=y;length_cm=" + String(spool.length_cm(), 0) + ";next_depth_m=" + String(next_m, 2));
+        }
+        else
+        {
+            const uint32_t t_mark = millis();
+            rewind_failed = !step_rewind();
+            t_rewind = millis() - t_mark;
+            *kv += String(";spool_end=") + (rewind_failed ? "FAILED" : "rolled_up");
+        }
+    }
+    else if (!ok && use_depth && spool_active())
+    {
+        Serial.println("WARNING | run_sample: the cycle stopped before the spool was rolled up. The tube is at " +
+                       String(spool.is_homed() ? String(spool.length_cm(), 0) + " cm" : String("an unknown length")) +
+                       ". Type spool_home when it is safe");
+        *kv += ";spool_end=left_out";
+    }
     if (ok)
     {
         const uint32_t t_mark = millis();
@@ -1424,14 +1485,25 @@ static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool e
         t_unlock = millis() - t_mark;
         failed = ok ? "" : "unlock";
     }
+    if (rewind_failed)
+    {
+        failed = ok ? "rewind" : failed;
+        ok = false;
+    }
     if (run_abort_latched())
     {
         *kv += ";aborted=x";
     }
+    if (use_depth)
+    {
+        *kv += ";t_dive_s=" + secs(t_dive) + ";t_rewind_s=" + secs(t_rewind);
+    }
     *kv += ";t_purge_s=" + secs(t_purge) + ";t_sample_s=" + secs(t_sample) + ";t_shield_s=" + secs(t_shield) +
            ";t_unlock_s=" + secs(t_unlock) + ";t_total_s=" + secs(millis() - t_begin);
-    Serial.println("STEP TIMES | purge " + secs(t_purge) + " s | sample (with its emptying) " + secs(t_sample) + " s | shield " +
-                   secs(t_shield) + " s | unlock " + secs(t_unlock) + " s | total " + secs(millis() - t_begin) + " s");
+    Serial.println(String("STEP TIMES | ") + (use_depth ? "dive " + secs(t_dive) + " s | " : String("")) + "purge " + secs(t_purge) +
+                   " s | sample (with its emptying) " + secs(t_sample) + " s | shield " + secs(t_shield) + " s | " +
+                   (use_depth ? "rewind " + secs(t_rewind) + " s | " : String("")) + "unlock " + secs(t_unlock) + " s | total " +
+                   secs(millis() - t_begin) + " s");
     if (!ok)
     {
         *kv += String(";failed_at=") + failed;
@@ -1646,11 +1718,11 @@ static String meta_clean(String s)
     return s.substring(0, 48);
 }
 
-// One typed line. 0 = answer (may be empty), 1 = x typed, 2 = no answer within FIELD_ANSWER_WAIT_MS.
-static int read_answer(String &answer)
+// One typed line. 0 = answer (may be empty), 1 = x typed, 2 = no answer within wait_ms.
+static int read_answer_for(String &answer, uint32_t wait_ms)
 {
     const uint32_t start = millis();
-    while (millis() - start < FIELD_ANSWER_WAIT_MS)
+    while (millis() - start < wait_ms)
     {
         if (Serial.available() <= 0)
         {
@@ -1662,6 +1734,34 @@ static int read_answer(String &answer)
         return answer.equalsIgnoreCase("x") ? 1 : 0;
     }
     return 2;
+}
+
+static int read_answer(String &answer)
+{
+    return read_answer_for(answer, FIELD_ANSWER_WAIT_MS);
+}
+
+// The question at the end of a run_sample with a depth: how deep is the next sample, if it is already waiting?
+// The schedule tool answers from its list (a depth, or nothing); typed by hand: a depth in metres, or ENTER = none.
+// Nothing, x or no answer in SPOOL_NEXT_ANSWER_WAIT_MS = none = the spool rolls up. False = none.
+static bool ask_next_spool_depth(float *next_m)
+{
+    *next_m = NAN;
+    String a;
+    Serial.println("ASK | spool: next sample depth in m (ENTER = none, the spool rolls up)  (type the answer + ENTER, x = none)");
+    if (read_answer_for(a, SPOOL_NEXT_ANSWER_WAIT_MS) != 0 || a.length() == 0)
+    {
+        return false;
+    }
+    a.replace(',', '.');
+    float f;
+    if (!core::parse_float_strict(a.c_str(), &f))
+    {
+        Serial.println("WARNING | run_sample: next depth '" + a + "' is not a number: rolling up");
+        return false;
+    }
+    *next_m = f;
+    return true;
 }
 
 // Asks one question and waits for the answer. A required answer is asked again while it is empty. False = cancelled.
@@ -1745,19 +1845,282 @@ static void cmd_log_on()
     Serial.println("META|log;attached=yes");
 }
 
+// ================================================================ spool commands (2026-11-02, user)
+// spool_status, spool_height, spool_home, spool_goto, spool_calibrate. They work whatever `session` answered about the spool
+// (maintenance), as long as SPOOL_USE is true. The moves stop on stall, wrong way, time limit, end-stop, or x.
+
+// First positional as a float. 1 = read, 0 = absent, -1 = malformed or out of range (message printed).
+static int positional_float(const Cmd &c, float *out, float lo, float hi, const char *what)
+{
+    for (int t = 0; t < c.args.count; t++)
+    {
+        if (c.args.key[t][0])
+        {
+            continue;
+        }
+        String v = c.args.value[t];
+        v.replace(',', '.');
+        float f;
+        if (!core::parse_float_strict(v.c_str(), &f) || f < lo || f > hi)
+        {
+            Serial.println(String("Bad ") + what + " '" + c.args.value[t] + "' (allowed " + String(lo, 0) + ".." + String(hi, 0) + ")");
+            return -1;
+        }
+        *out = f;
+        return 1;
+    }
+    return 0;
+}
+
+static bool require_spool_use(const char *name)
+{
+    if (SPOOL_USE)
+    {
+        return true;
+    }
+    Serial.println(String("REFUSED | ") + name + ": SPOOL_USE is false in Settings.h");
+    return false;
+}
+
+static String spool_position_text()
+{
+    return spool.is_homed() ? String(spool.length_cm(), 1) + " cm out" : String("UNKNOWN (the next move rolls up to the origin switch first)");
+}
+
+static void cmd_spool_status()
+{
+    Serial.println(String("spool: SPOOL_USE=") + (SPOOL_USE ? "true" : "false") + ", session says " +
+                   (spool_installed_session ? "installed (run_sample with depth= moves it)" : "absent (run_sample never moves it)"));
+    Serial.println("spool: tube out = " + spool_position_text());
+    Serial.println("spool: height origin to water " + String(spool_height_cm, 0) + " cm, drum diameter " + String(spool_diameter_cm, 3) +
+                   " cm, longest tube out " + String(SPOOL_MAX_LENGTH_CM, 0) + " cm");
+    Serial.println(String("spool: origin switch ") + (button_spool_up.getState() == 0 ? "PRESSED" : "released") + ", down end-stop " +
+                   (button_spool_down.getState() == 0 ? "PRESSED" : "released") + ", encoder pulses " + String(encoder.get_pulses_A()));
+}
+
+static void cmd_spool_height(const Cmd &c)
+{
+    if (!check_args(c, "spool_height [cm]   (cm from the origin switch to the water surface; no value = show it)", nullptr, 0, nullptr, 0, 1))
+        return;
+    float cm = 0;
+    const int got = positional_float(c, &cm, 0, SPOOL_MAX_LENGTH_CM, "height");
+    if (got < 0)
+        return;
+    if (got == 1)
+    {
+        spool_height_cm = cm;
+        Serial.println("META|spool;height_cm=" + String(cm, 0));
+    }
+    Serial.println("spool: height origin to water = " + String(spool_height_cm, 0) + " cm (RAM only: type it again after a reset)");
+}
+
+static void cmd_spool_home(const Cmd &c)
+{
+    static const char *const keys[] = {"drain"};
+    if (!check_args(c, "spool_home [drain=y/n]   roll up to the origin switch. drain=y (default): purge slot, V1+Vman open so the tube empties", keys, 1, nullptr, 0, 0))
+        return;
+    bool drain = true;
+    if (!arg_yes_no(c, "drain", &drain) || !require_spool_use("spool_home"))
+        return;
+    test_begin("spool_home");
+    if (drain && !require_known("spool_home (or spool_home drain=n)"))
+    {
+        test_end();
+        return;
+    }
+    bool ok = spool_roll_up(drain);
+    if (ok && drain)
+    {
+        ok = unlock_oring(); // like the end of a sample: rest unlocked
+    }
+    test_result("home", ok ? core::TEST_PASS : core::TEST_FAIL,
+                String("drain=") + (drain ? "y" : "n") + ";homed=" + (spool.is_homed() ? "y" : "n") + ";length_cm=" + String(spool.length_cm(), 1));
+    test_end();
+}
+
+static void cmd_spool_goto(const Cmd &c)
+{
+    static const char *const keys[] = {"length"};
+    if (!check_args(c, "spool_goto <depth m>  |  spool_goto length=<m>   (length = tube out from the origin; depth adds the height)", keys, 1, nullptr, 0, 1))
+        return;
+    float depth_m = NAN, length_m = NAN;
+    const float max_m = SPOOL_MAX_LENGTH_CM / 100.0f;
+    if (positional_float(c, &depth_m, 0, max_m, "depth") < 0 || !arg_float(c, "length", &length_m, 0, max_m) || !require_spool_use("spool_goto"))
+        return;
+    const bool by_depth = depth_m == depth_m, by_length = length_m == length_m;
+    if (by_depth == by_length)
+    {
+        Serial.println("Usage: spool_goto <depth m>  |  spool_goto length=<m>   (one of the two)");
+        return;
+    }
+    test_begin("spool_goto");
+    bool ok = false;
+    const char *why = "";
+    if (by_depth)
+    {
+        ok = spool_move_depth((int)lroundf(depth_m * 100.0f));
+    }
+    else
+    {
+        ok = spool.move_to_length(length_m * 100.0f, &why);
+        if (!ok)
+        {
+            Serial.println(String("ERROR | spool_goto: ") + why);
+        }
+    }
+    test_result("goto", ok ? core::TEST_PASS : core::TEST_FAIL,
+                String("homed=") + (spool.is_homed() ? "y" : "n") + ";length_cm=" + String(spool.length_cm(), 1) +
+                    ";height_cm=" + String(spool_height_cm, 0));
+    test_end();
+}
+
+// Calibration of the unrolled length (user 2026-11-02: stops at 2, 5, 10 and 15 m only). Dry, on the bench: nothing pumps and no
+// valve moves. The tube goes out to each stop; the operator measures the length out from the origin mark with a tape and types it.
+// The drum diameter that makes the encoder agree with the tape is printed, and applied for this session on a y.
+static void cmd_spool_calibrate(const Cmd &c)
+{
+    static const char *const flags[] = {"quick"};
+    if (!check_args(c, "spool_calibrate [quick]   (quick = the 2 m stop only)", nullptr, 0, flags, 1, 0))
+        return;
+    if (!require_spool_use("spool_calibrate"))
+        return;
+    static const float STOPS_CM[] = {200.0f, 500.0f, 1000.0f, 1500.0f};
+    const bool quick = core::args_has_flag(c.args, "quick");
+    const int n_stops = quick ? 1 : (int)(sizeof STOPS_CM / sizeof STOPS_CM[0]);
+    Serial.println(quick ? "spool_calibrate quick: DRY, on the bench. The tube goes out to 2 m (length from the origin mark)."
+                         : "spool_calibrate: DRY, on the bench. The tube goes out to 2, 5, 10 and 15 m (length from the origin mark).");
+    Serial.println(String("Have a tape measure ready and room for ") + (quick ? "2" : "15") + " m of tube. x at a question stops here (the spool then rolls back up).");
+    test_begin("spool_calibrate");
+    const float old_diameter = encoder.get_diameter();
+    core::SpoolStop stops[4];
+    int got = 0;
+    String kv = "old_diameter_cm=" + String(old_diameter, 3);
+    const char *why = "";
+    bool moved_ok = spool.go_home(&why);
+    if (!moved_ok)
+    {
+        Serial.println(String("ERROR | spool_calibrate: could not roll up to the origin first: ") + why);
+    }
+    for (int i = 0; moved_ok && i < n_stops && STOPS_CM[i] <= SPOOL_MAX_LENGTH_CM; i++)
+    {
+        Serial.println("Spool going to " + String(STOPS_CM[i] / 100.0f, 0) + " m ...");
+        if (!spool.move_to_length(STOPS_CM[i], &why))
+        {
+            Serial.println(String("ERROR | spool_calibrate: move to ") + String(STOPS_CM[i], 0) + " cm failed: " + why);
+            moved_ok = false;
+            break;
+        }
+        delay(1000); // the tube settles
+        const float reading = spool.length_cm();
+        Serial.println("Spool stopped: the encoder says " + String(reading, 1) + " cm out. Measure the tube out from the origin mark.");
+        float measured_cm = 0;
+        bool answered = false;
+        for (;;)
+        {
+            String a;
+            if (!ask("measured length out in metres (e.g. 4.93)", a, true))
+                break; // x or no answer: stop here
+            a.replace(',', '.');
+            float m;
+            if (!core::parse_float_strict(a.c_str(), &m) || !(m > 0.0f) || m * 100.0f < 0.5f * reading || m * 100.0f > 2.0f * reading)
+            {
+                Serial.println("REQUIRED | that is not a plausible length in metres for " + String(reading, 0) + " cm. Type it again");
+                continue;
+            }
+            measured_cm = m * 100.0f;
+            answered = true;
+            break;
+        }
+        if (!answered)
+        {
+            break;
+        }
+        stops[got].reading_cm = reading;
+        stops[got].measured_cm = measured_cm;
+        got++;
+        kv += ";s" + String((int)STOPS_CM[i]) + "_enc=" + String(reading, 1) + ";s" + String((int)STOPS_CM[i]) + "_tape=" + String(measured_cm, 1);
+    }
+    Serial.println("spool_calibrate: rolling the tube back up ...");
+    if (!spool.go_home(&why))
+    {
+        Serial.println(String("ERROR | spool_calibrate: did not get home: ") + why + ". Check it, then spool_home drain=n");
+        kv += ";home=FAILED";
+    }
+    const core::SpoolFit fit = core::spool_fit_scale(stops, got);
+    if (!fit.valid)
+    {
+        Serial.println("spool_calibrate: no usable measurement (" + String(got) + " stops). Diameter unchanged.");
+        test_result("fit", core::TEST_FAIL, kv + ";stops=" + String(got));
+        test_end();
+        return;
+    }
+    const float new_diameter = core::spool_new_diameter_cm(old_diameter, fit.scale);
+    for (int i = 0; i < got; i++)
+    {
+        Serial.println("  stop " + String(i + 1) + ": encoder " + String(stops[i].reading_cm, 1) + " cm, tape " + String(stops[i].measured_cm, 1) +
+                       " cm, tape/encoder " + String(stops[i].measured_cm / stops[i].reading_cm, 4));
+    }
+    const bool linear = fit.worst_dev_pct <= SPOOL_CAL_MAX_DEV_PCT;
+    Serial.println("spool_calibrate: scale " + String(fit.scale, 4) + ", worst stop off by " + String(fit.worst_dev_pct, 1) + " % (limit " +
+                   String(SPOOL_CAL_MAX_DEV_PCT, 1) + " %)" + (linear ? "" : " - NOT LINEAR: one diameter does not fit every length"));
+    Serial.println("spool_calibrate: drum diameter " + String(old_diameter, 3) + " cm -> " + String(new_diameter, 3) + " cm");
+    Serial.println("TO KEEP IT: set SPOOL_DRUM_DIAMETER_CM = " + String(new_diameter, 3) + "f in include/Settings.h and flash.");
+    bool applied = false;
+    String a;
+    const String apply_question = "apply " + String(new_diameter, 3) + " cm as the drum diameter until the next reset? (y/n)";
+    if (ask(apply_question.c_str(), a, true))
+    {
+        a.trim();
+        a.toLowerCase();
+        if (a == "y")
+        {
+            encoder.set_diameter(new_diameter);
+            spool_diameter_cm = new_diameter;
+            applied = true;
+            Serial.println("spool_calibrate: applied. Check: spool_goto length=5, measure, then spool_home drain=n");
+        }
+    }
+    kv += ";stops=" + String(got) + ";scale=" + String(fit.scale, 4) + ";worst_dev_pct=" + String(fit.worst_dev_pct, 1) +
+          ";new_diameter_cm=" + String(new_diameter, 3) + ";applied=" + (applied ? "y" : "n");
+    test_result("fit", (linear && moved_ok && got == n_stops) ? core::TEST_PASS : core::TEST_FAIL, kv);
+    test_end();
+}
+
 static void cmd_run_sample(const Cmd &c)
 {
-    static const char *const keys[] = {"volume"};
-    if (!check_args(c, "run_sample [slot] [volume=mL]   (send `session` first; no slot = the slot the manifold is on)", keys, 1, nullptr, 0, 1))
+    static const char *const keys[] = {"volume", "depth"};
+    if (!check_args(c, "run_sample [slot] [volume=mL] [depth=m]   (send `session` first; no slot = the slot the manifold is on; depth = intake depth, needs the spool)", keys, 2, nullptr, 0, 1))
         return;
     long slot = -1;
     float volume = STX_SAMPLE_MILLILITERS;
-    if (!positional_long(c, 0, &slot, 1, NB_SLOT - 1, "slot") || !arg_float(c, "volume", &volume, 1, 5000))
+    float depth_m = NAN;
+    if (!positional_long(c, 0, &slot, 1, NB_SLOT - 1, "slot") || !arg_float(c, "volume", &volume, 1, 5000) ||
+        !arg_float(c, "depth", &depth_m, 0, SPOOL_MAX_LENGTH_CM / 100.0f))
         return;
     if (!field_session.set)
     {
         Serial.println("REFUSED | run_sample: no session yet - send `session` first (site, date, experiment)");
         return;
+    }
+    if (depth_m == depth_m)
+    {
+        // checked before anything moves or is asked: a bad depth never starts a sample
+        float length = 0;
+        if (!spool_active())
+        {
+            Serial.println("REFUSED | run_sample: depth= needs the spool: answer y to the spool question in `session` (and SPOOL_USE)");
+            return;
+        }
+        if (!core::spool_depth_to_length_cm(depth_m, spool_height_cm, SPOOL_MAX_LENGTH_CM, &length))
+        {
+            Serial.println("REFUSED | run_sample: depth " + String(depth_m, 2) + " m + height " + String(spool_height_cm, 0) +
+                           " cm is more than the " + String(SPOOL_MAX_LENGTH_CM, 0) + " cm of tube allowed (SPOOL_MAX_LENGTH_CM)");
+            return;
+        }
+    }
+    else if (spool_active())
+    {
+        Serial.println("WARNING | run_sample: the spool is installed but no depth= was given: it is NOT moved, the intake stays where it is");
     }
     if (!pc_log_attached)
         Serial.println("WARNING | run_sample: no PC session log is running (tools/session_log.py). The sample WILL run, but its "
@@ -1786,7 +2149,8 @@ static void cmd_run_sample(const Cmd &c)
     }
     const String clean_name = meta_clean(name);
     Serial.println("META|sample;slot=" + String(slot) + ";name=" + clean_name + ";condition=" + meta_clean(condition) +
-                   ";notes=" + meta_clean(notes) + ";site=" + field_session.site +
+                   ";notes=" + meta_clean(notes) + ";depth_m=" + (depth_m == depth_m ? String(depth_m, 2) : String("-")) +
+                   ";site=" + field_session.site +
                    ";date=" + field_session.date + ";experiment=" + field_session.experiment);
     test_begin("run_sample");
     if (PRESSURE_SENSOR_AVAILABLE && !require_known("run_sample"))
@@ -1799,7 +2163,7 @@ static void cmd_run_sample(const Cmd &c)
     set_sample_record_meta(field_session.site.c_str(), field_session.date.c_str(), clean_condition.c_str()); // F199: in the records
     String kv = "name=" + clean_name + ";condition=" + meta_clean(condition) +
                 ";site=" + field_session.site + ";experiment=" + field_session.experiment;
-    core::TestResult r = run_full_cycle((int)slot, true, true, true, volume, &kv);
+    core::TestResult r = run_full_cycle((int)slot, true, true, true, volume, &kv, depth_m);
     set_sample_record_name("");
     set_sample_record_meta("", "", "");
     test_result(String(slot).c_str(), r, kv);
@@ -1815,7 +2179,8 @@ bool mech_tests_dispatch(const String &line)
     const char *known[] = {"help", "oring_state", "actuator_home", "oring_lock", "oring_unlock", "lock_cycle",
                            "lock_endurance", "rotate_all", "encoder_repeat", "valve_check", "leak_hold",
                            "multi_sample", "full_cycle", "full_all", "shield_only", "prime_shield", "pressure_ramp", "fill_test",
-                           "session", "run_sample", "log_on"};
+                           "session", "run_sample", "log_on", "spool_status", "spool_height", "spool_home", "spool_goto",
+                           "spool_calibrate"};
     bool mine = false;
     for (unsigned i = 0; i < sizeof known / sizeof known[0]; i++)
     {
@@ -1873,5 +2238,15 @@ bool mech_tests_dispatch(const String &line)
         cmd_run_sample(c);
     else if (!strcmp(c.name, "log_on"))
         cmd_log_on();
+    else if (!strcmp(c.name, "spool_status"))
+        cmd_spool_status();
+    else if (!strcmp(c.name, "spool_height"))
+        cmd_spool_height(c);
+    else if (!strcmp(c.name, "spool_home"))
+        cmd_spool_home(c);
+    else if (!strcmp(c.name, "spool_goto"))
+        cmd_spool_goto(c);
+    else if (!strcmp(c.name, "spool_calibrate"))
+        cmd_spool_calibrate(c);
     return true;
 }
