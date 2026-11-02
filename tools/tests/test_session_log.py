@@ -332,3 +332,45 @@ def test_summary_test_line_does_not_end_a_run(tmp_path):
     sl.on_device_line(s, "TEST|run_sample|summary|PASS|pass=1;fail=0;skip=0")
     s.close()
     assert s.run_start is not None  # still running: only the per-slot TEST line ends it
+
+
+class _FakeSession:
+    """The attributes on_device_line sets, with no file behind them."""
+
+    spool_max_m = None
+    spool_height_cm = None
+
+    def line(self, direction, text):
+        pass
+
+
+def test_the_session_depth_and_the_spool_height_come_from_the_device(tmp_path):
+    session = _FakeSession()
+    sl.on_device_line(session, "META|session;site=L;date=2026-11-02;experiment=E;operator=;spool=installed;spool_max_m=12.50")
+    assert session.spool_max_m == 12.5
+    sl.on_device_line(session, "META|session;site=L;date=2026-11-02;experiment=E;operator=;spool=absent")
+    assert session.spool_max_m is None
+    sl.on_device_line(session, "META|spool;height_cm=35")
+    assert session.spool_height_cm == 35.0
+    sl.on_device_line(session, "META|spool;kept_out=y;length_cm=1200;next_depth_m=2.00")
+    assert session.spool_height_cm == 35.0  # a line without the height changes nothing
+
+
+def test_the_depth_warnings_come_before_the_schedule_list(tmp_path):
+    # 2026-11-02 (user): a 15 m sample against a 10 m session is printed before the list, and before any question about it
+    import datetime as dt
+
+    import sample_schedule as sc
+
+    csv_path = tmp_path / "in.csv"
+    csv_path.write_text("date,time,name,condition,spool,depth_m" + chr(10) + "+0,09:00,deep,control,on,15" + chr(10), encoding="utf-8")
+    samples = sc.read_schedule(str(csv_path))
+    scheduled = sc.Schedule(samples, str(tmp_path / "state.csv"), pick=lambda: "run_sample 1", send=lambda t: None, say=lambda t: None)
+    out = []
+    answers = iter(["y", "n"])  # run the conflict anyway? then start? -> no start
+    sl.schedule_command(["start"], scheduled, dt.date(2026, 10, 26), lambda prompt: next(answers), out.append,
+                        session_max_m=10.0, spool_height_cm=0.0)
+    conflict = next(i for i, line in enumerate(out) if line.startswith("CONFLICT"))
+    listing = next(i for i, line in enumerate(out) if line.startswith("The schedule will be"))
+    assert conflict < listing
+    assert not scheduled.active()

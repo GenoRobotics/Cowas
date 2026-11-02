@@ -33,6 +33,7 @@
 #include "Run_keys.h"
 #include "Core/sample_record.h"
 #include "Core/spool_motion.h"
+#include "Core/spool_fill.h"
 
 // Delay when actuating valves
 #define DELAY_ACTIONS 1000
@@ -74,6 +75,12 @@ extern float read_p_in(); // main.cpp - the pressure sensor backing pump control
  */
 bool goto_slot_locked(int slot)
 {
+    // 2026-11-02 (user): with the spool, the deployment line is shut while the manifold turns: the water hanging in the tube
+    // must not drop into the manifold when the connection is broken. The caller opens Vman again where it pumps.
+    if (spool_active())
+    {
+        valve_manifold.set_close_way();
+    }
     // rotateMotor() unlocks for the turn and leaves the O-ring locked again (rest state).
     // FW2: a refusal (lock state UNKNOWN) or a failure (encoder, timeout) stops here.
     if (!rotateMotor(slot))
@@ -224,6 +231,16 @@ bool spool_active()
 }
 
 /**
+ * @brief The deepest intake depth the tube can reach, in cm below the water. The TOTAL tube length (depth + spool height)
+ * never goes beyond SPOOL_MAX_LENGTH_CM (40 m), whatever the height (user, 2026-11-02). -1 when the height leaves no tube.
+ */
+int spool_reachable_cm()
+{
+    const float reach = floorf(SPOOL_MAX_LENGTH_CM - spool_height_cm);
+    return reach < 0.0f ? -1 : (int)reach;
+}
+
+/**
  * @brief Unroll the spool to the intake depth. The air inlet V1 is open during the move so the air in the tube escapes
  * while it fills with lake water; V1 is closed again at the end, whatever happened. The move is from wherever the spool is
  * now (deeper, shallower, or rolled up), so a sample that follows another one goes straight to its depth. After a reset the
@@ -258,6 +275,8 @@ bool spool_move_depth(int _depth)
     output.println("Step dive: spool from " + String(spool.is_homed() ? String(spool.length_cm(), 0) + " cm out" : String("an unknown position")) +
                    " to " + String(length, 0) + " cm out (depth " + String(_depth / 100.0f, 2) + " m)");
     const char *why = "";
+    const bool known_from = spool.is_homed();
+    const float from_cm = spool.length_cm();
     const bool ok = spool.move_to_length(length, &why);
     valve_1.set_close_way();
     if (!ok)
@@ -266,7 +285,10 @@ bool spool_move_depth(int _depth)
                        ". Nothing was pumped. Check the tube, then spool_home");
         return false;
     }
-    output.println("Step dive ended: " + String(spool.length_cm(), 1) + " cm out, " + String((millis() - time1) / 1000.0, 1) + " s");
+    const float secs = (millis() - time1) / 1000.0f;
+    // the real speed of the move, logged on every move (the speed is not measured on the bench yet, SPOOL_MIN_CM_PER_S)
+    output.println("Step dive ended: " + String(spool.length_cm(), 1) + " cm out, " + String(secs, 1) + " s" +
+                   (known_from && secs > 0.0f ? ", " + String(fabsf(spool.length_cm() - from_cm) / secs, 2) + " cm/s" : String("")));
     return true;
 }
 
@@ -800,6 +822,7 @@ bool spool_roll_up(bool drain)
     {
         return false;
     }
+    spool_tube_wet = false; // a roll up empties the tube (or the dry roll up leaves it dry): the next sample fills it again
     if (!drain)
     {
         const char *why_dry = "";
@@ -841,6 +864,168 @@ bool step_rewind()
 }
 
 /**
+ * @brief The spool tubing is emptied: rolled up with V1 and Vman open (the tube drains as it leaves the water), then air is
+ * pulled through the purge slot until the line is empty (step_empty). Used at the end of a timepoint, after a failed sample
+ * and at the end of sample_process (user, 2026-11-02). The tube is then dry, so the next sample fills it again at the session
+ * depth. No-op (true) when the spool is not active.
+ *
+ * @param t_rewind_ms time of the roll up, for the log
+ * @param t_empty_ms  time of the emptying, for the log
+ * @param empty_failed set when the emptying did not reach air (last_empty_end says why)
+ * @return false if the roll up or the emptying did not end well: the tube may then hold water (the caller reports it)
+ */
+bool spool_roll_up_and_empty(uint32_t *t_rewind_ms, uint32_t *t_empty_ms, bool *empty_failed)
+{
+    *t_rewind_ms = 0;
+    *t_empty_ms = 0;
+    *empty_failed = false;
+    if (!spool_active())
+    {
+        return true;
+    }
+    const uint32_t t_mark = millis();
+    const bool rolled = step_rewind();
+    *t_rewind_ms = millis() - t_mark;
+    if (!rolled)
+    {
+        output.println("WARNING | spool: not rolled up, the tube may stay out and hold water. Type spool_home when it is safe");
+        return false;
+    }
+    const uint32_t t_empty_mark = millis();
+    last_empty_end = "none"; // step_empty() may return before it pumps: no stale end reason may pass as a result
+    step_empty();
+    *t_empty_ms = millis() - t_empty_mark;
+    if (strcmp(last_empty_end, "cond") != 0)
+    {
+        output.println(String("ERROR | spool: the tubing was NOT emptied (end=") + last_empty_end +
+                       "). Water may stay in the tube: check the purge outlet, then spool_home");
+        *empty_failed = true;
+        return false;
+    }
+    return true;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Water fill of the spool tube (2026-11-02, user). Before a sample at a depth: the tube is unrolled to the session's deepest
+// point with the air valve V1 open (the air escapes as the tube fills with lake water), the purge slot is primed until the
+// flowmeter counts SPOOL_PRIME_FLOW_ML, then the tube rolls up to the sample's depth while the pump runs. The tube then holds
+// water, so the pump only lifts what remains. The next sample of the same batch (shallower, the tube kept out) skips the first
+// dive. Pure checks in src/Core/spool_fill.
+// ---------------------------------------------------------------------------------------------------------------------
+
+bool spool_tube_wet = false; // the tube holds water and was kept out after the last sample (set by run_full_cycle)
+
+static const float SPOOL_DEPTH_TOL_CM = 0.5f; // cm. A length this close to a goal counts as there
+
+// The purge slot is primed with the tube full: the pump runs until the flowmeter counts SPOOL_PRIME_FLOW_ML. The pump is off and
+// the deployment valve shut when it returns: with the pump off and the line open, the water would drain out of the tube.
+static bool spool_prime_flow()
+{
+    if (!goto_slot_locked(PURGE_SLOT))
+    {
+        return false;
+    }
+    valve_1.set_close_way();
+    valve_manifold.set_open_way();
+    delay(DELAY_ACTIONS);
+    CtrlPumpFlow ctrl;
+    ctrl.begin(&pump, &pump_pid, read_p_in, &flow_sensor_small, SPOOL_PRIME_FLOW_ML, OPERATION_TARGET_BAR, true);
+    ctrl.set_max_runtime(SPOOL_PRIME_MAX_MS);
+    ctrl.run();
+    valve_manifold.set_close_way();
+    const bool flowing = strcmp(ctrl.end_reason(), "cond") == 0;
+    output.println(String("Spool prime: flow check ") + (flowing ? "PASS" : "FAIL") + ", end=" + ctrl.end_reason() + ", " +
+                   String(flow_sensor_small.get_totalFlowMilliL()) + " mL counted, peak " + String(ctrl.pressure_max(), 2) + " bar");
+    return flowing;
+}
+
+/**
+ * @brief Fills the spool tube with water and brings the intake to a sample's depth, before the sample's purge.
+ * Dry tube: dive to the session's deepest point (V1 open, air escapes), or to the sample's depth if that is deeper (the
+ * operator proceeded past the session depth). Wet tube (kept out after the last sample): dive only if the sample is deeper
+ * than the tube is now. Then the flow check at the purge slot (pump, then off), then the roll up to depth_cm with the
+ * deployment valve shut, so the water stays in the tube. No pump runs during the roll up.
+ * No-op (true) when the spool is not active.
+ *
+ * @param depth_cm intake depth of the sample, in centimeters below the water.
+ * @return false if stopped: the caller must not pump, and the tube is no longer trusted to be wet.
+ */
+bool spool_fill_and_rise(int depth_cm)
+{
+    if (!spool_active())
+    {
+        return true;
+    }
+    if (aborted_stop("step_dive"))
+    {
+        return false;
+    }
+    const bool was_wet = spool_tube_wet;
+    spool_tube_wet = false; // stays false until the caller keeps the tube out after the sample
+    // the total tube length never exceeds SPOOL_MAX_LENGTH_CM: the depths are cut at the height's limit (run_sample asks first)
+    const int reach_cm = spool_reachable_cm();
+    if (reach_cm < 0)
+    {
+        output.println("ERROR | spool fill: the spool height " + String(spool_height_cm, 0) + " cm leaves no tube within the " +
+                       String(SPOOL_MAX_LENGTH_CM / 100.0f, 0) + " m total. Nothing was pumped");
+        return false;
+    }
+    if (depth_cm > reach_cm)
+    {
+        output.println("Spool fill: depth " + String(depth_cm / 100.0f, 2) + " m cut to " + String(reach_cm / 100.0f, 2) +
+                       " m: the tube total is " + String(SPOOL_MAX_LENGTH_CM / 100.0f, 0) + " m with the height");
+        depth_cm = reach_cm;
+    }
+    const int session_cm = (int)lroundf(spool_session_max_m * 100.0f);
+    const int dive_cm = min(max(session_cm, depth_cm), reach_cm);
+    float target_len = 0, dive_len = 0;
+    if (!core::spool_depth_to_length_cm(depth_cm / 100.0f, spool_height_cm, SPOOL_MAX_LENGTH_CM, &target_len) ||
+        !core::spool_depth_to_length_cm(dive_cm / 100.0f, spool_height_cm, SPOOL_MAX_LENGTH_CM, &dive_len))
+    {
+        output.println("ERROR | spool fill: depth " + String(depth_cm / 100.0f, 2) + " m or " + String(dive_cm / 100.0f, 2) +
+                       " m is outside the tube. Nothing was pumped");
+        return false;
+    }
+
+    // 1) unroll: a dry tube goes to the dive depth; a wet one is lowered only when the sample is deeper
+    if (!was_wet)
+    {
+        output.println("Spool fill: dry tube, unrolling to " + String(dive_cm / 100.0f, 2) + " m (session depth " + String(spool_session_max_m, 2) + " m)");
+        if (!spool_move_depth(dive_cm))
+        {
+            return false; // nothing pumped
+        }
+    }
+    else if (target_len > spool.length_cm() + SPOOL_DEPTH_TOL_CM)
+    {
+        output.println("Spool fill: tube kept out, lowering to the sample depth " + String(depth_cm / 100.0f, 2) + " m");
+        if (!spool_move_depth(depth_cm))
+        {
+            return false;
+        }
+    }
+
+    // 2) prime the purge slot until the flowmeter shows water; the pump is off and Vman shut when this returns
+    if (!spool_prime_flow())
+    {
+        output.println("ERROR | spool fill: no flow at the purge slot. Nothing more was pumped. Check the intake and the tube, then spool_home");
+        stop_procedure("spool fill");
+        return false;
+    }
+
+    // 3) roll up to the sample's depth: the deployment valve is shut, so the water stays in the tube
+    if (spool.length_cm() > target_len + SPOOL_DEPTH_TOL_CM)
+    {
+        if (!spool_move_depth(depth_cm))
+        {
+            return false; // spool_move_depth printed why; nothing is pumped
+        }
+    }
+    output.println("Spool fill: at " + String(spool.length_cm(), 0) + " cm out, sample depth " + String(depth_cm / 100.0f, 2) + " m, tube full");
+    return true;
+}
+
+/**
  * @brief empties the deployment module and system, call at the end of sample
  */
 bool step_empty()
@@ -879,6 +1064,14 @@ bool step_empty()
     valve_manifold.set_close_way();
     output.println(String("Step empty: end=") + pump_ctrl.end_reason() + ", " + String((millis() - t_empty) / 1000) + " s");
     return !aborted_stop("step_empty"); // a skip (s) ends this step normally; an abort (x) stops the command
+}
+
+// A failed cycle with the spool: rolled up and emptied like a finished one (user, 2026-11-02). Nothing is pumped on failure.
+static void spool_cleanup_after_error()
+{
+    uint32_t t_roll = 0, t_empty = 0;
+    bool empty_failed = false;
+    spool_roll_up_and_empty(&t_roll, &t_empty, &empty_failed);
 }
 
 /**
@@ -956,6 +1149,7 @@ void sample_process(int depth, int manifold_slot)
     {
         output.println("ERROR | sample_process: purge failed - cycle stopped, slot " + String(manifold_slot) + " stays marked used");
         set_system_state(state_error);
+        spool_cleanup_after_error(); // 2026-11-02: a failed cycle empties the spool too (the next sample refills it)
         return;
     }
 
@@ -964,6 +1158,7 @@ void sample_process(int depth, int manifold_slot)
     {
         output.println("ERROR | sample_process: sampling failed - cycle stopped, slot " + String(manifold_slot) + " is suspect");
         set_system_state(state_error);
+        spool_cleanup_after_error(); // 2026-11-02: a failed cycle empties the spool too (the next sample refills it)
         return;
     }
 
@@ -976,11 +1171,18 @@ void sample_process(int depth, int manifold_slot)
     {
         output.println("ERROR | sample_process: DNA shield failed - cycle stopped, slot " + String(manifold_slot) + " is suspect");
         set_system_state(state_error);
+        spool_cleanup_after_error(); // 2026-11-02: a failed cycle empties the spool too (the next sample refills it)
         return;
     }
 
-    // the deployment-line emptying is no longer part of the cycle (user, 2026-10-19: 5 min is too long, and the cycle
-    // ends back at the purge). step_empty() stays for abort_sample().
+    // 2026-11-02 (user): with the spool, the spool tubing is emptied at the end of the cycle; the next sample fills it again at
+    // the session depth. Without the spool the deployment line is not emptied here (2026-10-19: step_empty() stays for abort_sample())
+    if (spool_active())
+    {
+        uint32_t t_roll = 0, t_empty = 0;
+        bool empty_failed = false;
+        spool_roll_up_and_empty(&t_roll, &t_empty, &empty_failed);
+    }
 
     // rest state: don't leave the o-ring compressed once the whole cycle is done
     unlock_oring();
@@ -1178,7 +1380,12 @@ void abort_sample()
     // -----------------
 
     // rewinding hose
-    step_rewind();
+    if (!step_rewind())
+    {
+        // 2026-11-02: the emptying opens the deployment line; with the tube still out it would drain the water of the tube
+        output.println("ERROR | abort_sample: the spool did not get home - emptying NOT run (the tube would drain). Check the tube, then spool_home");
+        return;
+    }
     // emptying the deplyoment module
     if (!step_empty())
     {

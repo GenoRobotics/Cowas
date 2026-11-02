@@ -25,7 +25,11 @@ bool load_slot_full(int slot_manifold); // FULL operation sequence (step_samplin
 bool step_rewind();                                               // purge slot, V1+Vman open so the tube drains, spool to the origin; false = it did not get home. No-op without the spool
 bool spool_active();                                              // SPOOL_USE and the session said the spool is on the machine
 bool spool_move_depth(int _depth);                                 // step_dive without the session check (the spool_goto command)
-bool spool_roll_up(bool drain);                                    // step_rewind without the session check; drain=false: no manifold or valve, just roll up (spool_home)
+bool spool_roll_up(bool drain);
+bool spool_roll_up_and_empty(uint32_t *t_rewind_ms, uint32_t *t_empty_ms, bool *empty_failed); // roll up, then empty the tubing (2026-11-02)                                    // step_rewind without the session check; drain=false: no manifold or valve, just roll up (spool_home)
+bool spool_fill_and_rise(int depth_cm);                       // water fill before a sample at depth: dive to the session depth if dry, prime, rise to depth (2026-11-02)
+int spool_reachable_cm();                                          // deepest intake depth (cm) with the height: the tube total never passes SPOOL_MAX_LENGTH_CM (-1 = none)
+extern bool spool_tube_wet;                                        // the tube holds water and was kept out after the last sample (set by run_full_cycle)
 bool step_empty();                                                // drains water from deployment module
 bool step_DNA_shield(int slot_manifold);                          // insert DNA shield to sterivex
 void sample_process(int depth, int manifold_slot = -1);

@@ -525,6 +525,7 @@ Left out of stage 1. Nothing here blocks the field.
 | Code clean-up: two sample paths, `fill_test`'s own pump loop, legacy `maintenance.cpp`, `step_dive`. Removed code is in [the archive](../archive/code/README.md) | — | FW4 |
 | Timed sample list (`--schedule`) does not check that the samples fit the timeline: the cycle time is not measured yet. Add a check once it is known | F208 | HO6 |
 | `run_sample` typed in `pio device monitor` skips the session tool: no record, no loading order, no timed list. One console for the operator (the host channel on native USB) | F210 | FW7 |
+| Renames, **not done yet** (2026-11-02, user: do it later, a rename now could break the code): `actuator_home` becomes `init`; the valves become `valve_air` (today `valve_1`, the air inlet V1) and `valve_water` (today `valve_manifold`, the deployment line Vman). Scope: the console commands and their help and docs (`commands.md`, the tutorial, the schedule tool's messages and tests, the Pi/host protocol if it names them), the C++ identifiers in `src/` and `include/`, and the tests. Do it in one step with a grep over the whole repo, then `pio run -e due`, `pio test -e native` and `pytest tools/`. Behaviour must not change | — | FW7 |
 | Relief valve, E-stop and leak at 3 bar (F144): **accepted by the user 2026-10-23, not raised again** | HW2, F144 | — |
 
 ---

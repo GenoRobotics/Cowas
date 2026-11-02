@@ -31,7 +31,7 @@ public:
     void start(int _depth);
     void start_origin();
     // Spool (depth). Lengths are cm of tube unrolled from the origin switch. Both block until the move ends and return
-    // false with a reason in *why (stall, wrong way, timeout, end-stop, x typed). A move never lasts more than SPOOL_MOVE_MAX_MS.
+    // false with a reason in *why (stall, wrong way, timeout, end-stop, x typed). A move never lasts more than its distance allows (SPOOL_MIN_CM_PER_S, SPOOL_MOVE_MARGIN_MS).
     bool move_to_length(float length_cm, const char **why); // rolls up to the origin first if the position is unknown
     bool go_home(const char **why);                         // rolls up to the origin switch
     bool is_homed() { return homed; }

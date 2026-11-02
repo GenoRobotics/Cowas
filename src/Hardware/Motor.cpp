@@ -154,7 +154,7 @@ static void spool_apply_speed(Motor &m, uint8_t pct, motor_direction dir)
 /**
  * @brief One spool move, blocking. Goes `dir` until the goal length (or the origin switch when to_switch) and stops on the
  * first of: arrival, origin switch, down end-stop, no encoder pulse for SPOOL_STALL_MS, the length going the wrong way,
- * SPOOL_MOVE_MAX_MS, x typed. Keeps reading the encoder for SPOOL_COAST_COUNT_MS after the brake so the length stays true.
+ * the distance-based time limit, x typed. Keeps reading the encoder for SPOOL_COAST_COUNT_MS after the brake so the length stays true.
  * Nothing is printed inside the loop (the Due must keep polling the encoder).
  *
  * @return true if the goal (or the switch) was reached. Otherwise *why says what stopped it.
@@ -196,7 +196,11 @@ bool Motor::drive(motor_direction dir, uint8_t fast_speed, float goal_cm, bool t
     }
 
     const float start_cm = encoder.get_distance_f();
-    core::SpoolMoveParams p = {dir == down ? +1 : -1, to_switch, goal_cm, SPOOL_MOVE_MAX_MS, SPOOL_STALL_MS, SPOOL_WRONG_WAY_CM};
+    // the longest time follows the distance (2026-11-02): margin + distance at the slowest allowed speed. To the switch from a
+    // known position the distance is the tube out now; from an unknown one, the whole tube.
+    const float move_cm = to_switch ? (homed ? start_cm : SPOOL_MAX_LENGTH_CM) : fabsf(goal_cm - start_cm);
+    const uint32_t max_ms = core::spool_move_limit_ms(move_cm, SPOOL_MIN_CM_PER_S, SPOOL_MOVE_MARGIN_MS);
+    core::SpoolMoveParams p = {dir == down ? +1 : -1, to_switch, goal_cm, max_ms, SPOOL_STALL_MS, SPOOL_WRONG_WAY_CM};
     // speed: unknown position = slow all the way to the switch; known = fast, slow near the goal or the origin
     auto speed_for = [&](float now_cm) -> uint8_t {
         if (to_switch)

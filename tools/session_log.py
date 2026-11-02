@@ -214,6 +214,8 @@ class Session:
         os.makedirs(self.samples_dir, exist_ok=True)  # also creates root
         self.log = open(self.log_path, "a", encoding="utf-8")
         self.counts = {r: 0 for r in RESULTS}
+        self.spool_max_m = None  # the session's deepest point, from the device's META|session line (None = no spool depth)
+        self.spool_height_cm = None  # the spool height, from the device's META|spool;height_cm= line (None = not told yet)
         self.samples = 0
         self.errors = 0
         self.gap = False
@@ -443,9 +445,10 @@ def ask_loaded(read, write):
 SCHEDULE_HELP = "Schedule commands: `schedule` (the list), `schedule start`, `schedule stop`."
 
 
-def schedule_command(args, scheduled, today, read, write):
+def schedule_command(args, scheduled, today, read, write, session_max_m=None, spool_height_cm=None):
     """The `schedule` commands typed in the tool. `schedule start` shows the dates and asks for a yes before anything runs.
-    `today` is the day the schedule starts, for the +N dates."""
+    `today` is the day the schedule starts, for the +N dates. session_max_m: the session's deepest point from the device
+    (None = no session with the spool yet). spool_height_cm: the spool height from the device (None = not told yet)."""
     if scheduled is None:
         write("No schedule: start the tool with --schedule FILE.csv.")
         return
@@ -460,6 +463,31 @@ def schedule_command(args, scheduled, today, read, write):
         if not scheduled.pending():
             write("Nothing left to run.")
             return
+        # 2026-11-02 (user): the warnings come first, before the list and before anything runs
+        resolved = sched.resolve(scheduled.pending(), today)
+        if any(s.spool for s in resolved):
+            if session_max_m is None:
+                write("BLOCKED | the schedule has spool samples, but the session has no spool depth: type `session` with the spool answer y first.")
+                return
+            if spool_height_cm is None:
+                write("BLOCKED | the schedule has spool samples, but the tool does not know the spool height: type `spool_status` first.")
+                return
+        deep = sched.depth_conflicts(resolved, session_max_m)
+        over = sched.total_overflows(resolved, spool_height_cm)
+        conflicts = list({sched.sample_key(s): s for s in deep + over}.values())
+        accepted = []
+        if conflicts:
+            write(f"CONFLICT | {len(conflicts)} spool sample(s) need the operator's answer:")
+            for s in deep:
+                write(f"  {s.name} {s.date} {s.time}: {s.depth_m} m is deeper than the session's deepest point ({session_max_m:.2f} m)")
+            for s in over:
+                write(f"  {s.name} {s.date} {s.time}: {s.depth_m} m + spool height {spool_height_cm:g} cm is over the "
+                      f"{sched.MAX_TUBE_M:g} m tube total: the intake stops at {sched.MAX_TUBE_M - spool_height_cm / 100.0:.2f} m")
+            write("y = run them anyway (each one goes to its deepest allowed depth). n = not started: change the list or `session` / `spool_status`, then `schedule start`.")
+            if not ask_yes_no("Run them anyway? (y/n) ", read):
+                write("Not started.")
+                return
+            accepted = [sched.sample_key(s) for s in conflicts]
         write("The schedule will be:")
         for line in scheduled.preview(today):
             write(line)
@@ -467,7 +495,7 @@ def schedule_command(args, scheduled, today, read, write):
         if not ask_yes_no("Start the schedule now? (y/n) ", read):
             write("Not started.")
             return
-        scheduled.start(today)
+        scheduled.start(today, accepted_deeper=accepted)
         write("Schedule started. Each sample runs at its time. Type `schedule stop` to stop it.")
         return
     if args == ["stop"]:
@@ -517,6 +545,14 @@ def on_device_line(session, text, book=None):
     `book` (the sample availability) is told when a run_sample has its name: that sample is used from then on."""
     print(text, flush=True)
     session.line("<", text)
+    if text.startswith("META|session"):
+        # the session's deepest point (2026-11-02): the schedule checks its rows against it at `schedule start`
+        depth = re.search(r";spool_max_m=([0-9.]+)", text)
+        session.spool_max_m = float(depth.group(1)) if depth else None
+    if text.startswith("META|spool") and "height_cm=" in text:
+        # the spool height (spool_status, spool_height): the schedule checks the 40 m total with it
+        height = re.search(r"height_cm=([0-9.]+)", text)
+        session.spool_height_cm = float(height.group(1)) if height else None
     if book is not None:
         meta = SAMPLE_META.match(text.strip())
         if meta:
@@ -700,7 +736,7 @@ def main(argv=None):
             session.line(">", line)
             words = line.split()
             if words and words[0].lower() == "schedule":
-                schedule_command(words[1:], scheduled, _dt.date.today(), read_line, say)
+                schedule_command(words[1:], scheduled, _dt.date.today(), read_line, say, session.spool_max_m, session.spool_height_cm)
                 continue
             if scheduled is not None and words and words[0].lower() == "run_sample":
                 if scheduled.active():  # the list would start a sample on top of this one: ask first

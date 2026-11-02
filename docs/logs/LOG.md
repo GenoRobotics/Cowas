@@ -2347,6 +2347,14 @@ Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>
 6. Wet: `spool_goto 1`, then `spool_home` with a container under the purge outlet: the tube empties (F213).
 7. `run_sample 7 depth=1` then a schedule of two spool samples 1 min apart: the second goes straight to its depth without a roll up (`spool_end=kept_out`).
 
+### Session 2026-11-02: spool calibration (bench, dry)
+
+**Data (user):** commanded 1 / 5 / 15 m, tape 0.97 / 4.77 / 14.72 m. The user does not need the drum diameter: the encoder measures a constant-radius wheel that turns with the linear travel, so only the scale matters.
+
+**Fit check:** scale = Σ(tape x commanded) / Σ(commanded²) = 2456200 / 2510000 = 0.9786 (same formula as `core::spool_fit_scale`). Worst stop 2.6 % off (5 m). The drum value is 10.0 x 0.9786 = 9.786.
+
+**Status:** the calibration was already done and `SPOOL_DRUM_DIAMETER_CM = 9.786` was already in `include/Settings.h` before this entry. No code change in this entry, so no behavior change and no new build or test run. The user reports the calibration was not off on the bench.
+
 ### Session 2026-11-02: schedule file, no spaces in names and conditions
 
 **What changed (tool only, no firmware change)**
@@ -2364,3 +2372,279 @@ Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>
 
 **Open**
 - The spool is still disabled, so `spool` and `depth_m` in a schedule only reach the log (unchanged).
+
+### Session 2026-11-02: ethanol_purge 0.1 L per slot
+
+**User (2026-11-02):** `ethanol_purge` does not seem to flow anything (spool on, intake at 0.6 m). Asked for 0.1 L per slot instead of 0.5 L.
+
+**Changes**
+- `CLEAN_SLOT_ML` 500 -> 100 (`include/Settings.h`). Used for each slot flush, the ethanol total and the spool-off prime. The spool-on prime stays 3 L (`CLEAN_PRIME_SPOOL_ML`), not changed by the request.
+- Comments, the help line, `maintenance.h` and the operator tutorial (section 3b) say 0.1 L.
+
+**Full power (checked in code, not on the bench):** `ethanol_purge` calls `set_full_power(true)` (maintenance.cpp), `CtrlPump::run` limits the PID output with `pump_power_limit_percent(...)`, which returns `PUMP_PURGE_MAX_POWER_PERCENT` (100) when set, and `set_power_live` writes 100 % = 4095 on the 12-bit DAC. The start ramp (5 %/s) and the 3 %/update slew still apply. So the exception does reach the output. Why nothing flowed is not found in the code: the run has no stall watch (`filter_watch_` not set), so a dry pump only ends at the timeout (3 min per flush, 13 min for the spool prime). Unmeasured: priming a diaphragm pump at 0.6 m of suction lift with an empty spool line.
+
+**Validation:** `pio run -e due` OK. `pio test -e native` 196 passed. Not flashed.
+
+**Hardware checklist:** send the console lines `Ethanol prime: ... end=`, the `Pressure bar` and `Flow measured` lines printed during the prime, to see whether the pressure rises and whether the flowmeter moves.
+
+### Session 2026-11-02: water fill of the spool tube before each sample
+
+**User request:** with the spool unrolled a short distance (about 0.6 m), the pump cannot push water through the many turns of the empty tube. Fix: unroll to the session's deepest point with the air valve open, so the tube fills with lake water; prime the purge slot until the flowmeter shows flow; then roll up to each sample's depth while the pump runs. Samples at one time: deepest first, so the tube is filled once. The manifold's deployment valve is shut while the manifold turns, so the tube does not drop its water at the manifold.
+
+**Changes**
+- `session` (spool y): asks the session's deepest depth in m, ENTER = `SPOOL_SESSION_DEFAULT_MAX_M` (40 m). Warns above `SPOOL_CALIBRATED_MAX_M` (15 m). Stored in `spool_session_max_m`, printed in the META line as `spool_max_m=`.
+- `run_sample ... depth=`: refused when the depth is deeper than the session's deepest point.
+- `spool_fill_and_rise(depth_cm)` (Step_functions.cpp), called by `run_full_cycle` in place of `step_dive`:
+  1. Dry tube (`spool_tube_wet` false): dive to the session's deepest point, V1 open.
+     Wet tube: lower only if the sample is deeper than the tube is now.
+  2. Prime: manifold to the purge slot, V1 shut, Vman open, pump (60 % water limit, PID 200/100/100, pressure cap) until the flowmeter counts `SPOOL_PRIME_FLOW_ML` (200 mL). Timeout `SPOOL_PRIME_MAX_MS` (5 min). No flow: stop, nothing more pumped.
+  3. Rise to the sample depth while the pump runs: steps of `SPOOL_RISE_STEP_CM` (50 cm). Before each step: pressure read, implausible reading or above `STX_MAX_PRESSURE` stops it, PID output with the start ramp. After each step: at least `SPOOL_RISE_MIN_ML_PER_STEP` (5 mL) must have been counted, else the rise stops.
+  4. Then the usual purge (3 L), sampling, shield. The next-depth question is unchanged.
+- `spool_tube_wet`: set true only when the tube is kept out after a sample; cleared at the start of every fill and by every roll up. False after a boot.
+- `goto_slot_locked()`: shuts Vman before the manifold turns (all callers; each caller opens Vman again where it pumps).
+- Core: `src/Core/spool_fill.{h,cpp}`: the depth text parser (empty = default, comma or point), the rise goal, the flow check. Tests: `test/test_spool_fill/` (7 tests).
+- Schedule tool (`tools/sample_schedule.py`): same-time samples run the deepest first (spool off last), then file order. Tests updated and 2 new.
+- Settings: `SPOOL_SESSION_DEFAULT_MAX_M`, `SPOOL_SESSION_MIN_MAX_M`, `SPOOL_CALIBRATED_MAX_M`, `SPOOL_PRIME_FLOW_ML`, `SPOOL_PRIME_MAX_MS`, `SPOOL_RISE_STEP_CM`, `SPOOL_RISE_MIN_ML_PER_STEP` (the last five PLACEHOLDER).
+- Docs: operator tutorial §2 and §5 (session answer, one sample, several samples), commands.md rows for `session` and `run_sample`.
+
+**Behavior changes**
+1. `session` with spool y asks one more question (the deepest depth).
+2. Every sample with `depth=` fills the tube and rises while pumping before the purge (a short prime and the rise replace the plain dive).
+3. `goto_slot_locked()` shuts the deployment valve during every slot change (also runs without the spool; harmless, the callers open it again).
+4. The schedule tool orders same-time samples deepest first.
+
+**Not verified (no hardware yet)**
+- The pump keeps its power while the spool moves a 50 cm step; the pressure is only checked between steps. The move's own stall and time limits apply, but the cap is not checked during a move. The step length is the knob if this is a concern.
+- The thresholds (200 mL prime, 5 mL per step, 50 cm steps) and the spool speed are guesses.
+- The layer model is calibrated to 15 m only: at 40 m the real intake depth is not measured. The session answer is the guard against the ground.
+- The schedule tool still accepts depths up to 40 m; the device refuses a depth deeper than the session's answer.
+- Pumping 40 m of tube full of water at the purge: the pressure at the sensor during the prime is unmeasured (the cap stops the pump at 3.6 bar).
+
+**Validation**
+- `pio run -e due`: passes. `pio test -e native`: 203 passed (7 new). `pytest tools/`: 194 passed (2 new in this step).
+- Hardware: not run, not flashed.
+
+**Hardware checklist (numeric pass criteria)**
+1. `session`, spool `y`: ENTER gives `spool_max_m=40.00`. `15` gives no warning. `16` is accepted with a warning. `41` and `abc` print REQUIRED and ask again.
+2. `run_sample 7 depth=0.5` on a rolled-up tube: `Spool fill: dry tube, unrolling to the session depth 40.0 m`, `Spool prime: flow check PASS` with at least 200 mL counted, `Spool rise ended: 50 cm out`. Each rise step counts at least 5 mL. Pressure stays below 3.6 bar (peak printed).
+3. Two samples at once, 15 m then 5 m: the second run prints no `dry tube` line and only rises (no dive).
+4. A rise with no water (clamp the intake): the rise stops with `no flow in the last rise step`, the pump is off, valves closed, the tube is left out and nothing is sampled.
+5. Slot change with the tube kept out: no water drops at the manifold outlet (0 mL in the container after the rotation).
+6. `x` during a rise: the move stops within 1 s with `aborted with x`, pump off.
+
+### Session 2026-11-02: corrections to the water fill (user review)
+
+Replaces the design of the entry above where they differ.
+
+**Changes**
+- No pump during the roll up. After the flow check the pump is off and Vman is shut; the tube rolls up from the prime depth to the sample depth in one move (`spool_move_depth`), so the water stays in the tube. The 50 cm rise steps, the per-step pressure and flow checks, the 5 mL per step minimum and `spool_rise_while_pumping` are removed (`SPOOL_RISE_STEP_CM`, `SPOOL_RISE_MIN_ML_PER_STEP`, `core::spool_rise_next_goal_cm`, `core::spool_rise_flow_ok` and their tests).
+- `SPOOL_PRIME_FLOW_ML` = 100 mL (was 200). The flow check ends with Vman shut.
+- `session`: no 15 m warning (the calibration is trusted).
+- `session` with spool `n`: no depth is asked or kept. The default is only read when the spool is on.
+- `run_sample depth=` deeper than the session depth: warning, then `ASK | run_sample: solve it or proceed?`. `y` goes to that depth (a dry fill dives to the sample depth), anything else stops with nothing started. Was a refusal.
+- `goto_slot_locked()` shuts Vman only when `spool_active()` (no change without the spool).
+- Schedule tool: the tube stays full (`spool: next sample depth` answered) only for a sample with the same date and time as the one that just ended. A later sample rolls the tube up. Tests: the 10 min rule is replaced; 1 new test.
+- `abort_sample()`: if the roll up fails with the spool on, the emptying (`step_empty`, which opens Vman) is not run, so the tube does not drain. Error printed, O-ring left as it is.
+
+**Procedure audit: where Vman is open** (the deployment line, through which the tube drains by gravity when the pump is off)
+- Open only while pumping through the tube: `step_purge` (purge), `step_sampling` (water phase), `load_slot_water`, `step_empty`, `spool_prime_flow`, `spool_roll_up(drain)`.
+- Shut in: `load_slot_air` (air drying), the sampling's emptying and sterivex air drying (V1 open, Vman shut, from `vent_line` onward), `step_DNA_shield`, `spool_move_depth`, and every `stop_procedure`.
+- Shut before every manifold turn with the spool on (`goto_slot_locked`).
+- Checked and fine: the air drying of the filter never has Vman open. The one gap found was `abort_sample` (fixed above).
+
+**Validation**
+- `pio run -e due`: passes. `pio test -e native`: 199 passed (4 fewer: the rise tests removed). `pytest tools/`: 195 passed.
+- Hardware: not run, not flashed.
+
+**Hardware checklist (numeric)**
+1. `session`, spool `y`, ENTER: `spool_max_m=40.00`. `session`, spool `n`: no depth question.
+2. `run_sample 7 depth=0.5` on a rolled-up tube: `Spool prime: flow check PASS` with at least 100 mL counted, then `Spool fill: at ... cm out` with no pump between the prime and the end (check the pump's `Pressure bar` lines stop). Flow in the purge after the roll up: 0 mL counted, and the water stays in the tube (the next `run_sample` at the same time rolls up without a dive).
+3. `run_sample 7 depth=50` with the session at 40 m: a warning and the `solve it or proceed` question. `n` starts nothing.
+4. Two samples at the same time (15 m, 5 m) then one 10 minutes later: the first two share the fill; the third starts with `Spool fill: dry tube`.
+5. A slot change with the tube out: no water in the outlet container (0 mL) after the manifold turns.
+6. Air drying with the spool on: no water in the container at the manifold outlet (0 mL) during the drying (Vman shut).
+
+### Session 2026-11-02: schedule depth check, values resolved, tutorial restructured
+
+**User review:** (a) the schedule checks its spool depths against the session's depth at `schedule start`, and asks; (b) the placeholders are to be solved, not left open; (c) the tutorial is restructured (one flow, one sample or several at the same location, spool with the samples, end of the day last).
+
+**Changes**
+- **Schedule start (tools):** `depth_conflicts()` (`tools/sample_schedule.py`). `schedule start` prints `CONFLICT` with the waiting spool samples deeper than the session's `spool_max_m` (read from the device's `META|session` line, `Session.spool_max_m` in `tools/session_log.py`) and asks `y/n`. `y` starts the list and answers the device's `run_sample: solve it or proceed?` with `y` for each sample (`Schedule.accept_deeper`). No session spool depth (no session, or spool `n`) with waiting spool samples: `BLOCKED`, not started.
+- **Same timepoint** (carried from the previous step, now in the docs): the tube is kept full only for a sample at the same date and time.
+- **Placeholders resolved:**
+  - `SPOOL_PRIME_FLOW_ML` = 100 mL. It is above the 30 mL intake path (`INTAKE_PATH_ML`) that the first water must clear. User: 100 mL is enough.
+  - `SPOOL_PRIME_MAX_MS` = 4 min = 2 × (100 mL at `FLOW_TRUST_MIN_ML_PER_MIN`, 50 mL/min = 2 min). The timeout is now derived from the flow rule, not guessed.
+  - Spool move time limit: the fixed 15 min (`SPOOL_MOVE_MAX_MS`) is replaced by `core::spool_move_limit_ms(distance, SPOOL_MIN_CM_PER_S, SPOOL_MOVE_MARGIN_MS)` = 60 s + distance / 2 cm/s. Tested in `test/test_spool_motion/`. A move slower than 2 cm/s ends as `timeout` (safe). The stall rule (4 s with no encoder pulse) and the wrong-way rule are unchanged and still stop a stuck spool at once.
+  - Spool speed: the PWM settings (`SPOOL_SLOW_SPEED` 40 %, `SPOOL_HOME_SPEED` 30 %) are kept as design choices for a slow approach. The real cm/s is not known until a move has run on the bench, so every dive and rise now logs its speed (`Step dive ended: ... cm/s`). This is the one value that cannot be settled without the hardware: the first real move gives it.
+- **Docs:** `operator-tutorial.md` restructured (temporary section removed; start of the day with the spool check; samples in 2a one sample / 2b schedule / 2c spool; troubleshooting; end of the day; ethanol cleaning as section 5 with the filters-out question; command list). `session-log.md`: the depth check and the same-timepoint rule. `commands.md`: the move time limit and speed logging.
+
+**Behavior changes**
+1. `schedule start` may ask one more question (the depth conflicts), and blocks spool samples when the session has no spool depth.
+2. Spool moves end on a distance-based time limit (60 s + distance / 2 cm/s) instead of 15 min.
+3. Every spool move prints its speed.
+
+**Validation**
+- `pio run -e due`: passes. `pio test -e native`: 200 passed (1 new: the move limit).
+- `pytest tools/`: 199 passed (4 new: the conflict rules and the accepted-depth answer).
+- Hardware: not run, not flashed.
+
+**Hardware checklist (numeric)**
+1. `session` spool `y`, 40 m. Schedule with one spool row at 15 m and one at 50 m: `schedule start` prints `CONFLICT` with the 50 m row only (the 15 m row is not listed). `n` starts nothing. `y` starts, and the device answers the 50 m sample's question with `y` without a stop.
+2. `session` spool `n`, then `schedule start` with a spool row: `BLOCKED`, nothing starts.
+3. A dive from a dry tube to 1 m: the `Step dive ended` line shows a speed in cm/s and is finite (no `inf`, no `0.00 cm/s` for a move that moved). Record the value: it is the first measured spool speed.
+4. A move that stops on the timeout (`timeout`) is only possible below 2 cm/s: if the 1 m move ends on timeout, the spool is slower than the bound; set `SPOOL_MIN_CM_PER_S` lower and log it.
+5. The prime at the purge slot: `Spool prime: flow check PASS` with at least 100 mL counted, in under 4 min.
+
+### Session 2026-11-02: verification before the field (corrections)
+
+Full review of the requests of this session against the code. Corrections made:
+
+1. **Height bug (firmware):** the session depth plus `spool_height` can exceed the tube (40 m + 0.5 m = 4050 cm > `SPOOL_MAX_LENGTH_CM`). The fill would then fail on every sample after the move had started. `run_sample depth=` now refuses before anything moves when the deeper of session depth and `depth=` does not fit with the height (`REFUSED | run_sample: the deepest point of this session ...`).
+2. **Accepted conflicts (tool):** the schedule's `y` at `CONFLICT` applied to every deep sample in the list. It now applies only to the rows listed in the conflict, matched by `sample_key()` (date, time, name, depth). A deeper row added or edited afterwards is left to the operator.
+3. **Speed bound:** `SPOOL_MIN_CM_PER_S` lowered 2.0 -> 1.0 cm/s. With the true speed unknown, a bound that is too tight would fail every move with `timeout`. The stall rule (4 s with no encoder pulse) still stops a stuck spool; the time limit is the backstop (40 m = 67 min). Docs updated (tutorial, commands.md, session-log). The earlier LOG entries of this session keep their original wording.
+4. **Stale text:** the tutorial's error row for `ERROR | spool rise` (that message no longer exists; the move error is `ERROR | step_dive: the spool did not get to the depth`); two roadmap/tool references to the tutorial's section 4 now point to section 2b.
+
+**Checked and found correct**
+- Session: ENTER = 40 m; range 0.5 to 40 m; a comma works; x cancels with nothing changed; no depth question when spool = n; the META line carries `spool_max_m` only when the spool is installed, and the tool reads it (tested with both cases).
+- run_sample: depth without spool refused; depth deeper than the session: warning and `y/n`; anything but `y` cancels with nothing started.
+- Fill: dry tube dives to the deeper of session depth and sample depth; wet tube is lowered only when the sample is deeper; the flow check runs with the deployment valve open and the pump; the valve is shut and the pump off before the roll up; the roll up moves no pump.
+- Valves: the deployment valve is open only while water is pumped through the tube (purge, sampling water phase, flow check, drain roll up). Shut for air drying, sampling emptying, DNA shield, every spool move and every stop. `abort_sample` does not run the emptying after a failed roll up.
+- Schedule: same timepoint only keeps the tube full; deepest first at the same time; `BLOCKED` without a session spool depth; conflicts asked once at start.
+- Device answer timeout: a question the tool does not answer is cancelled by the device after its wait, which the tool reads as refused. The schedule does not hang.
+
+**Known risks for the field (not fixed here, cannot be tested from the code)**
+- **The fill dive keeps the deployment valve shut** (inherited from the earlier spool code, `step_dive`). Whether the tube fills in that state depends on the pipework, which the code does not show. If it does not fill, the flow check at the purge slot fails (`ERROR | spool fill: no flow`) and nothing more is pumped. A sample then ends as FAIL. If that happens on the first sample, the dive valve setting is the first thing to check.
+- Spool speed is unmeasured. The first move logs its cm/s (`Step dive ended: ... cm/s`).
+- The prime flow threshold (100 mL) and timeout (4 min) rest on the flowmeter's 50 mL/min confidence limit. Slower real flow fails the check safely.
+- During the prime the pump works against the head of the tube at depth. The pressure cap (3.6 bar) stops the pump if the head is too high; that fails the sample safely.
+- `host/` tests fail with `ModuleNotFoundError: cowas`: the host venv points at another checkout (see the 2026-11-02 log entry above). Not related to these changes.
+
+**Validation (final)**
+- `pio run -e due`: passes.
+- `pio test -e native`: 200 passed.
+- `pytest tools/`: 200 passed.
+
+**Hardware checklist additions**
+1. `session` spool y with the height set to 0.5 m and 40 m: the run refuses at once with the `more than the ... cm of tube` message, and no pump or spool move happens.
+2. The first sample at depth: the dive line shows `cm/s`, the prime line shows `PASS`. If `FAIL`: stop, do not repeat the fill; check the deployment valve state of the fill dive.
+
+### Session 2026-11-02: 40 m total tube, emptying at the end of each timepoint
+
+**User request:** (1) the total tube (depth + spool height) never goes beyond 40 m, whatever the height; a session maximum of 40 m goes down to a total of 40 m; a schedule or a single sample that would pass 40 m total is warned before anything runs. (2) The main roll and unroll speed is not changed (neither faster nor slower). (3) Samples at the same timepoint are treated together: no emptying between them, deepest first, but the spool tubing IS emptied at the end of the group, before the next timepoint (the old `step_empty`, which was dropped on 2026-10-19 for the cycle).
+
+**Changes (firmware)**
+- `spool_reachable_cm()` (`src/Step_functions.cpp`): the deepest intake depth = 40 m minus the spool height (-1 when the height leaves no tube). `spool_fill_and_rise()` cuts the sample depth and the dive at it, and says so on the console (`Spool fill: depth ... cut to ...`). The dive is the deeper of the session depth and the sample depth, cut at the reachable depth.
+- `run_sample depth=`: the depth is cut at the reachable depth with a warning, and the machine asks `run_sample: solve it or proceed?` (`y` = the cut depth, anything else = nothing started). The same question comes for a depth deeper than the session's deepest point. The former refusals (`depth + height ... more than the tube`) are removed. A height that leaves no tube is refused.
+- `spool_status` prints `META|spool;height_cm=<cm>` (the PC needs the height for the 40 m check).
+- Group end (`run_full_cycle`, `src/Tests_mech.cpp`): when the tube is rolled up (not kept out for the next sample at the same timepoint), `step_empty()` runs after the roll up. The TEST line gets `spool_emptied=y|NO`, `spool_empty_end=<end reason>` and `t_empty_s`. Only `cond` (air reached) counts as emptied. Otherwise the sample is `FAIL` with `failed_at=empty` and an ERROR line. `last_empty_end` is reset before the call, so a stale value cannot pass.
+- Unchanged: the keep-out rule (kept only for the same timepoint, the next answer from the tool), the abort path (`abort_sample` already rolls up and empties).
+
+**Changes (tool)**
+- `total_overflows()` and `MAX_TUBE_M = 40` (`tools/sample_schedule.py`). `schedule start` reads the spool height from the device; without it, spool samples are `BLOCKED` (type `spool_status`). `CONFLICT` lists the session conflicts and the 40 m overflows (with the cut depth), one `y/n`. `y` answers the device's question for exactly the listed rows (`sample_key`, so a row added later is not answered).
+- `session_log.py`: `Session.spool_height_cm` from `META|spool;height_cm=`.
+
+**Speed (item 2):** unchanged. `git diff` against the baseline shows no change to `SPEED_UP`, `SPEED_DOWN` (100 %, the main roll), `SPOOL_SLOW_SPEED` (40 %, last 30 cm) or `SPOOL_HOME_SPEED` (30 %). The move time limit (`SPOOL_MIN_CM_PER_S`, 1 cm/s bound) only limits time; it does not change the speed.
+
+**Behavior changes**
+1. A depth with height that passes 40 m total is cut and asked, not refused.
+2. The spool tubing is emptied at the end of each timepoint (after the roll up). Before this change it was not emptied at all in the cycle.
+3. A failed emptying makes the sample FAIL (`failed_at=empty`).
+
+**Not changed (decided)**
+- A sample that fails before its roll up is left out (as before): the tube is not rolled up on a failure. Recover with `spool_home`, which empties too.
+
+**Validation**
+- `pio run -e due`: passes. `pio test -e native`: 200 passed.
+- `pytest tools/`: 204 passed (4 new: overflow rules, the accepted-key limit, the device height and session lines).
+- Hardware: not run, not flashed.
+
+**Hardware checklist (numeric)**
+1. `spool_height 50` (or any height > 0). `session` spool y, ENTER (40 m). `run_sample 7 depth=40`: warning `40.00 m + height 50 cm is 40.50 m of tube`, the question with `proceed to 39.50 m`. `n` starts nothing; `y` dives to 39.50 m (`Spool fill: depth 40.00 m cut to 39.50 m`).
+2. `schedule start` with a 40 m row and height 50 cm: `CONFLICT`, the cut depth printed; `n` starts nothing.
+3. Two samples at the same timepoint (15 m, then 5 m): the second line has no dive, no roll up and no emptying between them (`spool_emptied` is absent from the first TEST line). After the second: `spool_emptied=y`, `spool_empty_end=cond`.
+4. A sample followed by a later timepoint: the tube rolls up, then the emptying runs; `spool_emptied=y` on the TEST line; the container at the purge outlet collects water until the air comes through.
+5. A deliberately failed emptying (plug the air path): `ERROR | run_sample: the spool tubing was NOT emptied`, the sample `FAIL` with `failed_at=empty`.
+
+### Session 2026-11-02: warnings first, operational order checked
+
+**User request:** (1) the 40 m warning (and the depth warning) must come right at the start: at `schedule start` for a schedule, and at `run_sample` for a single sample. (2) The logs must show the real operational order, not the order in the file.
+
+**Changes**
+- `schedule start` (`tools/session_log.py`): the device-state checks and the `CONFLICT` list with its y/n now come first. The list of samples follows, then the start question. Before, the list was printed first.
+- Single sample: `run_sample` checks the depth before the slot, the name or any other question, so the warning is already the first thing printed for a depth that needs an answer (unchanged, verified in the code).
+
+**Operational order: checked, no change needed.** Simulation (`tools` scratch, fake device): rows in file order 1 m, 15 m, 5 m at 09:00 and one sample at 08:00. The device received `run_sample 1` (08:00), `2 depth=15`, `3 depth=5`, `4 depth=1`. `schedule.csv` lists the samples in the same order, with `started_pc` increasing. The run folder's `tests.csv` and `samples.csv` are written as each TEST line arrives, so they follow the same order. The sort used is: date, then time, then deepest first (spool off last). The sort is applied at `schedule start` and saved before any sample runs.
+
+**Open point:** the request said "lowest depth to higher depth", but the rule agreed earlier is deepest first (the 15 m, 5 m, 1 m example). This step keeps deepest first. If shallowest first is wanted, the change is one sort key in `resolve()` (`tools/sample_schedule.py`).
+
+**Tests**
+- `tools/tests/test_sample_schedule.py`: a run with out-of-order rows sends and logs the samples in the operational order.
+- `tools/tests/test_session_log.py`: the depth warning is printed before the schedule list, and a `n` starts nothing.
+- `pytest tools/`: 206 passed. Firmware: no change in this step (`pio run -e due` and `pio test -e native` as in the previous entry).
+
+**Hardware checklist**
+1. `schedule start` with a row at 40 m and a 50 cm height: the first line after the command is `CONFLICT`, before `The schedule will be:`.
+2. `run_sample 7 depth=40` with that height: the device's first question is `run_sample: solve it or proceed?`, before any slot or name question.
+3. With rows listed 1 m, 15 m, 5 m at one time: `schedule.csv` and `tests.csv` show 15 m, 5 m, 1 m in that order.
+
+### Session 2026-11-02: failed samples are emptied; audit of the whole session
+
+**User decisions:** (1) the schedule runs deeper first, upper last (confirmed). (2) A failed sample must not leave water in the spool: whatever empties the spool, the next sample fills it again at the session's deepest point.
+
+**Changes**
+- `spool_roll_up_and_empty(t_rewind, t_empty, empty_failed)` (`src/Step_functions.cpp`): the one way to finish the spool tubing: roll up with V1 and Vman open, then `step_empty()`. Requires `last_empty_end == "cond"`. Used at the end of a timepoint, after a failed sample, and at the end of `sample_process`.
+- Failed sample at depth (`run_full_cycle`, `src/Tests_mech.cpp`): rolled up and emptied. TEST line: `spool_end=rolled_up_after_failure`, `spool_emptied=y|NO`. The sample stays FAIL with its own `failed_at`. If the roll up itself fails, the log says `spool_end=FAILED` and the console asks for `spool_home`.
+- After an `x`: the operator's stop still stops every pump. The roll up is a move (it drains the tube), so it still runs; `run_keys_reset()` clears the latch for it. The emptying pump is skipped: `spool_emptied=NO;spool_empty_end=aborted`, and `aborted=x` stays on the TEST line.
+- `sample_process` (Pi `sampleFunction` and the console test menu): at its three error returns the spool is rolled up and emptied (`spool_cleanup_after_error`). On success the emptying replaces the old comment (with the spool only).
+- Next sample after any emptying: the tube is dry (`spool_tube_wet` false), so it dives to `max(session depth, sample depth)` before its flow check. This was already the behaviour of `spool_fill_and_rise`; nothing new was needed there.
+- `SPOOL_CAL_MAX_DEV_PCT` comment: no longer a placeholder; 6 % is the limit set on the 2026-11-02 bench data (worst stop 2.6 %).
+
+**Docs:** tutorial sections 2c (step 6 covers failed samples), 3 (the move-failure row, the emptying row, the `x` row), 4 (end of day). `commands.md`: the `run_sample` row.
+
+**Audit: each request of the session, and where it is implemented**
+
+| Request | Status | Where / evidence |
+|---|---|---|
+| Ethanol cleaning 0.1 L per slot; filters-out question | done | `CLEAN_SLOT_ML`, `clean_ask_yes_no` in `maintenance.cpp` |
+| Ethanol and purge at 100 % (exception) | done | `set_full_power`, `PUMP_PURGE_MAX_POWER_PERCENT` |
+| Session: deepest depth, ENTER = 40 m, kept for the session | done | `ask_session_spool_max_depth`, `spool_session_max_m` |
+| Spool off: no depth question, no depth kept | done | `cmd_session` (the question only when `spool=y`) |
+| Fill: dry tube to session depth, flow check (100 mL) with the pump, then roll up with the pump off and Vman shut | done | `spool_fill_and_rise`, `spool_prime_flow`, `SPOOL_PRIME_FLOW_ML` |
+| No roll up with the pump running; no 50 cm steps; no 5 mL check | done (removed) | `spool_rise_*` removed; grep finds none |
+| Warning to the operator at the start of a schedule and of a single sample for a depth beyond the session or the 40 m total | done | `schedule_command` (CONFLICT first), `cmd_run_sample` (first check) |
+| Total tube (depth + height) never beyond 40 m; cut and asked | done | `spool_reachable_cm`, `run_sample` cut, fill cut |
+| Height reported to the PC for the check | done | `META|spool;height_cm=` (`spool_status`, `spool_height`) |
+| Speed of the main move not changed | verified | git diff against baseline: no change to `SPEED_UP`, `SPEED_DOWN`, `SPOOL_SLOW_SPEED`, `SPOOL_HOME_SPEED` |
+| Same timepoint: no emptying between samples; kept full | done | keep branch in `run_full_cycle`; the tool answers only for the same date and time |
+| Deepest first at the same timepoint, upper last | done | `resolve()` sort key; test in `test_sample_schedule.py` |
+| Emptying at the end of each timepoint (before the next one) | done | `spool_roll_up_and_empty` after the roll up |
+| Failed sample emptied; next sample refills at session depth | done (this entry) | `run_full_cycle` failure branch; `sample_process` |
+| Valve (Vman) shut while the manifold turns, only with the spool | done | `goto_slot_locked` |
+| Valve open only while water is pumped through the tube | verified in code | list in the 2026-11-02 verification entry |
+| Logs in real operational order | verified by simulation | test `test_the_schedule_runs_and_logs_in_the_operational_order` |
+| Placeholders: prime volume and timeout, move limit, speed bound | done (derived, see the entries above) | `Settings.h` comments |
+| Speed of the spool move: no measured value yet | open | every move logs `cm/s`; first bench move gives it |
+| Tutorial: restructured, one flow, 2a one sample / 2b schedule / 2c spool; end of day at the end; temporary section removed | done | `docs/field/operator-tutorial.md` |
+| Docs and LOG updated | done | this entry; the earlier entries of this session |
+
+**Open risks (not changed here)**
+- The fill dive keeps the deployment valve shut (inherited from the earlier spool code). Whether the tube fills in that state depends on the pipework, which the code does not show. If it does not fill, the prime's flow check fails and the sample is FAIL, after the failure cleanup. Check this first on the bench.
+- The site height `HEIGHT_FROM_WATER` must be measured on site (`spool_height`). It is an operator measurement, not a constant.
+- `PUMP_START_RATE_PERCENT_PER_S` is a pump placeholder (F196), not a spool value. Not changed here.
+- `sample_process` failure returns now clean up, but its other steps are the legacy ones (no dive, no next-depth question). The field uses `run_sample` and the schedule.
+- The host tests (`host/`) fail with `ModuleNotFoundError: cowas`: the host venv points at another checkout. Unrelated to this work.
+
+**Validation (final)**
+- `pio run -e due`: passes. `pio test -e native`: 200 passed.
+- `pytest tools/`: 206 passed.
+- Hardware: not run, not flashed.
+
+**Hardware checklist additions**
+1. A roll up after a forced failure (for example a stalled move at depth): the TEST line has `spool_end=rolled_up_after_failure` and `spool_emptied=y`. The next sample's first line is `Spool fill: dry tube, unrolling to ... (session depth ...)`.
+2. `x` during a sample at depth: `spool_end=rolled_up_after_x;spool_emptied=NO` and `aborted=x`. No pump runs after the `x` (watch the pressure lines stop).
+
+### Session 2026-11-02: rename planned (not done)
+
+**User request:** note in the stage 2 roadmap (§7b) to rename `actuator_home` to `init`, and the valves to `valve_air` (today `valve_1`, the air inlet V1) and `valve_water` (today `valve_manifold`, the deployment line Vman). **Not to be changed now**: a rename could break the code.
+
+**Done:** a row in [stage2-pilots.md §7b](../roadmap/stage2-pilots.md) with the scope (console commands, help, docs, tool messages and tests, C++ identifiers, Pi/host protocol if it names them) and the check to run (grep the whole repo, then the three test suites, behaviour unchanged). No code, test or doc command name was changed.

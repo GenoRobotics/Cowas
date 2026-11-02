@@ -83,6 +83,15 @@ void test_move_to_switch_ignores_goal_and_direction(void)
     TEST_ASSERT_EQUAL(SPOOL_MOVE_TIMEOUT, spool_move_state(p, 0, 0, 600000u, 0));
 }
 
+void test_move_limit_grows_with_the_distance(void)
+{
+    // margin 60 s, slowest allowed 2 cm/s: 40 m = 2000 s + margin
+    TEST_ASSERT_EQUAL_UINT32(60000UL + 2000000UL, spool_move_limit_ms(4000.0f, 2.0f, 60000UL));
+    TEST_ASSERT_EQUAL_UINT32(60000UL, spool_move_limit_ms(0.0f, 2.0f, 60000UL));
+    TEST_ASSERT_EQUAL_UINT32(60000UL, spool_move_limit_ms(-5.0f, 2.0f, 60000UL));
+    TEST_ASSERT_EQUAL_UINT32(60000UL + 5000UL, spool_move_limit_ms(10.0f, 2.0f, 60000UL));
+}
+
 void test_approach_speed(void)
 {
     TEST_ASSERT_EQUAL_UINT8(100, spool_approach_speed(200.0f, 30.0f, 100, 40));
@@ -134,6 +143,7 @@ int main(int, char **)
     RUN_TEST(test_move_wrong_way);
     RUN_TEST(test_move_stalled_and_timeout);
     RUN_TEST(test_move_to_switch_ignores_goal_and_direction);
+    RUN_TEST(test_move_limit_grows_with_the_distance);
     RUN_TEST(test_approach_speed);
     RUN_TEST(test_fit_exact);
     RUN_TEST(test_fit_shows_non_linearity);

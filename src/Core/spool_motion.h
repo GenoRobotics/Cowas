@@ -42,6 +42,11 @@ SpoolMove spool_move_state(const SpoolMoveParams &p, float start_cm, float now_c
 
 const char *spool_move_name(SpoolMove m);
 
+// Longest time a move of distance_cm may take: margin_ms + distance / min_cm_per_s. min_cm_per_s is the slowest speed the
+// move is allowed to run at (below it the move ends as a timeout, which is safe); the stall and wrong-way rules stop a
+// stuck spool long before this. distance_cm <= 0 gives the margin only.
+uint32_t spool_move_limit_ms(float distance_cm, float min_cm_per_s, uint32_t margin_ms);
+
 // Speed for the approach: slow_speed once the remaining distance (cm, > 0) is inside slow_zone_cm, else fast_speed.
 uint8_t spool_approach_speed(float remaining_cm, float slow_zone_cm, uint8_t fast_speed, uint8_t slow_speed);
 

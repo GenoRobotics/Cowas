@@ -63,6 +63,16 @@ const char *spool_move_name(SpoolMove m)
     return "?";
 }
 
+uint32_t spool_move_limit_ms(float distance_cm, float min_cm_per_s, uint32_t margin_ms)
+{
+    if (!(distance_cm > 0.0f) || !(min_cm_per_s > 0.0f))
+    {
+        return margin_ms;
+    }
+    const float ms = margin_ms + distance_cm / min_cm_per_s * 1000.0f;
+    return ms > 4.0e9f ? 4000000000UL : (uint32_t)ms;
+}
+
 uint8_t spool_approach_speed(float remaining_cm, float slow_zone_cm, uint8_t fast_speed, uint8_t slow_speed)
 {
     return remaining_cm < slow_zone_cm ? slow_speed : fast_speed;

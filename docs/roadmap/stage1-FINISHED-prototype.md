@@ -18,7 +18,7 @@
 
 ## Quick test: the timed sample list (field)
 
-**Why:** the night run uses the timed list ([operator tutorial, section 4](../field/operator-tutorial.md#4-optional-a-timed-list-of-samples)). This checks it once on the field, with two real samples of the plan (no extra samples). For this test the two samples are 15 minutes apart.
+**Why:** the night run uses the timed list ([operator tutorial, section 2b](../field/operator-tutorial.md#2b-several-samples-from-a-schedule)). This checks it once on the field, with two real samples of the plan (no extra samples). For this test the two samples are 15 minutes apart.
 
 **Before:** the Due is on and `session` is not typed yet. The filters of the two samples are on the manifold. Look at the PC clock.
 

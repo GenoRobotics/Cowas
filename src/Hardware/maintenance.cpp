@@ -219,7 +219,7 @@ void calibrate_DNA_pump()
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Ethanol cleaning of the tubing (`ethanol_purge`, user 2026-11-02). 70 % ethanol at the inlet and outlet, NO filter in
-// the manifold. 1) ethanol through the purge slot (prime: 3 L with the spool module, else 0.5 L), 2) 0.5 L through each
+// the manifold. 1) ethanol through the purge slot (prime: 3 L with the spool module, else 0.1 L), 2) 0.1 L through each
 // slot that was used, in FILL_ORDER, 3) air through each of those slots to dry them (30 s), 4) a last air push at the purge
 // slot (1 min). All air goes in by the air valve V1, like the drying of the filters (load_slot_air); the inlet is not used
 // for air, so the tubes can stay in the ethanol. The water runs use full power: the second exception to the water limit.

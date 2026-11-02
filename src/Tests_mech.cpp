@@ -30,6 +30,7 @@
 #include "Flow_sensor.h"
 #include "Settings.h"
 #include "Core/test_args.h"
+#include "Core/spool_fill.h"
 #include "Core/slot_iteration.h"
 #include "Core/manifold_geometry.h"
 #include "Core/pressure_ramp.h"
@@ -361,7 +362,7 @@ static void cmd_help()
     Serial.println("  slotN, slot0, clockMM, clocklist, manifold, cal, zero, manifold_direction, encoder_manifold, enc_rot");
     Serial.println("  linear_actuator, calibrate_actuator (both make the lock state UNKNOWN), calibrate_all");
     Serial.println("  pump, sample_cycle, sample_cycle_full, multi_sample_full, calibrate_flow, cal_DNA (need the pressure sensor)");
-    Serial.println("  ethanol_purge [skip=3,7,12]  ethanol cleaning, NO filter, FULL power: prime (3 L spool on / 0.5 L), 0.5 L per slot, air 30 s per slot, air 1 min at purge");
+    Serial.println("  ethanol_purge [skip=3,7,12]  ethanol cleaning, NO filter, FULL power: prime (3 L spool on / 0.1 L), 0.1 L per slot, air 30 s per slot, air 1 min at purge");
     Serial.println("  valves, micro_pump, calibrate_dna_volume, shield_calibrate (LA3)");
     Serial.println("  sample1m, demo, abort (need the pressure sensor), micro_switch, buttons_command, temp");
     Serial.println("  stop = leave the menu (panel + legacy Pi link)");
@@ -1373,7 +1374,8 @@ static String secs(uint32_t ms)
 // One full operation cycle at `slot`; returns the TEST result.
 static bool ask_next_spool_depth(float *next_m); // below, next to ask()
 
-// depth_m = NAN: the spool is not touched. Otherwise (spool active): dive to that depth before the purge; after the shield ask
+// depth_m = NAN: the spool is not touched. Otherwise (spool active): fill the tube with water and rise to that depth before the purge
+// (spool_fill_and_rise, 2026-11-02); after the shield ask
 // for the next sample's depth, and either keep the tube out (the next sample is waiting) or roll it up with V1 and Vman open.
 static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool empty, float volume, String *kv, float depth_m = NAN)
 {
@@ -1397,11 +1399,12 @@ static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool e
     }
     // step times (user, 2026-10-23): each step is timed and printed, and goes on the TEST line as t_*_s
     const uint32_t t_begin = millis();
-    uint32_t t_dive = 0, t_rewind = 0;
+    uint32_t t_dive = 0, t_rewind = 0, t_empty = 0;
+    bool failed_empty = false;
     bool ok = true;
     if (use_depth)
     {
-        ok = step_dive((int)lroundf(depth_m * 100.0f)); // false = the spool did not get there: nothing is pumped
+        ok = spool_fill_and_rise((int)lroundf(depth_m * 100.0f)); // water fill (2026-11-02): session depth if dry, prime, rise to depth. false = nothing more is pumped
         t_dive = millis() - t_begin;
     }
     const uint32_t t_purge_start = millis();
@@ -1460,23 +1463,46 @@ static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool e
         }
         if (keep)
         {
+            spool_tube_wet = true; // the tube stays full: the next sample starts from this depth without the dive to the session depth
             *kv += ";spool_end=kept_out;next_depth_m=" + String(next_m, 2);
             Serial.println("META|spool;kept_out=y;length_cm=" + String(spool.length_cm(), 0) + ";next_depth_m=" + String(next_m, 2));
         }
         else
         {
-            const uint32_t t_mark = millis();
-            rewind_failed = !step_rewind();
-            t_rewind = millis() - t_mark;
-            *kv += String(";spool_end=") + (rewind_failed ? "FAILED" : "rolled_up");
+            // 2026-11-02 (user): the group of samples at this timepoint is over: the spool tubing is emptied before the next
+            // timepoint (the next sample fills it again at the session depth). Not done between two samples of one timepoint
+            bool empty_failed = false;
+            rewind_failed = !spool_roll_up_and_empty(&t_rewind, &t_empty, &empty_failed);
+            failed_empty = empty_failed;
+            *kv += String(";spool_end=") + (rewind_failed ? "FAILED" : "rolled_up") + ";spool_emptied=" +
+                   (empty_failed ? "NO" : (rewind_failed ? "n" : "y")) + ";spool_empty_end=" + last_empty_end;
         }
     }
-    else if (!ok && use_depth && spool_active())
+    else if (use_depth && spool_active())
     {
-        Serial.println("WARNING | run_sample: the cycle stopped before the spool was rolled up. The tube is at " +
-                       String(spool.is_homed() ? String(spool.length_cm(), 0) + " cm" : String("an unknown length")) +
-                       ". Type spool_home when it is safe");
-        *kv += ";spool_end=left_out";
+        // 2026-11-02 (user): a failed sample empties the spool too, like a finished one, so the next sample starts from a dry
+        // tube and fills it again at the session depth. After x the roll up still runs (a move that drains the tube) but no
+        // pump runs: the emptying is skipped and the log says so
+        if (run_abort_latched())
+        {
+            run_keys_reset(); // x stopped the pumps; the roll up is a move, not a pump run
+            *kv += ";aborted=x"; // the latch is cleared below: the TEST line must still say it
+            const uint32_t t_mark = millis();
+            const bool rolled = step_rewind();
+            t_rewind = millis() - t_mark;
+            *kv += String(";spool_end=") + (rolled ? "rolled_up_after_x" : "FAILED") + ";spool_emptied=NO;spool_empty_end=aborted";
+            if (!rolled)
+            {
+                Serial.println("WARNING | run_sample: stopped with x and the spool is not rolled up. Type spool_home when it is safe");
+            }
+        }
+        else
+        {
+            bool empty_failed = false;
+            const bool done = spool_roll_up_and_empty(&t_rewind, &t_empty, &empty_failed);
+            *kv += String(";spool_end=") + (done ? "rolled_up_after_failure" : "FAILED") + ";spool_emptied=" + (done ? "y" : "NO") +
+                   ";spool_empty_end=" + last_empty_end;
+        }
     }
     if (ok)
     {
@@ -1487,7 +1513,7 @@ static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool e
     }
     if (rewind_failed)
     {
-        failed = ok ? "rewind" : failed;
+        failed = ok ? (failed_empty ? "empty" : "rewind") : failed;
         ok = false;
     }
     if (run_abort_latched())
@@ -1496,7 +1522,7 @@ static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool e
     }
     if (use_depth)
     {
-        *kv += ";t_dive_s=" + secs(t_dive) + ";t_rewind_s=" + secs(t_rewind);
+        *kv += ";t_dive_s=" + secs(t_dive) + ";t_rewind_s=" + secs(t_rewind) + ";t_empty_s=" + secs(t_empty);
     }
     *kv += ";t_purge_s=" + secs(t_purge) + ";t_sample_s=" + secs(t_sample) + ";t_shield_s=" + secs(t_shield) +
            ";t_unlock_s=" + secs(t_unlock) + ";t_total_s=" + secs(millis() - t_begin);
@@ -1798,6 +1824,28 @@ static bool valid_date(const String &d)
     return true;
 }
 
+// The deepest point of the session (2026-11-02, user): the tube is unrolled to it before every fill, so it must be a depth the
+// tube can reach without touching the ground. ENTER = SPOOL_SESSION_DEFAULT_MAX_M (40 m). False = x (cancelled, nothing changed).
+static bool ask_session_spool_max_depth()
+{
+    for (;;)
+    {
+        String a;
+        if (!ask("spool: deepest depth of this session in m (ENTER = 40 m, the full tube; the tube is unrolled to it before each fill)", a, false))
+            return false;
+        float m = SPOOL_SESSION_DEFAULT_MAX_M;
+        const int got = core::spool_session_depth_parse(a.c_str(), SPOOL_SESSION_MIN_MAX_M, SPOOL_MAX_LENGTH_CM / 100.0f, &m);
+        if (got < 0)
+        {
+            Serial.println("REQUIRED | the deepest depth must be a number of metres from " + String(SPOOL_SESSION_MIN_MAX_M, 1) + " to " +
+                           String(SPOOL_MAX_LENGTH_CM / 100.0f, 0) + " (a point or a comma), or ENTER for " + String(SPOOL_SESSION_DEFAULT_MAX_M, 0) + " m");
+            continue;
+        }
+        spool_session_max_m = m;
+        return true;
+    }
+}
+
 static void cmd_session(const Cmd &c)
 {
     (void)c;
@@ -1832,11 +1880,15 @@ static void cmd_session(const Cmd &c)
             break;
         Serial.println("REQUIRED | answer y or n");
     }
-    spool_installed_session = (a == "y"); // sets the purge volume (purge_volume_ml) for this session
+    const bool spool_yes = (a == "y");
+    if (spool_yes && !ask_session_spool_max_depth())
+        return; // x: the session is not set, nothing changed
+    spool_installed_session = spool_yes; // sets the purge volume (purge_volume_ml) for this session
     s.set = true;
     field_session = s;
     Serial.println("META|session;site=" + s.site + ";date=" + s.date + ";experiment=" + s.experiment + ";operator=" + s.operator_name +
-                   ";spool=" + (spool_installed_session ? "installed" : "absent"));
+                   ";spool=" + (spool_installed_session ? "installed" : "absent") +
+                   (spool_installed_session ? ";spool_max_m=" + String(spool_session_max_m, 2) : String("")));
 }
 
 static void cmd_log_on()
@@ -1892,6 +1944,7 @@ static void cmd_spool_status()
     Serial.println(String("spool: SPOOL_USE=") + (SPOOL_USE ? "true" : "false") + ", session says " +
                    (spool_installed_session ? "installed (run_sample with depth= moves it)" : "absent (run_sample never moves it)"));
     Serial.println("spool: tube out = " + spool_position_text());
+    Serial.println("META|spool;height_cm=" + String(spool_height_cm, 0));
     Serial.println("spool: height origin to water " + String(spool_height_cm, 0) + " cm, drum diameter " + String(spool_diameter_cm, 3) +
                    " cm, longest tube out " + String(SPOOL_MAX_LENGTH_CM, 0) + " cm");
     Serial.println(String("spool: origin switch ") + (button_spool_up.getState() == 0 ? "PRESSED" : "released") + ", down end-stop " +
@@ -2105,17 +2158,49 @@ static void cmd_run_sample(const Cmd &c)
     if (depth_m == depth_m)
     {
         // checked before anything moves or is asked: a bad depth never starts a sample
-        float length = 0;
         if (!spool_active())
         {
             Serial.println("REFUSED | run_sample: depth= needs the spool: answer y to the spool question in `session` (and SPOOL_USE)");
             return;
         }
-        if (!core::spool_depth_to_length_cm(depth_m, spool_height_cm, SPOOL_MAX_LENGTH_CM, &length))
+        const int reach_cm = spool_reachable_cm();
+        if (reach_cm < 0)
         {
-            Serial.println("REFUSED | run_sample: depth " + String(depth_m, 2) + " m + height " + String(spool_height_cm, 0) +
-                           " cm is more than the " + String(SPOOL_MAX_LENGTH_CM, 0) + " cm of tube allowed (SPOOL_MAX_LENGTH_CM)");
+            Serial.println("REFUSED | run_sample: the spool height " + String(spool_height_cm, 0) + " cm leaves no tube within the " +
+                           String(SPOOL_MAX_LENGTH_CM / 100.0f, 0) + " m total: check spool_height");
             return;
+        }
+        // the TOTAL tube (depth + height) never goes beyond SPOOL_MAX_LENGTH_CM (user, 2026-11-02): a deeper depth is cut there,
+        // with a warning, and the operator solves it or proceeds. A depth deeper than the session's deepest point asks the same way.
+        const float reach_m = reach_cm / 100.0f;
+        const float final_m = depth_m > reach_m ? reach_m : depth_m;
+        const bool over_total = depth_m > reach_m + 0.001f;
+        const bool over_session = final_m > spool_session_max_m + 0.001f;
+        if (over_total || over_session)
+        {
+            if (over_total)
+            {
+                Serial.println("WARNING | run_sample: depth " + String(depth_m, 2) + " m + height " + String(spool_height_cm, 0) + " cm is " +
+                               String(depth_m + spool_height_cm / 100.0f, 2) + " m of tube, over the " + String(SPOOL_MAX_LENGTH_CM / 100.0f, 0) +
+                               " m total: the intake would stop at " + String(final_m, 2) + " m");
+            }
+            if (over_session)
+            {
+                Serial.println("WARNING | run_sample: depth " + String(final_m, 2) + " m is deeper than the session's deepest point " +
+                               String(spool_session_max_m, 2) + " m (answered at `session`)");
+            }
+            String answer;
+            if (!ask((String("run_sample: solve it or proceed? y = proceed to ") + String(final_m, 2) +
+                      " m, anything else = stop (then session or spool_height)").c_str(), answer, true))
+                return;
+            answer.trim();
+            answer.toLowerCase();
+            if (answer != "y")
+            {
+                Serial.println("CANCELLED | run_sample: nothing was started. Change the depth, `session` or spool_height, then run_sample again");
+                return;
+            }
+            depth_m = final_m;
         }
     }
     else if (spool_active())

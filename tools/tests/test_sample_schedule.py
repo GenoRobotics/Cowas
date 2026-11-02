@@ -540,12 +540,21 @@ def test_a_spool_sample_is_sent_with_its_depth_and_a_spool_off_sample_is_not(tmp
     assert device.sent[-1] == "run_sample 5"
 
 
-def test_the_next_waiting_spool_sample_keeps_the_tube_out(tmp_path):
-    first = sample("11:50", name="first", spool=True, depth_m="2")
-    second = sample("12:05", name="second", spool=True, depth_m="7,5".replace(",", "."))
-    schedule, _ = make([first, second], tmp_path)  # now = noon: the second is due in 5 minutes
+def test_the_next_spool_sample_at_the_same_time_keeps_the_tube_out(tmp_path):
+    first = sample("11:50", name="first", spool=True, depth_m="15")
+    second = sample("11:50", name="second", spool=True, depth_m="7,5".replace(",", "."))
+    schedule, _ = make([first, second], tmp_path)  # the deepest first: the 7.5 m sample follows at the same time
     started(schedule, first)
     assert schedule.device_line(ASK_NEXT) == "7.5"
+
+
+def test_a_sample_a_few_minutes_later_does_not_keep_the_tube_out(tmp_path):
+    # 2026-11-02 (user): only the same timepoint keeps the tube full; a later one rolls the tube up
+    first = sample("11:50", name="first", spool=True, depth_m="2")
+    second = sample("12:05", name="second", spool=True, depth_m="7,5".replace(",", "."))
+    schedule, _ = make([first, second], tmp_path)
+    started(schedule, first)
+    assert schedule.device_line(ASK_NEXT) == ""
 
 
 def test_the_tube_rolls_up_when_the_next_sample_is_far_off_or_has_no_spool_or_is_none(tmp_path):
@@ -576,10 +585,10 @@ def test_equal_rows_do_not_confuse_the_next_sample(tmp_path):
     # two identical rows (same time, same default name): the next one is still the second, not the first again
     one = sample("11:50", name="same", spool=True, depth_m="2")
     two = sample("11:50", name="same", spool=True, depth_m="2")
-    three = sample("12:00", name="third", spool=True, depth_m="9")
+    three = sample("11:50", name="third", spool=True, depth_m="1")
     schedule, _ = make([one, two, three], tmp_path)
     started(schedule, two)
-    assert schedule.device_line(ASK_NEXT) == "9"
+    assert schedule.device_line(ASK_NEXT) == "1"
 
 
 def test_samples_at_the_same_time_keep_the_order_of_the_file(tmp_path):
@@ -588,7 +597,143 @@ def test_samples_at_the_same_time_keep_the_order_of_the_file(tmp_path):
     assert [s.name for s in resolved] == ["b", "a", "c"]
 
 
+def test_samples_at_the_same_time_run_the_deepest_first_then_the_file_order(tmp_path):
+    rows = [
+        sample("09:30", name="one_m", spool=True, depth_m="1"),
+        sample("09:30", name="off", spool=False),
+        sample("09:30", name="fifteen_m", spool=True, depth_m="15"),
+        sample("09:30", name="five_m", spool=True, depth_m="5"),
+        sample("09:30", name="five_m_again", spool=True, depth_m="5"),
+    ]
+    resolved = sc.resolve(rows, dt.date(2026, 10, 26))
+    assert [s.name for s in resolved] == ["fifteen_m", "five_m", "five_m_again", "one_m", "off"]
+
+
+def test_deepest_first_does_not_move_samples_at_other_times(tmp_path):
+    rows = [
+        sample("10:00", name="late_deep", spool=True, depth_m="15"),
+        sample("09:30", name="early_shallow", spool=True, depth_m="1"),
+    ]
+    resolved = sc.resolve(rows, dt.date(2026, 10, 26))
+    assert [s.name for s in resolved] == ["early_shallow", "late_deep"]
+
+
 def test_a_depth_above_the_longest_tube_is_refused_and_the_longest_is_kept(tmp_path):
     with pytest.raises(ValueError, match="more than 40"):
         read(tmp_path, "date,time,spool,depth_m\n+0,12:00,on,40.5\n")
     assert read(tmp_path, "date,time,spool,depth_m\n+0,12:00,on,40\n")[0].depth_m == "40"
+
+
+# --- depth conflicts at `schedule start` (2026-11-02, user)
+
+
+def test_a_spool_sample_deeper_than_the_session_is_a_conflict(tmp_path):
+    rows = [
+        sample("09:30", name="deep", spool=True, depth_m="15"),
+        sample("10:00", name="ok", spool=True, depth_m="5"),
+        sample("10:30", name="off"),
+    ]
+    waiting = sc.resolve(rows, dt.date(2026, 10, 26))
+    assert [s.name for s in sc.depth_conflicts(waiting, 10.0)] == ["deep"]
+    assert [s.name for s in sc.depth_conflicts(waiting, 15.0)] == []  # equal to the session depth is no conflict
+
+
+def test_no_session_depth_makes_every_spool_sample_a_conflict(tmp_path):
+    rows = [sample("09:30", name="deep", spool=True, depth_m="2"), sample("10:00", name="off")]
+    waiting = sc.resolve(rows, dt.date(2026, 10, 26))
+    assert [s.name for s in sc.depth_conflicts(waiting, None)] == ["deep"]
+
+
+def test_a_sample_already_run_is_not_a_conflict_any_more(tmp_path):
+    rows = [sample("09:30", name="deep", spool=True, depth_m="15")]
+    rows[0].status = sc.PASS
+    assert sc.depth_conflicts(rows, 5.0) == []
+
+
+def test_the_operator_accepts_the_deeper_samples_at_start_and_the_device_gets_y(tmp_path):
+    deep = sc.resolve([sample("11:50", name="deep", spool=True, depth_m="15")], dt.date(2026, 10, 26))[0]
+    schedule, device = make([deep], tmp_path)
+    schedule.accepted_deeper = {sc.sample_key(deep)}
+    started(schedule, deep)
+    assert schedule.device_line("ASK | run_sample: solve it or proceed? y = proceed to 15.00 m  (type the answer + ENTER)") == "y"
+
+
+def test_a_deep_sample_the_operator_did_not_accept_is_left_to_the_operator(tmp_path):
+    # accepted at start: only the 15 m row. A 20 m row (added or edited later) is not answered by the tool
+    deep = sc.resolve([sample("11:50", name="deep", spool=True, depth_m="15")], dt.date(2026, 10, 26))[0]
+    other = sc.resolve([sample("12:50", name="other", spool=True, depth_m="20")], dt.date(2026, 10, 26))[0]
+    schedule, device = make([other], tmp_path)
+    schedule.accepted_deeper = {sc.sample_key(deep)}
+    started(schedule, other)
+    assert schedule.device_line("ASK | run_sample: solve it or proceed? y = proceed to 20.00 m  (type the answer + ENTER)") is None
+
+
+# --- the 40 m total tube (depth + spool height), 2026-11-02 (user)
+
+
+def test_a_depth_plus_the_spool_height_over_40_m_is_an_overflow(tmp_path):
+    rows = [
+        sample("09:30", name="at_40", spool=True, depth_m="40"),
+        sample("10:00", name="at_39", spool=True, depth_m="39.5"),
+        sample("10:30", name="off"),
+    ]
+    waiting = sc.resolve(rows, dt.date(2026, 10, 26))
+    # height 0.5 m: 40 m + 0.5 m is over the 40 m total; 39.5 m + 0.5 m is exactly 40 m (no overflow)
+    assert [s.name for s in sc.total_overflows(waiting, 50)] == ["at_40"]
+    assert [s.name for s in sc.total_overflows(waiting, 0)] == []
+
+
+def test_an_unknown_spool_height_judges_no_overflow(tmp_path):
+    rows = sc.resolve([sample("09:30", name="deep", spool=True, depth_m="40")], dt.date(2026, 10, 26))
+    assert sc.total_overflows(rows, None) == []
+
+
+def test_an_overflow_row_is_accepted_by_its_key_only(tmp_path):
+    deep = sc.resolve([sample("11:50", name="deep", spool=True, depth_m="40")], dt.date(2026, 10, 26))[0]
+    other = sc.resolve([sample("12:50", name="other", spool=True, depth_m="40")], dt.date(2026, 10, 26))[0]
+    schedule, device = make([deep], tmp_path)
+    schedule.accepted_deeper = {sc.sample_key(deep)}
+    started(schedule, deep)
+    assert schedule.device_line("ASK | run_sample: solve it or proceed? y = proceed to 39.50 m  (type the answer + ENTER)") == "y"
+    schedule2, _ = make([other], tmp_path)
+    schedule2.accepted_deeper = {sc.sample_key(deep)}
+    started(schedule2, other)
+    assert schedule2.device_line("ASK | run_sample: solve it or proceed? y = proceed to 39.50 m  (type the answer + ENTER)") is None
+
+
+# --- the operational order (2026-11-02, user): the order the device runs the samples is the order in the logs
+
+
+def test_the_schedule_runs_and_logs_in_the_operational_order(tmp_path):
+    # the rows in file order 1 m, 15 m, 5 m at one timepoint, and one earlier sample: the run and the saved list agree
+    rows = [
+        sample("09:00", name="one_m", spool=True, depth_m="1"),
+        sample("09:00", name="fifteen_m", spool=True, depth_m="15"),
+        sample("09:00", name="five_m", spool=True, depth_m="5"),
+        sample("08:00", name="early", spool=False),
+    ]
+    state = tmp_path / "schedule.csv"
+    sent = []
+    slots = iter(range(1, 20))
+    schedule = None
+
+    def send(text):
+        sent.append(text)
+        if text.startswith("run_sample"):
+            threading.Timer(
+                0.02, lambda: schedule.device_line(f"TEST|run_sample|{text.split()[1]}|PASS|")
+            ).start()
+
+    schedule = sc.Schedule(
+        rows,
+        str(state),
+        pick=lambda: f"run_sample {next(slots)}",
+        send=send,
+        say=lambda text: None,
+        now=lambda: NOON,
+    )
+    schedule.start(dt.date(2026, 10, 26))
+    schedule.thread.join(10)
+    assert [t.split()[1] for t in sent if t.startswith("run_sample")] == ["1", "2", "3", "4"]
+    names = [line.split(",")[2] for line in state.read_text(encoding="utf-8").splitlines()[1:]]
+    assert names == ["early", "fifteen_m", "five_m", "one_m"]

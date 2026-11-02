@@ -12,9 +12,10 @@
 // spool variables
 const bool SPOOL_USE = true;          // 2026-11-02 (user): spool enabled for the field. The cycle still moves it only if `session` answered y (spool_installed_session)
 const uint8_t HEIGHT_FROM_WATER = 0;  // cm. between water level and spool endstop. PLACEHOLDER: measure it on site, or type `spool_height <cm>` after each reset
-const float SPOOL_DRUM_DIAMETER_CM = 10.0f;    // Given to Encoder::begin, which multiplies the angle by it: it acts as a RADIUS of 10 cm = the full roll (user 2026-11-02: drum 10 cm, tube 8 mm, 22 cm rolled). Layer model: within about 5 % of the real length from 0 to 15 m (reads short near 2 m, long near 15 m). Check with `spool_goto length=1`
+const float SPOOL_DRUM_DIAMETER_CM = 9.786f;    // Calibrated 2026-11-02 (user): tape 0.97 / 4.77 / 14.72 m for 1 / 5 / 15 m commanded, scale 0.9786 on the old 10.0 value. Worst stop 2.6 % off (limit 6 %). Linear: the encoder reads a constant-radius wheel. Check with `spool_goto length=1` (0.98 m)
 const float SPOOL_MAX_LENGTH_CM = 4000.0f;     // longest tube out (origin to intake): 40 m (user 2026-11-02; about 45 m of tube on the drum). Only 2, 5, 10, 15 m are calibrated: deeper, the layer model says the real length is shorter than commanded (about 14 % at 40 m)
-const uint32_t SPOOL_MOVE_MAX_MS = 15UL * 60UL * 1000UL; // PLACEHOLDER: longest single move (speed not measured yet)
+const float SPOOL_MIN_CM_PER_S = 1.0f;        // cm/s. The slowest speed a move may run at: its time limit is SPOOL_MOVE_MARGIN_MS + distance / this (40 m = 67 min). The stall rule (no encoder pulse for SPOOL_STALL_MS) stops a stuck spool long before. Not measured: every move logs its real speed
+const uint32_t SPOOL_MOVE_MARGIN_MS = 60UL * 1000UL; // ms added to every move's time limit (start and stop)
 const uint32_t SPOOL_STALL_MS = 4000;          // ms with no encoder pulse while the motor runs: the move stops
 const float SPOOL_WRONG_WAY_CM = 5.0f;         // cm the length may go the wrong way before the move stops (encoder wired backwards)
 const uint8_t SPOOL_HOME_SPEED = 30;           // % . Speed to the origin switch when the position is unknown, and for the last SPOOL_SLOW_ZONE_CM
@@ -22,7 +23,14 @@ const uint8_t SPOOL_SLOW_SPEED = 40;           // % . Approach speed near the go
 const float SPOOL_SLOW_ZONE_CM = 30.0f;        // cm before the goal (or the origin) where the speed drops
 const uint32_t SPOOL_COAST_COUNT_MS = 300;     // ms the encoder keeps being read after the brake, to count the coast
 const uint32_t SPOOL_NEXT_ANSWER_WAIT_MS = 120000UL; // ms the "next sample depth" question waits (the schedule tool answers at once)
-const float SPOOL_CAL_MAX_DEV_PCT = 6.0f;      // PLACEHOLDER: spool_calibrate PASS if no stop is further than this % from the straight-line fit. The layers on the drum make the length per turn fall from 66 to 34 cm, so about 5 % is normal
+// Water fill of the tube (2026-11-02, user): the tube is unrolled to the session's deepest point with air escaping at V1,
+// the purge slot is primed until the flowmeter shows flow, then the tube rolls up to the sample's depth with the deployment
+// valve shut (the water stays in the tube).
+const float SPOOL_SESSION_DEFAULT_MAX_M = 40.0f; // m. The deepest point of the session, asked at `session` (ENTER = this). The tube's full length (user: it must not reach the ground)
+const float SPOOL_SESSION_MIN_MAX_M = 0.5f;      // m. The shallowest session maximum the question accepts
+const float SPOOL_PRIME_FLOW_ML = 100.0f;        // mL. Flow check at the purge slot before the roll up: the flowmeter must count this much. More than the 30 mL intake path (INTAKE_PATH_ML) that the first water must clear (user 2026-11-02: 100 mL is enough)
+const uint32_t SPOOL_PRIME_MAX_MS = 4UL * 60UL * 1000UL; // ms. Timeout of the flow check: 2 x the time to count SPOOL_PRIME_FLOW_ML at FLOW_TRUST_MIN_ML_PER_MIN (100 mL at 50 mL/min = 2 min)
+const float SPOOL_CAL_MAX_DEV_PCT = 6.0f;      // spool_calibrate PASS if no stop is further than this % from the straight-line fit. 6 %: the bench fit of 2026-11-02 had a worst stop of 2.6 %, the layers on the drum make the length per turn fall from 66 to 34 cm, so about 5 % is normal
 const uint8_t DISTANCE_FROM_STOP = 5; // cm. distance from spool endstop at which speed is decreased
 const uint8_t SPEED_UP = 100;         // over 100. Speed when moving up - experimentaly tested
 const uint8_t SPEED_DOWN = 100;       // over 100. Speed when moving down - experimentaly tested
@@ -150,9 +158,9 @@ const float PURGE_NO_SPOOL_ML = 500.0f;  // mL - spool off (user 2026-10-23: 500
 const float PURGE_SPOOL_ML = 3000.0f;    // mL - spool on (user 2026-10-26: 3 L, "enough"). Dead volume 2.57 L (INTAKE_PATH_ML + SPOOL_PATH_ML) + about 0.4 L. Was 7 L (2026-10-23); the F110 rule of 3 x dead volume (7.7 L) is not kept, see §3.7 rule 1
 // Ethanol cleaning of the tubing (`ethanol_purge`, user 2026-11-02): 70 % ethanol, NO filter installed. Pumped at full power
 // (the second exception to the 60 % water limit, after the purge; a warning and a y/n are shown at every run).
-const float CLEAN_SLOT_ML = 500.0f;                        // mL (flowmeter) of ethanol through each slot (user 2026-11-02: 0.5 L, was 1 L). The flowmeter reads LOW at slow flow (F150), so the real volume is not less
+const float CLEAN_SLOT_ML = 100.0f;                        // mL (flowmeter) of ethanol through each slot (user 2026-11-02: 0.1 L, was 0.5 L, 1 L before). The flowmeter reads LOW at slow flow (F150), so the real volume is not less
 const float CLEAN_PRIME_SPOOL_ML = 3000.0f;                // mL: the first flush through the purge slot when the spool module is on, to prime it. Spool off: CLEAN_SLOT_ML
-const uint32_t CLEAN_FLUSH_MAX_RUNTIME_MS = 3UL * 60UL * 1000UL; // ms: timeout of one 0.5 L flush (about 30 s at full power). The 3 L prime uses PURGE_SPOOL_MAX_RUNTIME_MS
+const uint32_t CLEAN_FLUSH_MAX_RUNTIME_MS = 3UL * 60UL * 1000UL; // ms: timeout of one 0.1 L flush (about 10 s at full power). The 3 L prime uses PURGE_SPOOL_MAX_RUNTIME_MS
 const uint32_t CLEAN_AIR_SLOT_MS = 30UL * 1000UL;          // ms: air pushed through each cleaned slot after the ethanol, to dry it
 const uint32_t CLEAN_AIR_FINAL_MS = 60UL * 1000UL;         // ms: the last air push at the purge slot, to empty the line
 const uint32_t CLEAN_AIR_EXTRA_MAX_MS = 60UL * 1000UL;     // ms: an air push may run this much longer than its hold while liquid is still being pushed out (pressure above the air threshold), then it ends with a warning
@@ -168,6 +176,7 @@ const bool SPOOL_INSTALLED = false;
 extern float spool_height_cm;   // cm origin switch -> water surface in use now (starts as HEIGHT_FROM_WATER)
 extern float spool_diameter_cm; // drum diameter in use now (starts as SPOOL_DRUM_DIAMETER_CM)
 extern bool spool_installed_session; // is the spool module on the machine now (answered in `session`); starts as SPOOL_INSTALLED
+extern float spool_session_max_m;    // m. The session's deepest point (answered in `session`); starts as SPOOL_SESSION_DEFAULT_MAX_M
 const float STX_SAMPLE_MILLILITERS = 1000; // user decision 2026-10-23: 1000 mL, or less when the clogging criteria stop the run (was 100, placeholder)// amount of maximum volume to filter. Need to add a way to determine filter saturation and stop based on that
 const uint32_t SAMPLE_MAX_DURATION_MS = 30UL * 60UL * 1000UL; // ms. Stage 1 S1-C (F15): step_sampling stops here at the latest and says so (end=timeout). Was 3 min, silently
 

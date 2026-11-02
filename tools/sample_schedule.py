@@ -1,6 +1,6 @@
 """The timed sample list of the session tool.
 
-Use (docs/field/operator-tutorial.md, section 4):
+Use (docs/field/operator-tutorial.md, section 2b):
 1. Fill a CSV file, one row per sample (any file name, for example schedule.csv).
 2. `session_log.py --schedule FILE.csv` reads it and shows it. Nothing runs.
 3. `schedule start` shows the full dates, asks for a yes, then runs each sample at its time: it types `run_sample` (the next
@@ -21,10 +21,11 @@ Columns of the input file (first line, any case; ',' or ';' as separator, so Fre
                 Off = the spool is not moved (the session must still say whether the module is on the machine: it sets the purge).
     depth_m     metres, 0 to 40, only when spool is on (2.5 or 2,5). Empty otherwise.
 
-Samples at the same time run one after the other in the order of the file (the sort is stable). When the sample on the device
-has ended its shield step, the device asks `spool: next sample depth`. The tool answers with the depth of the next waiting
-sample if it has the spool on and is due within NEXT_GRACE_MIN minutes (the tube stays out and goes straight to that depth),
-and with nothing otherwise (the tube rolls up with the air and water valves open so it empties).
+Samples at the same time run one after the other, the deepest first (spool off last), then in the order of the file.
+The device fills the tube at the session's deepest point and rolls up to each depth, so shallower samples at the same time cost no
+new dive. When the sample on the device has ended its shield step, the device asks `spool: next sample depth`. The tool answers
+with the depth of the next waiting sample only if that sample has the spool on and the SAME date and time (the tube stays full and
+goes straight to that depth). Otherwise it answers nothing and the tube rolls up with the air and water valves open so it empties.
 
 Pure logic and one thread. No serial port here: session_log.py sends the lines and passes in the device's lines.
 """
@@ -41,6 +42,7 @@ INPUT_COLUMNS = ["date", "time", "name", "condition", "spool", "depth_m"]
 STATE_COLUMNS = ["slot", "started_pc", "finished_pc", "status"]
 STATE_NAME = "schedule.csv"  # in the run folder
 NO_CONDITION = "not_given"  # no space: the device takes none in a name or condition
+MAX_TUBE_M = 40.0  # the total tube, depth + spool height (SPOOL_MAX_LENGTH_CM in Settings.h); the device never goes beyond it
 MAX_DEPTH_M = 40.0  # the longest tube of the spool (SPOOL_MAX_LENGTH_CM in Settings.h; the device also checks the height)
 NEXT_GRACE_MIN = 10  # the next sample counts as waiting if it is due within this many minutes of the end of the sample
 POLL_S = 0.5  # how often the waits look at the clock
@@ -89,6 +91,37 @@ class Sample:
     def due(self):
         """The clock time of the sample. Only for a resolved date."""
         return dt.datetime.strptime(f"{self.date} {self.time}", "%Y-%m-%d %H:%M")
+
+
+def depth_conflicts(samples, session_max_m):
+    """The waiting spool samples deeper than the session's deepest point (`session`, spool_max_m). session_max_m None = the
+    session has no spool depth: every waiting spool sample counts as a conflict. Checked once, at `schedule start`."""
+    out = []
+    for s in samples:
+        if s.status != WAITING or not s.spool:
+            continue
+        if session_max_m is None or float(s.depth_m) > session_max_m + 1e-6:
+            out.append(s)
+    return out
+
+
+def total_overflows(samples, spool_height_cm):
+    """The waiting spool samples whose TOTAL tube (depth + spool height) would pass MAX_TUBE_M: the device cuts them there,
+    and the operator is asked at `schedule start` (2026-11-02, user). spool_height_cm None = unknown: nothing is judged."""
+    if spool_height_cm is None:
+        return []
+    out = []
+    for s in samples:
+        if s.status != WAITING or not s.spool:
+            continue
+        if float(s.depth_m) + spool_height_cm / 100.0 > MAX_TUBE_M + 1e-6:
+            out.append(s)
+    return out
+
+
+def sample_key(sample):
+    """What identifies a resolved row for the depth conflict answer (date, time, name and depth)."""
+    return (sample.date, sample.time, sample.name, sample.depth_m)
 
 
 def depth_arg(depth_m):
@@ -231,9 +264,16 @@ def resolve(samples, base):
             else s.date
         )
         out.append(replace(s, date=date, name=s.name or f"{date} {s.time}"))
+    # ISO dates and HH:MM sort correctly as text. Samples at the same time: the deepest first (2026-11-02, user): the tube is
+    # filled at the session's deepest point, then rises from one sample depth to the next. Spool off counts as 0 m (last).
     return sorted(
-        out, key=lambda s: (s.date, s.time)
-    )  # ISO dates and HH:MM sort correctly as text
+        out, key=lambda s: (s.date, s.time, -_depth_or_zero(s))
+    )
+
+
+def _depth_or_zero(sample):
+    """The depth of a sample in metres, 0 when the spool is off (no depth)."""
+    return float(sample.depth_m) if sample.depth_m else 0.0
 
 
 def load_state(path):
@@ -391,6 +431,7 @@ class Schedule:
         self._idle.set()
         self._halt = threading.Event()  # set = no further sample starts
         self._halt.set()
+        self.accepted_deeper = set()  # set by start(): the depth conflicts the operator accepted
         self.thread = None
 
     # --- what the operator sees
@@ -419,12 +460,15 @@ class Schedule:
 
     # --- control
 
-    def start(self, base):
-        """`schedule start`: fixes the dates (+N counts from `base`) and runs what is left. False if it runs already."""
+    def start(self, base, accepted_deeper=()):
+        """`schedule start`: fixes the dates (+N counts from `base`) and runs what is left. False if it runs already.
+        accepted_deeper: the sample_key()s of the rows the operator accepted at start (the depth conflicts). Only those
+        get `y` when the device asks about their depth; any other deep sample is left to the operator."""
         if self.active() or not self.pending():
             return False
         self.samples[:] = resolve(self.samples, base)
         self.write()
+        self.accepted_deeper = set(accepted_deeper)
         self._halt = threading.Event()
         self.hint_pending = False
         self.thread = threading.Thread(
@@ -534,6 +578,8 @@ class Schedule:
             if sample.spool:
                 line += f" depth={depth_arg(sample.depth_m)}"
                 self.answers["spool: next sample depth"] = lambda: self._next_depth(sample)
+                if sample_key(sample) in self.accepted_deeper:
+                    self.answers["run_sample: solve it or proceed?"] = "y"
             sample.started = stamp()
             sample.status = RUNNING
             self._idle.clear()
@@ -555,6 +601,8 @@ class Schedule:
         )
         if following is None or not following.spool:
             return ""
+        if (following.date, following.time) != (sample.date, sample.time):
+            return ""  # 2026-11-02 (user): only a sample at the same timepoint keeps the tube full; otherwise it rolls up
         try:
             wait = (following.due - self.now()).total_seconds()
         except ValueError:  # a date not resolved yet: roll up, the safe answer
