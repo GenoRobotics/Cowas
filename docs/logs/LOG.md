@@ -1,5 +1,7 @@
 # CoWaS project log
 
+> **Read first:** the [field log](field-lexplore-geneva-2026-11-03.md), section 12 (restart order and what not to do; the handover file was removed on 2026-11-03).
+
 One log for everything: firmware, host, hardware, lab, mechanics. It records what was done, tried, failed, decided and learnt, so that a report can be written from it. Every entry of the earlier log is kept, unchanged except for the points in the change note below.
 
 **Related files**
@@ -2648,3 +2650,717 @@ Full review of the requests of this session against the code. Corrections made:
 **User request:** note in the stage 2 roadmap (§7b) to rename `actuator_home` to `init`, and the valves to `valve_air` (today `valve_1`, the air inlet V1) and `valve_water` (today `valve_manifold`, the deployment line Vman). **Not to be changed now**: a rename could break the code.
 
 **Done:** a row in [stage2-pilots.md §7b](../roadmap/stage2-pilots.md) with the scope (console commands, help, docs, tool messages and tests, C++ identifiers, Pi/host protocol if it names them) and the check to run (grep the whole repo, then the three test suites, behaviour unchanged). No code, test or doc command name was changed.
+
+### Session 2026-11-03: purge_angle set by cal (user)
+
+**User input:** `cal` on slot 7 with the O-ring locked gave encoder 536.00. The user asked for `purge_angle` = **47.11** (536 × 360 / 4096 = 47.109°).
+
+**Change:** `purge_angle` = 47.11 in [`include/Manifold.h`](../../include/Manifold.h). The comment keeps the history. The value in the file before this change was 342.51, which is the one left by D40 (the D40 entry itself says 344.27; the file had 342.51 at this point, so the log and the file disagreed before this change).
+
+**Validation:** `pio run -e due` passes. `pio test -e native`: 200 passed. The golden tests (`test/test_manifold_geometry`) pin the geometry code, not this value, so they still pass. `tools/golden/capture_manifold_golden.cpp` keeps its own copy of 342.07, which is only used when the goldens are regenerated on purpose.
+
+**Not done:** not flashed (the user reflashes). Not committed. The fix needs a check on the bench: `actuator_home` should report a slot aligned, and `slot7` should land on the slot 7 mark by eye. If it does not, do not repeat `cal` before checking the encoder coupling (F187, F191).
+
+### Session 2026-11-03: manifold overshoot offsets set by hand (user)
+
+**User change (done by hand in the editor):** the overshoot offsets were corrected after `rotate_all dry` by the user.
+- `angle_offset_pos` (clockwise, [`src/Hardware/Manifold.cpp`](../../src/Hardware/Manifold.cpp)): 5.6 → **3**.
+- `angle_offset_neg` (counter-clockwise, [`include/Manifold.h`](../../include/Manifold.h)): 2.5 → **3.7**.
+
+**This step:** only the comments were updated, to record the 2026-11-03 values and keep the earlier ones. No value was changed by Claude. `pio run -e due` passes. Not flashed.
+
+**Check on the bench:** `rotate_all dry order=fill auto` (CW and CCW errors per slot) and `actuator_home` (aligned). Record the per-direction errors here. If one direction is still off, change only that offset.
+
+### Session 2026-11-03: measuring the water surface (spool height)
+
+**Question (user):** how to measure the height from the spool origin to the water surface by rolling the spool and reading the value.
+
+**Answer (procedure, no code change):** the height is the tube length out (`spool_status`, `tube out = X cm out`) when the intake touches the water surface. Steps: origin switch `PRESSED`, unroll with `spool_goto length=<m>` in steps, read X at first contact, type `spool_height X`, then check with `spool_goto 0`. Added to [operator-tutorial.md](../field/operator-tutorial.md) section 1, step 7. The reading is about ±2 cm and `spool_height` is RAM only (repeat after a reset).
+
+### Session 2026-11-03: field work at Lexplore (Lake Geneva)
+
+Field notes are in the new [field log](field-lexplore-geneva-2026-11-03.md). Summary:
+- **Plate orthogonality** off, redone on site. Frame change in V2 (stage 2 §7b).
+- **Two manifold zeros, 3 slots apart.** The code does not zero the encoder (`setZeroSPI` is not called), so the cause is physical (encoder coupling). V2: home switch and mechanical lock.
+- **Pump turns on flash or reset.** D42 (24 V enable) is not driven until `setup()`. Recommended: pull-down resistor on D42, and the first lines of `setup()` to drive D42 and the DAC to 0. Not changed here (safety, awaiting a go).
+- **`spool_home`** (drain) did not move; `spool_home drain=n` solved it (user). The first failure's message was not recorded.
+- **Offsets:** slot offsets moved with the plate; set by hand (see the offsets entry above).
+
+No code change in this entry. Stage 2 §7b has the three open items.
+
+**Spool home, cause (2026-11-03):** `spool_home` (drain=y) was refused with `O-ring lock state is UNKNOWN - run actuator_home`. Drain needs the lock state known (after a reset it is UNKNOWN). Fix: `actuator_home` first, or `spool_home drain=n`. Recorded in the [field log](field-lexplore-geneva-2026-11-03.md) §4.
+
+**Field note for later (2026-11-03):** ask the sample notes at the end of the sampling, not at the start of `run_sample`. Recorded in the [field log](field-lexplore-geneva-2026-11-03.md) §5 as open item 6. Not done.
+
+### Session 2026-11-03: used samples at start, forced slot column
+
+**User request:** (1) at the start of the session, say which samples are already used, so the next run starts from the next available one. (2) A column in the schedule to force a slot for a row (instead of the automatic order).
+
+**Changes (tools only, no firmware change)**
+- **Launch question** (`tools/session_log.py`, `ask_used_before_start`): every start of the tool asks "Samples already used before this start?" (for example `1,2,3`, `1-3`; ENTER = none). Those are marked used in `slots.json`, and the next `run_sample` or schedule starts from the next available one. A bad answer is asked again. Parser: `parse_slot_list()` in `tools/sample_slots.py`.
+- **Forced slot column** `force_slot` (`tools/sample_schedule.py`, input column after `depth_m`): empty = automatic; a sample number 1 to 14 = the row runs on that slot. A number outside 1 to 14 stops the file with the line number, as the other columns do. Old schedule files without the column still load.
+- **Automatic order skips forced slots:** `next_available(exclude=...)`. The schedule reserves the forced slots of its waiting rows (`Schedule.reserved_slots()`), so an automatic row never takes them.
+- **Forced rows run on their slot:** `Schedule.pick_slot(slot)`, wired in `session_log.py` to `route_run_sample`. The device receives `run_sample <slot>`.
+- **At `schedule start`:** two rows forced to the same slot are `BLOCKED`. A forced slot that is used or not loaded asks `y/n`: `y` erases it and runs the row there, `n` starts nothing. This check comes before the depth warnings and the list.
+- **Saved list:** the state file gets the `force_slot` column (after `depth_m`). The `slot` column still means the slot actually used.
+
+**Open to confirm:** "used before this start" is read as *done, skip it*. If the operator also wants the samples that were used but not properly done to run again, that is a different answer (erase them at the start).
+
+**Validation:** `pytest tools/`: 213 passed (7 new: the slot list parser, the excluded slots, the column read/check/save, the forced row, the launch question, the used-slot question at start, the duplicate block). Firmware: no change (not rebuilt).
+
+**Docs:** tutorial section 2b (the column, the launch question, the start order). Hardware: nothing to test on the bench for this change.
+
+### Session 2026-11-03: start question changed to "which samples are available"
+
+**Correction:** the previous entry's question ("which samples are already used") did not replace the count question at a new folder ("How many samples are loaded?"). Both were asked. Fixed.
+
+**Change (tools):** one question at every start: **"Which samples are AVAILABLE?"** Answer `all`, a list (`1-14`, `4-7,9,12-14`), or ENTER for no change. The listed samples become available (also used ones); available samples not listed become used; never-loaded samples stay unavailable. A new folder starts with all available, so the first answer decides. The count question and its order confirmation are removed (`ask_loaded`, and its two tests). The next sample follows the loading order (1, 2, 3, 14, 13, ..., 4, 5, 6, 7), so after `4-7,9,12-14` the next one is 14.
+
+**Validation:** `pytest tools/`: 214 passed. Firmware: no change.
+
+### Session 2026-11-03: spool position reset fixed (origin interrupts)
+
+**Problem (field, DIEL run 04):** after the 20 m sample (tube out 2090 cm) the encoder read 0 with no move. The next sample (5 m) took the "lower" branch from 0 cm and unrolled about 5.9 m more (intake about 25.9 m, not 5 m). The 5 m sample was aborted with `x` during its purge, before any sampling.
+
+**Cause:** `ISR_emergency_stop_up` / `_down` (`src/Hardware/Motor.cpp`) zeroed the encoder on a falling edge of the origin switch pin when `spool.direction == up` and the end-stop flag was clear. `direction` stays at the last move's value after the move stops, so an idle spool could be reset by a stray edge. The reset itself is not proven to come from a particular source (no move was logged in the window; the likely source is switching noise, not confirmed).
+
+**Fix:** a flag `spool_moving` (volatile, `static`), set in `Motor::start()` for the spool, cleared in `Motor::stop()` and by a guard at the end of `Motor::drive()`. Both interrupts act only when `spool_moving` is true. Manual panel moves and the test commands go through `start()`/`stop()` too, so their end-stop protection is unchanged.
+
+**Validation:** `pio run -e due` passes; `pio test -e native`: 200 passed. Not flashed. **Bench check after flashing:** with the spool idle (tube out, not at the top), tap the origin switch and read `spool_status`: the `tube out` value must not change to 0. Then a sample at depth with a following shallower sample: the second sample's `Spool fill: at ... cm out` must match its depth plus the height.
+
+**Recovery of the run:** the 5 m sample (slot 11) was aborted before sampling and is not valid as a sample (wrong depth recorded as 5.00). The 1 m sample did not run. Slots 11 and 10 are free to use; slot 12 has the 20 m sample.
+
+### Session 2026-11-03: end of chat, index and open items
+
+This entry closes the working session of 2026-11-02 and 2026-11-03 (spool water fill, schedule, field work at Lexplore). Each topic has its own entry above. This index says where each one is, what is in the code, and what is still open.
+
+**Where each topic is recorded**
+- Spool water fill, the 40 m total, the group emptying, failed samples: [2026-11-02 water fill](#session-2026-11-02-water-fill-of-the-spool-tube-before-each-sample), [corrections](#session-2026-11-02-corrections-to-the-water-fill-user-review), [40 m total](#session-2026-11-02-40-m-total-tube-emptying-at-the-end-of-each-timepoint), [failed samples](#session-2026-11-02-failed-samples-are-emptied-audit-of-the-whole-session). Decisions D57 to D61.
+- Schedule: depth warnings at start, the operational order, `force_slot`, the start question: [warnings first](#session-2026-11-02-warnings-first-operational-order-checked), [available samples](#session-2026-11-03-start-question-changed-to-which-samples-are-available), [forced slot](#session-2026-11-03-used-samples-at-start-forced-slot-column). Decision D64.
+- Manifold: [purge_angle 47.11](#session-2026-11-03-purge_angle-set-by-cal-user), [offsets by hand](#session-2026-11-03-manifold-overshoot-offsets-set-by-hand-user). Decisions D62, D63.
+- Spool height: [how to measure](#session-2026-11-03-measuring-the-water-surface-spool-height). Decision D68.
+- Renames planned, not done: [2026-11-02 rename](#session-2026-11-02-rename-planned-not-done). Decision D67.
+- Field work: [field log](field-lexplore-geneva-2026-11-03.md) (sections 1 to 9). Findings F214 to F223.
+- The position reset of 2026-11-03 and its fix: [spool position fix](#session-2026-11-03-spool-position-reset-fixed-origin-interrupts). Decision D65.
+
+**Code changed in this chat (files)**
+- Firmware: `src/Step_functions.cpp` (fill, group emptying, failed-sample cleanup, `spool_roll_up_and_empty`), `src/Tests_mech.cpp` (run_sample depth rules, 40 m total, end-of-sample flow), `src/Hardware/Motor.cpp` (`spool_moving` guard, origin interrupts), `include/Settings.h` (spool fill, move limits, placeholders resolved), `include/Manifold.h` (`purge_angle` 47.11; offset comments), `src/Hardware/Manifold.cpp` (offset comment), `src/Core/spool_fill.{h,cpp}`, `src/Core/spool_motion.{h,cpp}` (move limit).
+- Tools: `tools/sample_schedule.py` (deepest first, `force_slot`, total overflow, same-timepoint keep, `reserved_slots`), `tools/session_log.py` (start questions, conflict and forced-slot checks, session and height parsing), `tools/sample_slots.py` (`set_available`, `parse_slot_list`, `next_available(exclude)`).
+- Tests: native 200 passed; tools 214 passed.
+
+**Not flashed (the user flashes):** the spool origin-interrupt fix (F214). Whether the DIEL run's firmware had the `purge_angle` 47.11 and the offsets is not recorded (see the field log §8).
+
+**Open at the end of the chat** (numbers in the field log, the findings and the decisions):
+1. Spool origin-interrupt fix: flash, then the bench check (F214).
+2. Fill dive keeps Vman shut: does the tube fill (F219).
+3. Purge at 100 % and the spool prime at 60 %: print the applied power (F221).
+4. Pump turns on flash or reset: pull-down on D42, and the first lines of `setup()` (F215).
+5. Two manifold zeros, 3 slots apart, and the plate orthogonality: V2 frame and home switch (F216, F217).
+6. Spool height in RAM only (F223). Sample notes at the end of sampling (F222).
+7. Recovery of the aborted schedule: field log §9. The 5 m record of run 04 is invalid.
+
+### Session 2026-11-03: handover and the field run's new bugs
+
+**Requested:** keep track of the last questions and my fixes in the log; the next chat must be able to see what was done; the user is not convinced by some of it; document how to restart the schedule.
+
+**Done:**
+- HANDOVER.md (removed 2026-11-03; its content is in the [field log §12](field-lexplore-geneva-2026-11-03.md#12-restart-order-and-what-not-to-do-moved-here-from-the-handover-2026-11-03)) written: the physical state, the field run table, the status of each question, my mistakes, the open bugs, the restart order (steps A to G), and questions for the user.
+- Findings F224 (move-to-origin time limit uses the encoder distance) and F225 (the schedule continues after an `x` or a failed roll-up) added as open, High.
+- Field log §7 extended with the post-abort timeline (16:44 to 16:49). The 1 m row and the spool_home attempts are FAIL; the tube position is unknown.
+- The main LOG and F214 wording: "fixed in code" means built only. The bench check is still to do.
+
+**Not done:** no code change in this step. F224 and F225 are not fixed. F214 is built but not flashed.
+
+**Correction to earlier entries:** the 2026-11-03 entries describe the spool-position fix (F214) as the cause. That is the likely cause, not a proven one. The field log says so in §7.
+
+### Session 2026-11-02 and 2026-11-03: record of the chat (questions, answers, where documented)
+
+Every question of the working chat, in order, with what was answered or changed and the entry that holds it. Headings are the entries above. "Answer only" means no code or doc change was asked.
+
+| # | Question or request (user) | What was done | Where |
+|---|---|---|---|
+| 1 | Ethanol purge does not flow with the spool at 0.6 m; is the pump at 100 %?; 0.1 L per slot | Found the purge limit path (100 % is the ceiling); 0.1 L per slot set; prime at 60 % noted | `Session 2026-11-02: ethanol_purge 0.1 L per slot` |
+| 2 | The pump does not push through the coiled empty tube. Fill the tube at the session depth first; ask the session depth (40 m default) | Fill, flow check and rise designed and built; corrections after review (no pump during the rise, 100 mL, same-timepoint rule) | `water fill of the spool tube before each sample`; `corrections to the water fill` |
+| 3 | Verify the whole chat and triple-check the logic | Audit: height bug, speed, accepted conflicts; fixes and the known risks | `verification before the field (corrections)` |
+| 4 | Restructure the tutorial; solve the placeholders; schedule concise | Tutorial restructured; prime and move-limit values derived | `schedule depth check, values resolved, tutorial restructured` |
+| 5 | 40 m total tube; warning before the schedule; speed not to change; group emptying at the end of a timepoint | Total limit with cut and question; group emptying; speeds checked unchanged | `40 m total tube, emptying at the end of each timepoint` |
+| 6 | Warnings first at launch; logs in the real run order | Warnings moved before the list; order tested | `warnings first, operational order checked` |
+| 7 | Failed samples: empty the spool too; the next sample refills at the session depth | Cleanup after a failure; `sample_process` covered; audit table | `failed samples are emptied; audit of the whole session` |
+| 8 | Note the renames for later (`actuator_home` to `init`, valves to `valve_air` and `valve_water`) | Note in stage 2 §7b only; nothing renamed | `rename planned (not done)` |
+| 9 | Commit to git | Commit `005ec82` on `shield_V2` | git history (commit message of that commit) |
+| 10 | How to use `session_log.cmd`; example for 3 Nov | Answer; the tutorial has the command | tutorial §1 step 2 |
+| 11 | "Why did it not work?" COM6 access denied; `actuator_home` typed in PowerShell | Cause: two PlatformIO `device monitor` processes held COM6; the command went to PowerShell. Not logged before this entry | this table; tutorial troubleshooting table |
+| 12 | The manifold was lost before (3 slots); what was done | Searched the log: F187 (loose encoder), F191 (3 slots), D35, D40 | `Session 2026-10-23 (late): slot offset, F191` (existing) |
+| 13 | Plate orthogonality off; two zeros 3 slots apart; pump turns on flash or reset; slot offsets moved | Field log §1 to §3; findings F215 to F217; the zero cause is a hypothesis | `field work at Lexplore`; field log §1 to §3 |
+| 14 | `spool_home` did not move | The refusal: O-ring state UNKNOWN; `drain=n` worked | `field work at Lexplore`; F218; field log §4 |
+| 15 | `purge_angle`: encoder 536 gives 47.11 | Set in `Manifold.h`; built | `purge_angle set by cal (user)` |
+| 16 | Offsets: clockwise and counter-clockwise are off; can I adjust them? | Answered (constants, reflash). The user then set 3 and 3.7 by hand; comments updated | `manifold overshoot offsets set by hand (user)` |
+| 17 | How to measure the surface height by rolling the spool | Procedure in the tutorial §1 step 7 | `measuring the water surface (spool height)` |
+| 18 | The command to set the water height | `spool_height <cm>`; RAM only; answered | tutorial §1 step 7; this table |
+| 19 | Used samples at the start; a column to force the slot; then "which samples are available" | First attempt kept the count question (not what was asked); second attempt: one question with a list; `force_slot` column | `used samples at start, forced slot column`; `start question changed to "which samples are available"` |
+| 20 | Where to put the schedule file; can it have any name | Answer: project folder, any `.csv` name, `--schedule <name>`; the first start copies it into the run folder | this table; tutorial §2b |
+| 21 | 20 m then 5 m: where does the spool end? | The first answer ("no bug") was **wrong**. The log showed a position reset to 0; the 5 m run went about 5.9 m too deep | `spool position reset fixed (origin interrupts)`; F214; field log §6 and §7 |
+| 22 | Fix the position loss now; how to finish the schedule | Interrupt guard built (not flashed). Recovery steps written (field log §9, handover §6) | `spool position reset fixed`; HANDOVER |
+| 23 | Could `spool_home` run faster (a parameter)? | Answer: possible for an unknown position only; the homed roll-up is already at 100 %. Not implemented | this table |
+| 24 | A test sample at 1 m without the DNA shield | Answer: `full_cycle ... shield=n` (tests). The user then chose `run_sample 7 depth=1` (with shield) as the normal path | this table |
+| 25 | Is the pump at 100 % for the purge? | Answer: the ceiling is 100 %; the 3 bar controller limits it; the prime is at 60 %. Not printed. Not changed | F221 |
+| 26 | Drag a schedule file? Order of commands? | Answer: pass `--schedule` at start, then `session`, then `schedule start` | this table; tutorial §2b |
+| 27 | Field note: notes at the end of the sampling (later) | Deferred | field log §5; F222; D66 |
+| 28 | Keep track of the last questions in the log; a new chat must see them; document the restart | Handover written; F224 and F225 found and recorded; this record | `HANDOVER.md`; `handover and the field run's new bugs` |
+| 29 | The tube is at the top now | Recorded in the handover; the switch state still to confirm | the field log section 12 |
+
+**Corrections to earlier entries in this record**
+- Row 21: the first answer ("no bug") was wrong. The fix is in code, not flashed.
+- Row 11: the COM6 failure was not in the log before this entry.
+- Speeds: earlier entries said the speed was unmeasured. The field log now shows 31 to 37 cm/s at full speed (F220).
+
+### Session 2026-11-03: origin-switch edge at idle (position 0 with no move), code fix
+
+**Problem (field, DIEL run 04):** the spool position read 0 at 16:36:51 with the tube at 2090 cm out. No move was logged in that window and nobody pressed the switch.
+
+**Cause (code):** the top-switch ISR (`ISR_emergency_stop_up`, `src/Hardware/Motor.cpp`) zeroed the encoder on any falling edge of D28 while `spool.direction == up` (left over from the last up move, the 4001 to 2090 cm rise). It did not check that a move was running, nor that the pin was still LOW. The only other encoder resets (`drive()` at lines 196 and 303) need a move, so they are excluded. The source of the edge itself is not known (electrical glitch on the line, or cable): nothing in the code drives D28 (checked: input only, no output on pin 28).
+
+**Change (firmware, not flashed):**
+- The ISR acts only while a move runs (`spool_moving`, from the previous fix). While idle it counts the edge and returns.
+- During a move it also requires `digitalRead(BUTTON_SPOOL_UP) == LOW`, so a glitch that is already back HIGH does not zero the encoder.
+- New counter: `spool_idle_edges_seen()` (`include/Motor.h`), printed by `spool_status` as "origin-switch edges ignored while idle since boot".
+- The `SpoolMovingGuard` struct now sits above the `drive()` doc comment (it had split it).
+
+**Tests:** `pio run -e due` passes; `pio test -e native`: 200 passed. Not flashed, no bench check yet.
+
+**Bench check (after flash):** with the spool idle, `spool_status` must show the same tube length before and after a few taps of the switch. A count above 0 after taps is expected (the counter); a count that rises with nothing touched means the line glitches: check the cable and the switch wiring (D28), and add a pull-up or RC filter there.
+
+**Not changed:** the 300 ms coast after a move: the flag is cleared by `stop()` before the coast, so a switch touch in that window is still ignored (a few cm error). Open, low.
+
+### Session 2026-11-03: review of the spool position fixes (robustness)
+
+**Review request:** check that the changes are robust and answer the request (after the 20 m sample, the next shallower sample goes straight to its depth; no lost position).
+
+**Checked, no change:**
+- Order: same-time rows run deepest first (`resolve()` in `tools/sample_schedule.py`). The recovery CSV of [field log §9](../../logs/field-lexplore-geneva-2026-11-03.md) loads in that order (20 m, 5 m on slot 11, 1 m on slot 10).
+- Next depth: the 20 m row answers the device's next-depth question with 5.00 m (same timepoint). The fill then rises from the kept length to 590 cm (`spool_fill_and_rise`, wet tube, target shallower: no dive). The logic was right; the position was wrong.
+- Button: a press during an up move is still seen (interrupt with LOW check, and the move loop's debounced `getState()` check). Cost: up to about 50 ms of travel after an interrupt miss.
+
+**Added (firmware, not flashed):**
+- **Kept-length check:** `spool_kept_length_cm` is stored when the tube is kept out (`Tests_mech.cpp`). `spool_fill_and_rise()` refuses with an ERROR, and pumps nothing, when the encoder reads more than `SPOOL_KEPT_MOVED_CM` (5 cm) away from it. A 2090 → 0 reset would now stop the next sample instead of diving to 25.9 m.
+- **Coast gap closed:** `drive()` re-arms `spool_moving` after `stop()` so the 300 ms coast counts a switch touch. The guard clears the flag on return.
+
+**Results:** `pio run -e due` passes; `pio test -e native`: 200 passed; `pytest tools/`: 214 passed. Not flashed, not bench-checked.
+
+**Still open:** the cause of the falling edge on D28 (cable or switch wiring: bench check, `spool_status` idle-edge count); the recovery steps in field log §9 must be done after the flash.
+
+### Session 2026-11-03: correction, the D28 cause is not proven
+
+**Correction:** earlier entries and chat answers said the origin-switch interrupt on D28 zeroed the position in the field. That is the only code path that can zero the encoder while idle (checked: every `encoder.reset()`, every use of pin 28, every `start()`/`stop()` pair). It is **not proven**: no press, no edge and no move were logged, so what made D28 fall is unknown (cable, switch wiring or electrical noise). F214 now says so. D70 is proposed by Claude and is not yet confirmed by the user.
+
+**Process mistakes in this session (recorded, not repeated):**
+- My first search for the encoder resets skipped `src/Step_functions.cpp` (grep reported it as a binary file). Found later by searching as text.
+- A first batch of edits, run through `python3`, did not apply (no Python on this name). The build reported at that point was on unchanged code. Re-run after the edits applied.
+- I said "sure" about the switch cause before the evidence supported it.
+
+**Every change made in this session (firmware not flashed; tests: `pio run -e due` passes, `pio test -e native` 200 passed, `pytest tools/` 214 passed):**
+- `src/Hardware/Motor.cpp`: the origin-switch interrupt acts only while a move runs (`spool_moving`), only when the pin reads LOW, and counts idle edges. `drive()` re-arms the flag for the 300 ms coast. The `SpoolMovingGuard` doc comment is no longer split.
+- `include/Motor.h`: `spool_idle_edges_seen()`.
+- `src/Tests_mech.cpp`: `spool_status` prints the idle-edge count; a kept-out tube stores `spool_kept_length_cm`.
+- `src/Step_functions.cpp`, `include/Step_functions.h`: `spool_fill_and_rise()` refuses, with nothing pumped, when a kept-out tube reads more than 5 cm away from where it was kept (F226).
+- Findings: F214 reworded (the cause is not proven); F226, F227 added. Decisions: D69, D70 added.
+
+**Field notes from the user (not implemented, see field log §11):** F228 (restart of an interrupted schedule) and F229 (erase prompt destroys the record).
+
+### Session 2026-11-03: field day, Felix, DIEL and the night run
+
+**Runs (detail and volumes: [field log §13](field-lexplore-geneva-2026-11-03.md#13-day-log-2026-11-03-felix-diel-and-the-night-run)):** Felix 3 samples and 1 blank PASS, 1 partial stopped by `x` (folder 03). DIEL: 20 m PASS (schedule, valid); 5 m and 1 m failed in the first attempts (`x` in the purge, the spool position reset, F214, F224, F225); 5 m redone by hand at 17:13 (the sample is valid, 83 mL clogged; the run is FAIL at the roll-up, a timeout after a reading of 0); 1 m by hand at 17:37 (PASS, clogged at 515 mL). Night plan: `tools/DIEL-schedule02.csv`, 12 samples, not started yet.
+
+**Changes made (not flashed unless stated):**
+- `src/Hardware/Motor.cpp`, `include/Settings.h`: every move to the origin switch has a fixed limit, `SPOOL_HOME_MAX_MS` = 20 min (F224, D72), kept for stage 1; to revise (stage 2 §7b). **Needs a flash.**
+- `tools/sample_schedule.py`: the schedule stops on `spool_end=FAILED` and on any refused sample (F225, D71). Tool only: restart the tool.
+- `tools/tests/test_sample_schedule.py`: two tests for the stop rules.
+- Findings: F214 reopened (17:18 to 17:34, reading 0 with no move); F224 and F225 status; F230 (USB drop 13:00); F231 closed (slot 1 was test only). Decisions: D71, D72, D73 (night run accepted by the user, with the risks listed).
+- Field log: §13 (day log, runs, night plan, open items); §9 marked superseded; §12 step B updated.
+
+**Tests:** `pio run -e due` builds; `pio test -e native` 200 pass; `pytest tools/` 216 pass.
+
+**Hardware checks not done:** the 20 min limit on the board; `spool_status` idle-edge count; the reading at rest.
+
+**Open:** F214 (what zeroes the reading while idle), F225 (`x` does not stop the list), F230 (USB), F224 (20 min kept for stage 1, to revise in stage 2 §7b), F215 (pump on reset: the hardware pull-down on D42 is not confirmed), the build on the board (not recorded; purge_angle 47.11 and the offsets in field log §8 to confirm).
+
+### Session 2026-11-03: schedule stops on x and restarts at a row
+
+**Why (user, F225):** after an `x` the list ran on to the next sample. The operator needs to stop, solve the problem, and restart at the sample that failed.
+
+**Changes (tool only, no flash needed; restart the tool):**
+- `tools/sample_schedule.py`: an `x` (`aborted=x` on the TEST line) stops the list, like a failed roll-up (`spool_end=FAILED`) and a refusal. No question is asked: the list stops and says why. New status `skipped`. `restart_rows(samples, row)` builds the list for a restart (copies): rows before the row that waited become `skipped`; the row and every later row that did not pass wait again; PASS rows stay. `Schedule.start` and `preview` take that list.
+- `tools/session_log.py`: `schedule` numbers the rows. `schedule start <row>` shows the list it will run, then asks `y/n` as before. A bad row number is refused.
+- Tests: `pytest tools/` 220 pass (new: x stops the list, restart rules, a re-run row is cleared, `schedule start <row>` changes nothing until `y`).
+- Tutorial §2b: the list stops by itself after `x`, a failed roll-up or a refusal; the restart steps; the command table.
+- Findings F225 fixed in code (tool). Decision D74.
+
+**Not changed:** the firmware. The 20 min origin limit (F224, D72) still needs a flash, as before.
+
+**Known limits:** a re-run takes the next available filter (a failed filter stays used). The restart does not check the tube: the operator checks `spool_status` first (tutorial §2b). `ruff check` reports one old warning in `session_log.py` (SIM115, line 215, not in this change).
+
+**Addendum (same session): filters and the schedule file.**
+- **Filter release (D75):** a run that stops before the filter is loaded (`failed_at=dive` or `failed_at=purge`) frees its slot again (`SlotBook.release` in `tools/sample_slots.py`, called from `on_device_line` in `tools/session_log.py`). The restart can use that filter. A run stopped from `sampling` on keeps it used. Test: `test_a_run_stopped_before_its_filter_was_loaded_frees_the_slot`.
+- **Schedule file:** unchanged. The input CSV is only read at the first start; the list of the run (with the status of each row) is saved in the run folder's `schedule.csv`. Older state files load as before; the new status `skipped` only appears after `schedule start <row>`.
+- `pytest tools/`: 221 pass.
+- Tutorial §2b updated (filters, the schedule file).
+- Flash: the firmware change of this session is still only F224 (`SPOOL_HOME_MAX_MS`, 20 min, kept for stage 1). Flashing resets the Due: the spool position is then unknown until `spool_home`, and `spool_height` must be typed again.
+
+### Session 2026-11-03: purge_angle second shift (340.75)
+
+**What happened (user):** the manifold was 3 slots clockwise, the other way from the morning shift. The user redid `cal` on slot 7 with the O-ring locked: encoder 3877.00, `purge_angle` 340.75.
+
+**Check:** 3877 × 360 / 4096 = 340.75°. From the morning value 47.11° (encoder 536) the step is 340.75 − 47.11 = −66.4°, about 3 slots (67.5°) within 1.1°. The value is the user's `cal` result, taken as it is.
+
+**Change:** `purge_angle` = 340.75 in [`include/Manifold.h`](../../include/Manifold.h). The comment keeps the history (47.11, 342.51 and the earlier values). The offsets are unchanged (`angle_offset_pos` = 3, `angle_offset_neg` = 3.7), as the user asked.
+
+**Tests:** `pio run -e due` builds; `pio test -e native` 200 pass. The manifold goldens pin their own reference (342.07 in `tools/golden/`), so they do not depend on this value.
+
+**Not checked:** the slots by eye (`slot7`, then one `run_sample` on a known slot) after the flash; `encoder_repeat`. The cause (encoder slip or rotor shift, F216) is still open. Two shifts in one day point to the coupling; the mechanical check is in the field log §2.
+
+**Flash:** needed for this value, as for F224. Flashing resets the Due: after it, `actuator_home`, `spool_status`, and `spool_height` again.
+
+**Logs:** [decisions D76](decisions.md), [F216](findings.md), [field log §8](field-lexplore-geneva-2026-11-03.md#8-settings-changed-by-hand-today).
+
+### Session 2026-11-03: manifold shifts tracked, early fix in the roadmap
+
+**Issue (user):** the manifold shifted 3 slots twice on 2026-11-03 (morning, `purge_angle` 47.11; later, 3 slots clockwise, `purge_angle` 340.75; D76). Offsets unchanged.
+
+**Logs updated:**
+- [field log §14](field-lexplore-geneva-2026-11-03.md#14-manifold-shifts-issue-log-open-early-fix-in-the-roadmap): the issue, the `purge_angle` history table from 2026-10-12 to today, what is known and not known, and what to log at each shift. The §8 settings table shows both 2026-11-03 values.
+- [F216](findings.md): the second shift and the early fix.
+- [D77](decisions.md): the coupling is an early fix.
+
+**Roadmap:**
+- [stage 2 HW9](../roadmap/stage2-pilots.md): marked **EARLY FIX, before the next field run**, no dependency on HW6. §7.4 gives the fix steps. §7b row points to it.
+- [stage 1 "Left to do" 7](../roadmap/stage1-FINISHED-prototype.md): the same item for the stage 1 list.
+
+**Not done:** no hardware change; the coupling lock is a mechanical job for the user. The cause is not known yet (encoder slip or rotor shift).
+
+### Session 2026-11-03: false origin press, fail-safe, recovery
+
+**Trigger (field, 21:22):** the 1 m sample's rise hit the origin switch before the goal (`origin switch reached before the goal`). The spool was then down, not up. The user believes the up button was pressed by accident (not by the team). The program must not lose the zero on a press it cannot trust.
+
+**Cause (code):** the origin interrupt `ISR_emergency_stop_up` braked the motor and zeroed the encoder on any raw edge during a move, with no debounce and no check of the length. The button itself is debounced (50 ms), but the interrupt was not. F232.
+
+**Changes (firmware, built, not flashed):**
+- `src/Hardware/Motor.cpp`, `ISR_emergency_stop_up`: does nothing during a move. Idle edges are still counted (`spool_status`).
+- `Motor::drive`: the move loop takes a press only when the button reads held (debounced) and `core::spool_origin_press_real(homing, length, SPOOL_ORIGIN_TOL_CM)`: within 30 cm of the zero, or homing from an unknown position. Otherwise: a WARNING with the length, and the move goes on (the stall rule still stops a stuck spool).
+- A stall with the switch held, going up, is the origin: the drum is at the top, so the zero is reset there (position lost).
+- A move to the origin from an unknown position has a 30 min limit (`SPOOL_HOME_UNKNOWN_MAX_MS`, D79). From a known position it stays 20 min (`SPOOL_HOME_MAX_MS`).
+- The start check: a switch held while the encoder says the tube is out now says "release the switch, or check the wiring".
+- `spool_height` is not touched by any press (the height is the typed value; the zero is the encoder).
+- `src/Core/spool_motion.h/.cpp`: `spool_origin_press_real`. `test/test_spool_motion/`: a test for it.
+
+**Tests:** `pio run -e due` builds; `pio test -e native` 201 pass. `pytest tools/` not rerun (no tool change).
+
+**Not done:** bench check on the spool (idle tap, a press during a move). Residual risk: a false press during a homing move (unknown position) is still taken as the zero.
+
+**Recovery steps:** [field log §15](field-lexplore-geneva-2026-11-03.md#15-false-origin-press-the-spool-state-and-the-steps-to-continue). Decision D80: the failed sample is retried from scratch.
+
+**Review of the false-press change (same session, before the flash):**
+- Fixed: the start check of a move (switch held, tube reads out) took the switch as the zero up to 90 cm (3 × the slow zone). It now uses the same 30 cm rule as a press during a move. Without this, a stuck switch could set a zero 60–90 cm wrong.
+- Checked, no change: the down end-stop interrupt is not attached (`main.cpp`, commented out), so only the debounced loop acts on it. The spool motor has no "MANIFOLD" ID, so the move guard applies to it.
+- `pio run -e due` passes; `pio test -e native` 201 pass.
+
+### Session 2026-11-03: retry before the filter, and homing confirmation
+
+**Retry (tool, `tools/sample_schedule.py`, D81):** a FAIL with `failed_at=dive` or `purge` (the filter was not loaded), the spool not left out (`spool_end` not `FAILED`) and no `x`, sends the same row again, on the next free filter (the released one first). Up to `RETRY_MAX` = 2 tries; then the list stops. The run loop is now index-based so a row can repeat (`_run`); `_end` decides. Tests run the real loop: a retry twice then stop; an `x` never retried; a spool left out never retried; a failure after the sampling goes on as before (`pytest tools/`: 225 pass).
+
+**Late rows:** a row whose time has passed runs as soon as the device is idle (`_wait_for_time`). `schedule start 3` therefore runs the 1 m row (planned 20:24) at once, then waits for the 23:50 group, then 04:00 and 07:00. Only row 3 is late.
+
+**Homing confirmation (firmware, `src/Hardware/Motor.cpp`, D82):** after a press is taken (move loop or a stall with the switch held), the switch must still read held after the spool has stopped. If released, the move fails with "press not confirmed", and the zero is not changed. Built; `pio run -e due` passes, `pio test -e native` 201 pass. Not flashed.
+
+**Not changed (user's decisions):** the pump on reset (F215: no change, hardware pull-down not done); height check, stall time, and stop-on-any-FAIL were not implemented.
+
+### Session 2026-11-03: retry on the same filter, 300 ms hold
+
+**Retry (tool, D81 amended):** a failed try before the filter was loaded is repeated on the **same** filter (the slot of the failed try, kept in `Schedule.retry_slot`), not on the next free one. Two tries at most. After that the row stays FAIL, its filter stays free, and **the list goes on** with the next row at its own time. The `x` and "spool left out" stops are unchanged. Tests run the real loop (`tools/tests/test_sample_schedule.py`, "a failure before the filter"): same filter three times, then the next row; `pytest tools/`: 226 pass.
+
+**Hold (firmware, D83, not flashed):** with the top switch held, the spool stops when it has counted no pulse for `SPOOL_HOLD_STOP_MS` (300 ms), so the push against the top lasts at most about 0.35 s. The earlier 4 s stall branch for a held switch is removed. A press within 30 cm of the zero is still taken at once, and the zero still needs the switch to be held after the stop (D82). `pio run -e due` builds; `pio test -e native` 201 pass.
+
+**Still open:** a bench check of the press, the hold and the homing (F232); the firmware is not flashed.
+
+### Session 2026-11-03: review of the night run logic
+
+**Checked (code re-read, not bench-tested):**
+- Scheduler: the run loop repeats a row only on a retry; the next row starts only when the row is finished; late rows run at once; `schedule start <row>` marks earlier waiting rows as skipped; the retry uses the same filter (`retry_slot`), is limited to 2, and never follows an `x` or a spool left out. After the tries are used up the row stays FAIL and the list goes on. `retry_slot` is cleared when a row ends.
+- Filter release (D75) happens on the TEST line before the scheduler sees it (reader order in `session_log.py`), so the retry finds its filter free.
+- Firmware move: a press is taken only within 30 cm of the zero, or while homing, or when the switch is held and the drum has counted no pulse for 300 ms. The zero is set only if the switch is still held after the stop. The start check uses the same 30 cm rule. The interrupt does nothing during a move.
+- Retries happen on dive failures (stall, timeout, wrong way, origin before the goal, prime with no flow, a kept-out mismatch). The spool is rolled up first (`rolled_up_after_failure`), so a retry dives from the origin.
+
+**Corrections found in this review:**
+- `failed_at=purge` only happens with an `x` (the purge returns false only on abort), so the retry on the purge is in practice an `x` case, which is excluded. Harmless, but not what the decision text suggested.
+- `RETRY_MAX` comment and the stale retry entries are fixed.
+
+**Open risk (F233):** a purge that stops on the pressure cap goes on to the sampling. Not changed: it needs a decision and a flash.
+
+**Tests:** `pytest tools/` 226 pass; `ruff check` on the scheduler passes. `pio run -e due` and `pio test -e native` (201) passed on the last firmware change.
+
+### Session 2026-11-03: change register (all changes of the day, board state)
+
+**Board state.** Flashed by the user after the 340.75 `purge_angle` change (the flash came after the 20 min origin limit): the origin interrupt fix (F214), the kept-out length check (F226), the coast fix (F227), `SPOOL_HOME_MAX_MS` = 20 min (F224), `purge_angle` 340.75 (D76). **Not on the board:** everything in the table marked "not flashed". A reset or flash resets the spool position and the height (`spool_height` is RAM only).
+
+| # | Area | Change | Files | Board | Decision / finding | Detail |
+|---|---|---|---|---|---|---|
+| 1 | Spool origin interrupt | Acts only during a move; idle edges counted (`spool_status`) | `src/Hardware/Motor.cpp`, `include/Motor.h`, `src/Tests_mech.cpp` | flashed | D65, D70, F214 | [spool position fix](#session-2026-11-03-spool-position-reset-fixed-origin-interrupts) |
+| 2 | Kept-out tube | A fill refuses if the encoder moved more than 5 cm from where the tube was kept | `src/Step_functions.cpp`, `src/Tests_mech.cpp` | flashed | D69, F226 | [review](#session-2026-11-03-review-of-the-spool-position-fixes-robustness) |
+| 3 | Coast | The switch is re-armed during the 300 ms coast | `src/Hardware/Motor.cpp` | flashed | F227 | same |
+| 4 | Origin move limit | Fixed 20 min for a move to the origin from a known position (`SPOOL_HOME_MAX_MS`) | `include/Settings.h`, `src/Hardware/Motor.cpp` | flashed | D72, F224 | [false press entry](#session-2026-11-03-false-origin-press-fail-safe-recovery) |
+| 5 | Manifold | `purge_angle` = 340.75 (cal on slot 7, encoder 3877) | `include/Manifold.h` | flashed | D76, F216 | [manifold issue](field-lexplore-geneva-2026-11-03.md#14-manifold-shifts-issue-log-open-early-fix-in-the-roadmap) |
+| 6 | Origin switch, false press | The move loop accepts a press only within 30 cm of the zero, or when homing; elsewhere a WARNING and the move goes on. A switch held with no pulse for 300 ms is the origin. The interrupt does nothing during a move | `src/Hardware/Motor.cpp`, `src/Core/spool_motion.h/.cpp`, `include/Settings.h` (`SPOOL_ORIGIN_TOL_CM`, `SPOOL_HOLD_STOP_MS`) | **not flashed** | D78, D83, F232 | [false press](#session-2026-11-03-false-origin-press-fail-safe-recovery), [hold](#session-2026-11-03-retry-on-the-same-filter-300-ms-hold) |
+| 7 | Origin, start check | A move that starts with the switch held uses the same 30 cm rule | `src/Hardware/Motor.cpp` | **not flashed** | F232 | [review](#session-2026-11-03-review-of-the-night-run-logic) |
+| 8 | Origin, confirmation | **Removed** (D82): it made the first `spool_home` fail in the field (22:10). The press is taken at once again | `src/Hardware/Motor.cpp` (the code is gone) | removed | D82 | [confirmation removed](#session-2026-11-03-confirmation-removed-d82) |
+| 9 | Homing from an unknown position | 30 min limit (`SPOOL_HOME_UNKNOWN_MAX_MS`); 20 min stays for a known position | `include/Settings.h`, `src/Hardware/Motor.cpp` | **not flashed** | D79 | [false press](#session-2026-11-03-false-origin-press-fail-safe-recovery) |
+| 10 | Tests (firmware) | `spool_origin_press_real` (`test_origin_press_only_where_the_origin_can_be`) | `test/test_spool_motion/test_main.cpp` | — | — | — |
+| 11 | Scheduler: stops | Stop on `spool_end=FAILED`, on any refusal, on any `x`; the message says how to restart | `tools/sample_schedule.py` `_end` | tool (restart the tool) | D71, D74, F225 | [x and restart](#session-2026-11-03-schedule-stops-on-x-and-restarts-at-a-row) |
+| 12 | Scheduler: restart at a row | `schedule start <row>`; rows are numbered; `restart_rows` skips earlier waiting rows and keeps PASS rows; `skipped` status | `tools/sample_schedule.py`, `tools/session_log.py` | tool | D74 | same |
+| 13 | Filter release | A run stopped before the filter was loaded (`failed_at=dive` or `purge`) frees its slot (`SlotBook.release`) | `tools/sample_slots.py`, `tools/session_log.py` | tool | D75 | [addendum](#session-2026-11-03-schedule-stops-on-x-and-restarts-at-a-row) |
+| 14 | Retry | A FAIL before the filter was loaded is repeated on the **same** filter, twice; then the row stays FAIL and the list goes on with the next row at its time | `tools/sample_schedule.py` (`_run`, `_end`, `_retry_wanted`, `retry_slot`, `RETRY_MAX`) | tool | D81 (amended) | [retry on the same filter](#session-2026-11-03-retry-on-the-same-filter-300-ms-hold) |
+| 15 | Late rows | Rows whose time has passed run at once (existing behaviour, checked) | — | tool | — | [review](#session-2026-11-03-review-of-the-night-run-logic) |
+| 16 | Tutorial | §2b (stops, restart, filters, retry), §3 (warnings, lost position, spool_home), command table | `docs/field/operator-tutorial.md` | docs | — | — |
+| 17 | Roadmap | HW9 early fix (stage 2 §7.4, stage 1 "Left to do" 7); §7b rows for 20 min / 30 min limits and the two zeros | `docs/roadmap/stage2-pilots.md`, `docs/roadmap/stage1-FINISHED-prototype.md` | docs | D77 | [manifold issue](field-lexplore-geneva-2026-11-03.md#14-manifold-shifts-issue-log-open-early-fix-in-the-roadmap) |
+
+**Not changed on purpose (user decisions):** the pump on reset (F215: the 24 V relay can close before `setup()`; needs a hardware pull-down and a test), a height check after a reset, stop-on-any-FAIL, the stall time, the down end-stop interrupt (not attached, `main.cpp`).
+
+**Open:** F233 (a purge stopped by the pressure cap goes on to the sampling; proposed fix needs a flash), F232 bench check (press, hold, homing), F214 bench check (idle tap, idle-edge count), F230 (USB drop), the 20 min and 30 min limits to revise (stage 2 §7b).
+
+**Tests at the end of the day:** `pio run -e due` builds; `pio test -e native` 201 pass; `pytest tools/` 226 pass; `ruff check` on the scheduler passes.
+
+**Superseded entries:** the "stall with the switch held" wording in [the false press entry](#session-2026-11-03-false-origin-press-fail-safe-recovery) (replaced by the 300 ms rule, D83) and the 4 s stall rule in F232 and D78 (corrected in place).
+
+### Session 2026-11-03: confirmation removed (D82)
+
+**Field result (22:10):** the first `spool_home` after the reflash failed with `origin switch press not confirmed`. The drum had rolled up from an unknown position, the switch was pressed during the roll, and the switch was not held once the spool had stopped. The zero was therefore never set (correct for the rule), and the homing failed. The schedule started row 3, the dive failed the same way, and the list stopped on `spool_end=FAILED`. Nothing was pumped.
+
+**Change (user decision, 2026-11-03):** the confirmation after the stop is removed from `src/Hardware/Motor.cpp` (`drive()`). The press is taken at once again, as before, with the other rules kept:
+- the origin press counts only within 30 cm of the zero, or when homing (D78, F232);
+- a switch held with no encoder pulse for 300 ms is the top (D83, `SPOOL_HOLD_STOP_MS`);
+- the start check uses the 30 cm rule;
+- the interrupt does nothing during a move, and idle presses are counted only;
+- the 30 min limit for a homing move from an unknown position (D79) and the 20 min limit from a known one (F224) are kept.
+
+**Note for the bench check (F232):** the 300 ms hold is now the only check against a false zero at the top. The field result suggests the switch is not held once the drum stops, so the bench check must show where the switch sits at rest.
+
+**Checks:** `pio run -e due` builds; `pio test -e native` 201 pass. Not flashed: the firmware needs a flash for this change.
+
+**Documents updated:** D82 (removed), F232 (confirmation removed), the change register row 8, the tutorial's warning rows, the roadmap §7b row, and the field log §16 addendum.
+
+### Session 2026-11-03: record of the chat (second half), handover
+
+Continues [the record of 2026-11-02 and 2026-11-03](#session-2026-11-02-and-2026-11-03-record-of-the-chat-questions-answers-where-documented). The chat ended here so the user can flash and continue in a new chat. Everything below is in the logs; this entry only lists it.
+
+**Questions and results, in order**
+1. **Schedule file and loaded times:** the tool loaded `tools/DIEL-schedule02.csv` at 20:01:43 (first group 20:10). It was edited to 20:24 later. Answer: `schedule start` never re-reads the CSV; only a tool restart on a not-started list does. (Field log §16.)
+2. **20 m failure at 20:10:** the prime counted 4 mL in about 2 min. The operator's `x` at 20:13:50 stopped it. The retry at 20:24 primed 101 mL and the sample passed (1001 mL, 835 trusted). (Field log §16.)
+3. **Filter rule:** a run stopped before the filter is loaded frees its slot (D75). Restart at a row keeps PASS rows and skips earlier waiting rows (D74). The schedule file is not changed by a restart.
+4. **`x` during a scheduled sample:** the list stops, with no question (D74, F225). It was built as a stop, not a question, because an unattended run cannot answer one.
+5. **Manifold shifts:** 3 slots, twice on 2026-11-03. `purge_angle` 47.11, then 340.75 (D76). Shift history and the early fix HW9 are in the field log §14 and roadmap (D77).
+6. **Origin switch and the 21:22 failure:** a false press during a rise reset the zero. The interrupt braked and zeroed on any raw edge (F232). Fixes built (D78, D79, D83), and the start check uses the same 30 cm rule.
+7. **Retry:** a failure before the filter is loaded is retried on the same filter, twice. Then the row stays FAIL and the list goes on with the next row at its time (D81, amended). Retries cover dive failures; a purge fails only on `x` (corrected in the review entry).
+8. **Hold:** a switch held with no pulse for 300 ms is the top (D83). The 4 s stall rule for a held switch is removed.
+9. **Confirmation after the stop (D82):** built, then removed after the 22:10 field failure. The first `spool_home` after the reflash failed because the switch was not held once the drum stopped. The check is gone; the other changes are kept.
+10. **Pump on reset (F215):** explained. No change made; the hardware pull-down needs a test first.
+11. **Answers not implemented (user decisions):** a height check after a reset, stop-on-any-FAIL, the stall time, and the purge pressure rule (F233, open, needs a decision and a flash).
+12. **Steps after the flash:** field log §15 (and §16 addendum for 22:10). `slot7` was confirmed working after the flash.
+
+**Board state at handover.** Flashed before the night run: the origin interrupt fix (F214), the kept-out check (F226), the coast fix (F227), the 20 min origin limit (F224), and `purge_angle` 340.75 (D76). Being flashed now, per the user: the 30 min homing limit, the 30 cm and 300 ms rules, and the removal of the confirmation (D78, D79, D83, F232). The scheduler tool changes (retry, restart, stops, filter release) load only in a restarted tool. The full register is in the change register entry above.
+
+**Open items for the next chat**
+- Bench check after the flash: where the top switch sits at rest (`spool_status`), the idle-edge count, the 300 ms hold, and the 30 min homing time (F232, F214).
+- F233: a purge stopped by the pressure cap goes on to the sampling. Decision needed; proposed fix needs `purge_end=` on the TEST line and a flash.
+- Night run: rows 1 and 2 PASS, row 3 (1 m, slot 3) free after the 22:10 failure, rows 4–12 waiting (23:50, 04:00, 07:00). The spool position is unknown after the reflash.
+- F230 (USB drop at 13:00), F215 (pump on reset, hardware), HW9 (manifold coupling, early fix).
+
+**Start of the next chat:** read this entry, the change register above it, and field log §15–§16. Then continue from the spool steps in §15, then `schedule start 3`.
+
+### Session 2026-11-04: night review, pressure sensor and manifold encoder
+
+**What happened (details in [field log §17](field-lexplore-geneva-2026-11-03.md#17-night-run-2026-11-04-pressure-sensor-and-the-manifold-encoder)):**
+- Pressure sensor: fell from about 3 bar to 0.04 bar at 00:58:55 while the pump ran. The software did not stop: the dead-sensor rule only catches a negative reading (it did at 04:34:02, -0.51 bar). The sensor is out, with water spilled (F234).
+- Manifold encoder: SPI checksum errors at 04:17 and 04:34. The manifold could not rotate. The 04:00 group failed (F235, same class as F203 and HW9).
+- The list stopped at 04:34 (`spool_end=FAILED`). Nothing is pumping: the O-ring is locked, the pumps are off, and the valves are closed.
+
+**Change (firmware, not flashed):** `encoder_read [n]` (`src/Tests_mech.cpp`, `cmd_encoder_read`): n raw reads of the manifold encoder, one frame each, OK or BAD (checksum), with a summary. Read only, never moves the manifold. Registered in the known commands and the help. The tutorial command table has the row (D84). `pio run -e due` builds; `pio test -e native` 201 pass.
+
+**Open:** F234 (the flat-pressure rule, decision needed), F235 (cable and connector check), the pressure sensor (reinstall and check, F126), the samples after 00:58:55 (no valid pressure record), slots 10 and 11 (not sampled, marked used), the 5 m tube (out, may hold water).
+
+### Session 2026-11-04: night review, diagnostics, handover
+
+**Full chain, samples and state:** [field log §18](field-lexplore-geneva-2026-11-03.md#18-start-here-the-night-of-2026-11-0304-the-fault-chain-and-the-state-handover). Read it first.
+
+**Summary:**
+- 00:58:55: the pressure sensor reads 0.04 bar and stays there while the pump runs. The software only catches a negative reading, which happened at 04:34 (F234).
+- 04:17 and 04:34: bad encoder checksums, so the manifold could not rotate, and the 04:00 group failed. The list stopped at 04:34 (F235).
+- Diagnostics (05:39 on): the sensor alone gives `00 00 00` (MISO stuck low). The encoder alone is steady (162.25°). The sensor breaks the shared SPI bus (F36).
+- Also observed: the panel LEDs go off when the sensor is unplugged (F237); the console froze and needed a reset (F238).
+- Reset planned: cut the 24 V pump supply first (D86).
+
+**Changes in this session:**
+- Findings: F234 and F235 updated (cause confirmed), F236 open, F237 and F238 new.
+- Decisions: D85 (no pump sample without a verified sensor) and D86 (cut 24 V before a reset), both proposals to be confirmed.
+- Field log §18 (the handover) and the field log §17 addendum.
+- Firmware: `encoder_read` built earlier (not flashed; the board does not have it yet).
+
+**State at handover:** the list is STOPPED. Rows 1–6 PASS, rows 7–8 FAIL (no sample taken; slots 11 and 10 are marked used but unsampled), row 9 (04:00 1 m) and rows 10–12 (07:00) waiting. **A `schedule start` runs the waiting rows at once (their times have passed).** The spool is out and its zero is not trusted. The encoder is unreliable with the sensor connected.
+
+**Addendum (2026-11-04, sensor debug):** with the sensor unplugged the encoder is stable (162.25°) and `slot7` works. The sensor alone gives `00 00 00`. The sensor's datasheet is not in the repo, so whether a short destroyed it is unknown. Debug plan (no meter first, then a borrowed meter, then replacement): field log §18.7. No hardware change in this step. Open: F234, F235 (the cause is the sensor side of the shared bus).
+
+**Addendum (2026-11-04, after the reset):** with the encoder connected, `abp_raw` reads valid, steady frames (1634–1643 counts, about 0 bar, 5 °C). The sensor's temperature is also reported per frame. `slot0` works. Partial recovery only: the fault came and went before, so repeated `oring_state` runs, a wiggle test and a manometer check are required (field log §18.8, F234, F235, D85).
+
+### Session 2026-11-04: fix of the pressure sensor fault (field)
+
+**Result (user, field):** the pressure sensor was dried and refitted in the tubing after the reset. `abp_raw` reads valid and steady, the manifold encoder reads correctly with the sensor connected, `slot0` works. The sensor reports temperature in each frame.
+
+**Cause (best explanation):** water on the sensor pins shorted the shared SPI bus, which corrupted the encoder frames (F235, F36). Permanent damage is not excluded.
+
+**Logs changed:** field log §18.8 and §18.9 (the fix and the restart plan); F234 and F235 (fixed in the field, to be confirmed); D85 stays until the manometer check. The handover memory note was removed at the user's request (its index line too); the handover is field log §18.
+
+**Restart:** `schedule start 7`, not `6`, after the spool steps and the slot decision (field log §18.9). Rows 1–6 keep their status.
+
+**Still open:** the manometer check (F126), the repeated encoder reads and the cable wiggle test, the LEDs (F237), the console freeze (F238), F236 (the double read in `oring_state`), F233 (purge at the pressure cap), F215 (pump on reset).
+
+**Addendum (2026-11-04, user checks):** `oring_state` valid with the sensor refitted; cable wiggle test passed; LEDs on with the sensor connected (the LEDs with the sensor unplugged were not re-tested, so F237 stays open). No manometer check: the user reports the calibration did not change (D85 amended by the user). Slots 10 and 11 are to be freed at the next tool start (`4-11` at the available question). Restart: `schedule start 7` (field log §18.10). Rows 7–9 then the 07:00 group run one after another; a late 07:00 row runs at once.
+
+### Session 2026-11-04: changing the times of the remaining rows (procedure and known limit)
+
+**Decision (user):** the 07:00 group is to run at 08:00. The tool has no way to change a row's time in a saved list.
+
+**Used:** the user's own file (the one I created, `tools/<the user's own file>`, was removed at the user's request; the user writes the file), with the six rows still to run (04:00 group, 08:00 group, day +1). Restart the tool with `--schedule` on that file after renaming the folder's `schedule.csv` to `schedule_before_restart.csv`. Plain `schedule start` runs the waiting rows. The original 12-row file must not be used with `--schedule`: the passed rows would run again. Field log §18.11 has the steps.
+
+**Known limit (F239, open, host):** a saved list's times and depths cannot be changed in place. Future fix: `schedule time <row> <HH:MM>` / depth for waiting rows only, and a `schedule reload`.
+
+**Files:** the user's own file (the one I created, `tools/<the user's own file>`, was removed at the user's request; the user writes the file) (new, parses: 6 rows). The 05 folder's `schedule.csv` is to be renamed by the operator, not deleted.
+
+**Addendum (2026-11-04):** the new schedule file has six rows (04:00 and 08:00 groups). At the available-samples question answer `4-5,8-11`. Renaming the saved `schedule.csv` (not deleting) works: the code never reads a file with another name. This procedure is a stopgap, not a fix: a time change belongs in the tool (F239). Not built now: it needs design and tests, and it could break tonight's run.
+
+**Addendum (2026-11-04):** the file `tools/DIEL-schedule03-remaining.csv` that was created for this procedure is removed at the user's request. The user writes the new file (the 04:00 and 08:00 groups only, six rows) and gives its path with `--schedule`.
+
+**Addendum (2026-11-04): dates in a schedule file.** `+N` counts from the day `schedule start` is typed (`_dt.date.today()` in `session_log.py`), so it moves across midnight. Use full dates (`2026-11-04`) for rows after midnight. The tool accepts ISO dates.
+
+### Session 2026-11-04: run 01 started, the open spool question, notes for later
+
+**Run:** the new run folder `2026-11-04/01_DIEL-session2-2026-11-03`, schedule file `tools\DIEL-schedule03.csv` (user's). Start at 06:27–06:30 (details: field log §18.12). `actuator_home` PASS (error 2.55°). Row 1 (04:00 20 m, slot 11) started at 06:30:24; the prime passed with 0.52 bar (sensor works); the purge started 06:34.
+
+**Open, urgent (F241):** the first dive started from "0 cm out" with no `spool_home` after the reset, although the firmware starts with `homed = false`. The physical position is not verified. Check the tube and `spool_status` now.
+
+**Check:** slot 6 is listed as available for the 08:00 1 m row; confirm a filter is loaded there.
+
+**Notes for later:** F239 (schedule changes inside the tool) and F240 (the tube pulled sideways under a current: the depth is inaccurate, and friction near the up-button guide). Both in field log §19 and the roadmap.
+
+**Status 2026-11-04, 08:02 (run 01):** 04:00 group PASS (20 m slot 11 at 06:55, 5 m slot 10 at 07:21, 1 m slot 9 at 07:42). 08:00 20 m (slot 8) running (purge at 08:02). 08:00 5 m and 1 m waiting (slots 5 and 6). **New evidence for F241:** at 07:41 the 1 m rise logged `origin switch held at 188 cm out` (ignored, the move went on to 190 cm). A top press at 188 cm means the encoder and the tube disagree by about 1.9 m. Check the tube and `spool_status` before the 5 m and 1 m rows run.
+
+**Addendum (2026-11-04): leak at the DNA shield inlet.** A small leak at the one-way valve and T connector, from a tube bent too sharply; tightened on site (Sirflex, user). The shield step is time-based, so a leak can reduce the shield dose for samples run while it was open (for example 064935387, 04:00 20 m). Time of the leak unknown. Field log §18.13; F242.
+
+**Status 2026-11-04, 08:53 (run 01):** 08:00 20 m (slot 8) PASS; 08:00 5 m (slot 5) PASS at 08:51. 08:00 1 m (slot 6): first try FAIL at 08:52:06 (`failed_at=dive`): the rise from 590 cm to 190 cm hit the top switch at 587 cm. The switch press was ignored at first, then the drum stopped against the top and the switch was taken as the zero (`re-homed`). Retry 1 of 2 on slot 6 is now diving to 39.10 m. **Evidence for F241 again:** the encoder said 590 cm while the tube was physically at the top. The zero was reset at the top, so the retry's dive counts from the real top. Check the tube and `spool_status` after the sample.
+
+**Final status 2026-11-04, 09:54 (run 01): schedule finished.** All six rows PASS: 04:00 group (20 m slot 11, 5 m slot 10, 1 m slot 9) and 08:00 group (20 m slot 8, 5 m slot 5, 1 m slot 6, PASS at 09:14 after its retry). Tool message: "every sample has run". **Pattern to check:** the top switch was reported pressed at 188 cm out during the 1 m rises at 07:41 and at 09:13 (and at 587 cm during the failed first try at 08:52). A press at about 188 cm while the drum still turns suggests contact near the up-button guide (F240) or a position error (F241). Check the tube and `spool_status` before the next spool run.
+
+**End of day 2026-11-04:** steps and the record to fill in are in field log §18.15: check `schedule` (six PASS), spool by eye and `spool_status`, cut the 24 V supply, ethanol cleaning, `:quit`, copy the run folder. The depth of three samples is in doubt (F241, §18.14).
+
+### Session 2026-11-04: depth-doubt homing (D87) and the 10:26 finding
+
+**Finding:** the last roll-up (09:13) did reach the top switch. At 10:26 a manual `spool_home` found the tube about 10 m out while the encoder read 0 (switch at −998 cm). No logged command between 09:14 and 10:25; panel LEFT/RIGHT spool buttons are unlogged. The encoder did not count that move (F241, field log §18.16).
+
+**Change (firmware, built, not flashed):**
+- `include/Motor.h`: `depth_doubt` flag and `depth_in_doubt()`.
+- `src/Hardware/Motor.cpp` (`drive`): a far top-switch press in a move sets the flag; a clean homing move to the switch clears it; a start with the switch held where the tube can be at the origin clears it.
+- `src/Step_functions.cpp` (`spool_fill_and_rise`): with the flag set and a dry tube, the spool homes to the origin before the sample. A wet tube stops with an ERROR and nothing pumped.
+- Build: `pio run -e due` passes; native tests 201 pass. Not bench-tested.
+
+**Decision D87.** Findings F241 updated. Field log §18.16.
+
+**Open:** who or what moved the tube between 09:14 and 10:25; the encoder against a physical mark; the flash.
+
+### Session 2026-11-04: end of this chat, record and handover
+
+**Chat record (order of the questions):** the schedule file (dates as full dates; rename-and-restart as a stopgap, F239); the run 01 start, its six PASS rows, and the schedule finish at 09:14; the top-switch presses (07:41, 08:52, 09:13) that disagreed with the encoder by 140–590 cm (F241, §18.14); the depth-doubt homing rule (D87, built, not flashed); the 10:26 manual `spool_home` that found the tube about 10 m out with the encoder at 0 (no logged command; the panel buttons are unlogged, F243; nobody moved it, user); the DNA shield inlet leak (F242, judged no issue); the request to home the spool between every sample (D88, next chat); the withdrawn Monday plan (D89).
+
+**Logged this chat:** field log §18.12–18.17 and §19; LOG entries (run 01 status, the depth-doubt change, the end-of-chat record); decisions D85 (amended), D87, D88, D89; findings F233–F243 as updated; roadmap §7b (F240, D88, F243). Tutorial unchanged.
+
+**Handover:** field log §18.17 has the state and the next chat's order. The prompt for the next chat is in the chat itself.
+
+### Session 2026-11-04: archive of the Monday keep-out, per-sample priming, move log
+
+**User request (2026-11-04):** the Monday plan (samples at one timepoint run deepest first, the tube is kept out between them, no new dive or prime) is withdrawn (D89). Archive only the edits that made that plan work, keep the rest. Put back: before each sample the tube dives to the session's deepest point, primes, then rises to the sample depth. Log each spool move's time and speed, so that the depth can be checked afterwards.
+
+**Archived (not deleted):** `docs/archive/code/superseded/spool-keep-out-removed-2026-11-04.patch`, the diff from the Monday code to the code now in the tree. Undo: `git apply -R` on that patch from the repo root (checked with `git apply --check -R`: it applies cleanly). The index is `docs/archive/code/README.md`.
+
+**Changes (firmware):**
+- `src/Tests_mech.cpp` `run_full_cycle`: after the shield the tube is always rolled up and emptied (`spool_roll_up_and_empty`). The next-depth question (`ask_next_spool_depth`) and the keep-out branch are removed.
+- `src/Step_functions.cpp` `spool_fill_and_rise`: the dive is always from a dry tube, to `dive_cm` (the deeper of the session depth and the sample depth, cut at the 40 m total). The wet-tube branch, the lowering move and the kept-length check are removed. `spool_roll_up_and_empty` no longer clears `spool_tube_wet`. Removed: `spool_tube_wet`, `spool_kept_length_cm`, `SPOOL_KEPT_MOVED_CM` (`include/Step_functions.h` externs too).
+- `include/Settings.h`: `SPOOL_NEXT_ANSWER_WAIT_MS` removed (only the removed question used it).
+- Kept (not Monday keep-out): the 40 m total, the spool height rule, the water fill and prime, the emptying of failed samples, the depth-doubt homing (D87), the encoder read (`encoder_read`), the origin-switch rules.
+- **New:** `src/Hardware/Motor.cpp` `SpoolMoveReport`: one line per move, printed after the motor stops, e.g. `Spool move: down to 3900 cm | time 152.3 s | encoder 0 -> 3899 cm (3899 cm passed) | average 25.6 cm/s | start 60 % | ok`. A move refused before it starts is not logged (its reason is printed by the caller).
+
+**Changes (tools):**
+- `tools/sample_schedule.py`: the sort is date, time, then file order (the pre-Monday key). `_depth_or_zero`, `_next_depth`, `NEXT_GRACE_MIN` and the `spool: next sample depth` answer are removed. The module docstring is rewritten.
+- Tests: the keep-out tests and the deepest-first test are removed; the operational-order test now expects file order at 09:00; a test that the time order holds whatever the depth is kept. `tools/tests/test_session_log.py`: the `META|spool;kept_out` line is replaced by a neutral line.
+- Docs updated: `docs/field/operator-tutorial.md` (steps 5 and 6, the rows order, the position check now reads `Spool move:` lines), `docs/software/commands.md` (`run_sample`), `docs/software/session-log.md` (the schedule rules).
+
+**Behavior changes (for the PR list):** (1) no next-depth question on the console any more; (2) every spool sample dives to the session depth and primes before the purge; (3) the tube is emptied after every sample, not only at the end of a timepoint; (4) same-time rows run in file order, not deepest first; (5) each spool move prints one `Spool move:` line.
+
+**Tests:**
+- `host/.venv/Scripts/python.exe -m pytest tools/`: 220 passed.
+- `pio run -e due`: SUCCESS (build only, not flashed).
+- `pio test -e native`: 201 of 201 succeeded.
+- `ruff check` on the three edited Python files: 5 RUF059 and 1 I001 warnings, all present before this change (checked on the snapshots). Not fixed here.
+
+**Not done:** not flashed (the tree also holds the unflashed D87, D83, D79 and `encoder_read` builds from 2026-11-04; the next flash will carry all of them: ask which build is on the board). Not committed. The field log (section 18 and 19) is not changed: its "build not flashed" list still applies.
+
+**Hardware checklist (numeric pass criteria, to run on the bench before the next field spool run):**
+1. `run_sample <slot> depth=<m>` on a dry tube: the console shows `Spool fill: dry tube, unrolling to <session depth> m`, then `Spool prime: flow check PASS` with at least 100 mL, then `Spool fill: at <cm> cm out, sample depth <m> m`, where `<cm>` is the sample depth plus the height within 0.5 m.
+2. Two samples at the same time (the second shallower): the second also starts with a dive to the session depth (`dry tube, unrolling to`), not with a rise from the first depth.
+3. Every move prints a `Spool move:` line. Pass: the time is positive, the encoder passed equals the length of the move within 2 %, and the average speed is between 20 and 40 cm/s (the Motor speed table; a first reading, to be measured).
+4. After every sample `spool_emptied=y` on the TEST line.
+5. Check a move with a stopped spool (stall): the `Spool move:` line still prints, with the reason in its last field.
+
+**Review (same day, after the user's note "you changed too many things").** The requested change is one rule: every sample first goes down to the session's deepest point and primes, then rises to its depth. Everything below is either that rule or a consequence of removing the keep-out:
+- Needed for the rule: the keep-out branch and its question (`run_full_cycle`), the wet-tube branch, the lowering move and the kept-length check (`spool_fill_and_rise`), `spool_tube_wet` and `spool_kept_length_cm`, the `spool_tube_wet` clear in `spool_roll_up_and_empty`, the matching `_next_depth` answer and `NEXT_GRACE_MIN` in the schedule tool, and the tests and docs that describe the keep-out.
+- Consequences, kept: `SPOOL_NEXT_ANSWER_WAIT_MS` (only the removed question used it); the removed-function header comment.
+- **Judgment call (flagged for the user):** the deepest-first sort of same-time rows. It was part of the withdrawn Monday plan (D89) and has no use once every sample dives. It is reverted to date, time, file order. To keep it, change one key in `resolve()` and restore the test `test_samples_at_the_same_time_run_the_deepest_first_then_the_file_order` (in the archive patch).
+- Added as asked in the first message: `SpoolMoveReport` in `src/Hardware/Motor.cpp`. It prints after `stop()` and the coast loop, so it runs outside the motion loop. It is not printed for a move refused before it starts.
+- Kept unchanged: the 40 m total, the height rule, the fill and prime, the failed-sample emptying, the depth-doubt homing (D87), `encoder_read`, and the origin-switch rules.
+
+**Robustness checked by reading:** the dive always starts from the origin, because the previous sample ends with `spool_roll_up_and_empty` (which drains to the origin). A failed dive, prime or purge goes through the same roll up and empty. A prime with no flow fails the sample and stops the pump (`stop_procedure`). The `dive_len` check still refuses a dive outside the tube. A depth-in-doubt tube goes home before the dive.
+
+**Cost to know:** each sample now includes a full dive, a prime (at most `SPOOL_PRIME_MAX_MS`, 4 min), and an emptying. The schedule's timing estimates (D55) and the field's per-sample duration should be measured again on the first run.
+
+**Verified after the review:** `pio run -e due` SUCCESS; `pio test -e native` 201 of 201; `pytest tools/` 220 passed; `git apply --check -R` on the archive patch still applies. Not flashed; not committed.
+
+### Session 2026-11-04: pressure sensor to be glued to the tubing (note only)
+
+**User request:** the pressure sensor should be fixed better to the tube so it does not jump out under pressure again (F234). The user proposes gluing it.
+
+**Recorded (documentation only, no code change, nothing flashed):**
+- `docs/roadmap/stage2-pilots.md` §7b: a hardware row for the mount (glue, strain relief on the cable, then `abp_raw` and the manometer check).
+- `docs/logs/field-lexplore-geneva-2026-11-03.md` §21: the problem, the proposal, the checks before and after the glue cures, and the interim rule.
+
+**Open:** the glue has not been done. Check the sensor and the manometer after it is done, and record the results here.
+
+**Decision (user, 2026-11-04): spool origin homing keeps its 20 min limit (`SPOOL_HOME_MAX_MS`), no retry.** A move to the origin that does not reach the switch in time fails and is reported. Retrying until the switch is pressed was not built: an unbounded loop breaks the timeout rule (ROADMAP §6 rule 4). The unknown-position limit (30 min, D79) is unchanged. Nothing changed in the code. The stage 1 roadmap is closed, so the sensor-mount note was taken out of it and kept in field log §21 and stage 2 §7b.
+
+### Session 2026-11-04: end of this chat (keep-out archive, per-sample priming, move log, sensor mount, homing limit)
+
+**Asked, in order:**
+1. Archive the Monday edits that let samples at one timepoint run in a row without a dive to the session depth (D89 withdrawn). Keep the rest. Put back: every sample dives to the session's deepest point, primes, then rises to its depth.
+2. Log the time and speed of every spool move, so the depth can be checked after a fault.
+3. After "you changed too many things": review the change; check the logic and robustness; document the decisions and why.
+4. Note in the roadmap and field log that the pressure sensor must be glued to the tube (user's proposal).
+5. Confirm the 20 min homing limit; no retry. Then, because the stage 1 roadmap is closed, take the sensor note out of it.
+6. Log this chat.
+
+**Done (code):**
+- Keep-out removed (`src/Tests_mech.cpp` `run_full_cycle`, `src/Step_functions.cpp` `spool_fill_and_rise`, `spool_roll_up_and_empty`, `include/Step_functions.h`, `include/Settings.h` `SPOOL_NEXT_ANSWER_WAIT_MS`). Every sample dives from a dry tube to the deeper of the session depth and the sample depth, primes, rises, then rolls up and empties.
+- Schedule tool (`tools/sample_schedule.py`): the deepest-first sort and the next-depth answer are removed. Same-time rows run in file order (a judgment call, flagged).
+- Move log: `SpoolMoveReport` in `src/Hardware/Motor.cpp`, one `Spool move:` line per move, printed after the motor stops.
+- Tests and docs updated: `tools/tests/test_sample_schedule.py`, `tools/tests/test_session_log.py`, `docs/field/operator-tutorial.md`, `docs/software/commands.md`, `docs/software/session-log.md`.
+
+**Archive:** `docs/archive/code/superseded/spool-keep-out-removed-2026-11-04.patch` (reversible with `git apply -R`; checked). Index: `docs/archive/code/README.md`.
+
+**Checks run:** `pio run -e due` SUCCESS; `pio test -e native` 201 of 201; `pytest tools/` 220 passed. Ruff warnings in the Python tests were there before this change.
+
+**Decisions:** D90 (per-sample dive and prime; why in the decisions table). The 20 min homing limit stays, no retry (LOG entry on this date).
+
+**Documentation only, not built:** the pressure sensor is to be glued to the tube (F234). Recorded in field log §21 and stage 2 §7b. The stage 1 roadmap is not changed.
+
+**Open, to check on the bench:**
+- Not flashed, not committed. The tree also holds the unflashed D87 homing, the 300 ms hold, the 30 min unknown-position limit (D79), and `encoder_read`. Ask which build is on the board before the next flash.
+- Bench checklist (LOG, archive entry, items 1 to 5): dive and prime sequence, same-time rows, `Spool move:` lines, `spool_emptied=y`, stall case.
+- The 30 min unknown-position homing has not been timed at the 30 % homing speed.
+- Each sample now adds a full dive, prime and emptying. Re-measure the timing estimates (D55).
+- Glue and strain relief on the pressure sensor are not done. Check the sensor and the manometer afterwards and log the results.
+- F241 (spool position) and F240 (tube pulled sideways) are still open; the move log is the first tool for them.
+
+### Session 2026-11-04: wrong start answer (slots 4-5 typed as 5-6), the 1 m sample lost (F244)
+
+**What happened.** At the start of field run 01 (2026-11-04, 06:28:12) the operator answered the availability question `5-6,8-11`. The filters in use were slots 4-5 and 8-11. Slot 4 was then marked used and slot 6 available, so the automatic order went 8, 5, 6 and never used slot 4.
+
+**Samples as run** (`docs/logs/test-logs/2026-11-04/01_DIEL-session2-2026-11-03/`: `schedule.csv`, `samples/`):
+
+| Row | Slot | Result | Filter |
+|---|---|---|---|
+| E1_T5_20M_R1 (08:00) | 8 | PASS, 675 mL sampled, 604 trusted | correct |
+| E1_T5_05M_R1 (08:00) | 5 | PASS, 793 mL sampled, 675 trusted | correct (slot 5 is in the intended set) |
+| E1_T5_01M_R1 (08:00), try 1 | 6 | FAIL at the dive (08:52:45), retried on slot 6 | **no filter** |
+| E1_T5_01M_R1 (08:00), try 2 | 6 | PASS at 09:14:23, 1001 mL, `sample_end=volume` | **no filter: water passed through the manifold to the drain** |
+
+**Intended.** The 1 m sample was meant for slot 4 (the answer should have been `4-5,8-11`). Slot 4's filter is still unused. The 5 m sample would also have gone to slot 4 next, by loading order, if 4 had been available. It took slot 5 only because of the wrong answer; the filter that holds its water is slot 5, so its record is correct.
+
+**Consequences.**
+- The 1 m sample of 2026-11-04 is lost. Its record `samples/090733257_E1_T5_01M_R1.json` (`slot: 6`) must not be used as data. The record is not flagged in the file; flag it when the data are analysed (rule 5). The failed try at 08:52 has no sample record.
+- `slots.json` still marks slots 4 and 6 as used. Before any further run in this session, the book must be corrected: slot 4 available, slot 6 unused.
+- Nothing was re-run and no file was changed in the session folder.
+
+**Why nothing caught it.** `set_available()` in `tools/sample_slots.py` applies the typed set as is, with no read-back. The start screen showed every loaded filter as "(used)" or free, but the answer was not compared with the filters physically loaded.
+
+**Finding:** F244 (`docs/logs/findings.md`), host, status open. Proposed fix (not built): read back the parsed list ("slots 4, 5, 8, 9, 10, 11 available: confirm") before it is applied; flag a sample run on a slot whose filter was not confirmed loaded.
+
+**Open (user):** confirm the slot 4 filter is the one still unused and correct slots.json before the next run (the tool can erase slot 4 from the book, or the user can set the list again).
+
+**Fix built (user agreed, 2026-11-04), in the working tree, not committed, not flashed (host tool only):**
+- `tools/session_log.py` `ask_available_at_start`: the parsed list is read back ("available ...; becomes used ...") and applied only on `y`; `n` asks the list again; ENTER keeps the state as it was.
+- `tools/tests/test_session_log.py`: the start-question tests now answer the read-back; new tests for the read-back text, for `n` changing nothing, and for `all` with a yes.
+- `pytest tools/`: 222 passed. `ruff check` on the two files: the 2 warnings (SIM115, I001) and the format note were there before this change, on lines not touched.
+
+**Not built:** the flag on a sample whose filter was not confirmed loaded. It would need a host-side flag on the sample record, which is a design choice; say if you want it.
+
+**Not done (needs you):** slots.json is still wrong (slots 4 and 6 marked used). Changing it is a data edit, so it was not changed.
+
+### Session 2026-11-04: ethanol purge questions and the locked refusal
+
+**Asked (user, during the ethanol purge):**
+1. The question "Were some of the slots 1-14 not used, so they do not need cleaning?" is confusing. Ask instead whether all slots need cleaning; on no, ask which ones do not.
+2. `ethanol_purge` refused with `O-ring lock state is LOCKED - run actuator_home first`. The machine knows the lock is LOCKED, so it could unlock and go on.
+
+**Cause of 2:** the gate in `purge_pipes_manifold` (`src/Hardware/maintenance.cpp`) used `core::may_rotate()`, which accepts only UNLOCKED. The production path does not need that: `rotateMotor()` already unlocks through `OringScope(UNLOCKED)` and locks again on return, and `goto_slot_locked()` ends with the lock. So a LOCKED state needed no refusal; only UNKNOWN (a blind unlock move, see the `Oring_lock.cpp` header) does.
+
+**Changes (not flashed, not committed):**
+- `src/Hardware/maintenance.cpp` `ask_unused_slots`: asks **Do all slots need cleaning?** (y = all slots, no more questions). On n it asks **Type the slot numbers that do NOT need cleaning**. `skip=` on the command line is unchanged.
+- `src/Hardware/maintenance.cpp` `purge_pipes_manifold`: the gate is now `core::may_unlock()`, which refuses UNKNOWN only. The refusal text for UNKNOWN is unchanged.
+- `docs/field/operator-tutorial.md` (steps 2 and 3) and `docs/software/commands.md` (`ethanol_purge` row): the new question, and LOCKED is no longer a reason for `actuator_home`.
+- Decision D91 in `docs/logs/decisions.md`.
+
+**Checks:** `pio run -e due` SUCCESS (`maintenance.cpp.o` rebuilt); `pio test -e native` 201 of 201. The change is not exercised by a native test (the purge needs the hardware); a bench check follows.
+
+**Bench check (to do, with the operator):**
+- Lock state LOCKED (after a sample): `ethanol_purge`, answer `y` to all, the first line shows the purge slot, no REFUSED line, the O-ring is unlocked for the first slot and locked at each slot.
+- Answer `n`, then `3,7`: the list printed is FILL_ORDER without 3 and 7 (the purge slot is not in it), and slots 3 and 7 are not visited.
+- Lock state UNKNOWN (after a reset): still REFUSED with `run actuator_home first`.
+- A LOCKED O-ring at the end of the run: locked (rest state), as before.
+
+**Note:** the new question uses the same y/n and `x = cancel` format as the other questions of the procedure, so the prompt reads `ASK | Do all slots need cleaning? (y/n, x = cancel)`.
+
+**Review before flashing (2026-11-04, same day):**
+- `src/Hardware/maintenance.cpp` `ask_unused_slots` restructured: the yes/no question is asked once; an invalid list is refused and asked again as a list (before, it went back to "Do all slots need cleaning?"). With a bad `skip=` argument the list is asked directly, not the yes/no question.
+- `tools/session_log.py` `ask_available_at_start`: the read-back confirmation also accepts `yes`.
+- Checks: `pio run -e due` SUCCESS; `pio test -e native` 201 of 201; `pytest tools/` 222 passed; `host` pytest 364 passed. `ruff check tools/session_log.py`: one SIM115 at line 215, which is not in the lines changed (it was there before).
+- Not verified: the ethanol purge on the bench (needs the hardware).
+
+### Session 2026-11-04: end-of-day review of the last two days (folders 2026-11-03 and 2026-11-04)
+
+**Asked:** check all session logs of the last two days and document what is relevant in the docs and the logs.
+
+**Checked:** the 10 run folders (`docs/logs/test-logs/2026-11-03/01` to `05`, `2026-11-04/01` and `02`): every `tests.csv` run and sample record, the operator lines (`>`, `!`), and the device warnings, errors, refusals and aborts.
+
+**Already documented, not changed:** 2026-11-03 folders `02` to `05` (field log §1 to §16), 2026-11-04 folder `01` (field log §17 to §20, LOG 2026-11-04 entries).
+
+**Not documented before, now added:**
+- Folder `02_DIEL4-session4-2026-11-04` (13:01 to 19:03): field log **§22** (set-up, the schedule table of 9 rows, all PASS, the blank, the spool test, the ethanol purge, the F241 count, open items).
+- Folder `01_field-leman-2026-11-03`: its only event (an `actuator_home` FAIL at 11:07, slot 14, error −4.75°) is listed in field log §22.7. No samples.
+
+**Changed:**
+- `docs/logs/field-lexplore-geneva-2026-11-03.md` §22 (new).
+- `docs/logs/findings.md`: **F245** (new, open): `spool_goto length=0.2` moved 0 cm for 3.8 s and was ended by `x` (17:50). **F241** update row (16 origin-switch warnings over the two runs).
+- `docs/logs/decisions.md`: **D91** status: built and flashed, used on 2026-11-04 18:38 (14 slots, 0 warnings). **D92** (new): the blank is run with `run_sample <slot>` and no `depth=`, the spool answered `y`, the 3 L purge, no spool movement (verified in `run_full_cycle`).
+- `docs/field/operator-tutorial.md`: the blank procedure (section 2d).
+
+**Verified in the logs:**
+- The schedule (`DIEL-schedule04.csv`) ran all 9 rows, all PASS, with the read-back start answer `1-3,9-14`.
+- The D91 build is on the board: the ethanol purge asked `Do all slots need cleaning?` and ran with the O-ring LOCKED and no refusal. Still not checked on the board: the `n` branch and the UNKNOWN refusal.
+- Operator input: a pasted line `célofanes ASIN B00PQPUARCspool_home` reached the console at 17:46:35 and was sent in front of `spool_home`. Worth a check before pasting.
+- Typos in the console: `actutor_home`, `actuator_homle`, `ethnol_purge`, `thanol_purge`. None changed a result, but the order matters after an UNKNOWN state.
+
+**Open:** F245 (the 0 cm `spool_goto`), F241 (origin warnings), F240 (tube sideways), the D91 bench checks, and the blank's tube position at 16.4 cm.
+
+**Not changed:** `docs/roadmap/stage1-FINISHED-prototype.md`. Its status line is from 2026-10-23 and its "Left to do" list has no item for these runs. Say if you want a status update there.

@@ -234,7 +234,7 @@ Status: ☑ done, ☐ open. Stage 1 already covers parts of FW2–FW4 (see [stag
 | HW6 | Field fluidics and splash-proof box | P0 | HW3 | ☐ |
 | HW7 | O-ring lock endurance; home switch (P1) | P0/P1 | FW2 | ☐ |
 | HW8 | Pilot B enclosure, leak sensor, temperature probe | P1 | HW6 | ☐ |
-| HW9 | Manifold encoder coupling: mechanical lock (F187, F191, F203) | P0 | HW6 | ☐ |
+| HW9 | **EARLY FIX, before the next field run:** manifold encoder coupling, mechanical lock (F187, F191, F203, F216). The manifold shifted twice on 2026-11-03 | P0 | — | ☐ |
 | VA1 | Bench acceptance campaign (go or no-go for Pilot A) | P0 | FW8, HO3, LA3, LA4, HW2–HW6 | ☐ |
 | VA2 | **Pilot A** | P0 | VA1 | ☐ |
 | VA3 | 72 h soak on battery, Pilot B readiness | P1 | all P1 | ☐ |
@@ -463,7 +463,7 @@ Each step is a short card. These are the sign-off checks; tick them in the log w
 - **HW6** Field fluidics: strainer and weight on the intake at a fixed depth, the outlet at least 5 m away, quick-disconnects, IP54 box above the fluidics with a shade. The pump must prime from the real water level.
 - **HW7** O-ring: check the A4988 current setting is unchanged since the last calibration. `lock_endurance 200` with no encoder drift. Pressurise to 2.5 bar with the outlet clamped for 10 min with the coils off. Keep the O-ring locked for 7 days, then check for leaks.
 - **HW8** Pilot B hardware: IP65 enclosure, cable glands, desiccant, a leak sensor at the lowest point, a water probe on the intake, a mooring plan and a label with a contact.
-- **HW9** Manifold encoder coupling: a mechanical lock, since it slipped three times in two days (F187, F191). The cable and connector were the cause of F203, to be checked first.
+- **HW9 (early fix, before the next field run)** Manifold encoder coupling: a mechanical lock, since it slipped three times in two days (F187, F191), and the manifold shifted twice on 2026-11-03 by 3 slots each time (F216, [field log §14](../logs/field-lexplore-geneva-2026-11-03.md#14-manifold-shifts-issue-log-open-early-fix-in-the-roadmap)). Lock the coupling (clamp or set screw, with a witness mark), then `encoder_repeat` and one `cal` on slot 7. The cable and connector were the cause of F203, to be checked first.
 
 ### 7.5 Validation
 
@@ -526,6 +526,24 @@ Left out of stage 1. Nothing here blocks the field.
 | Timed sample list (`--schedule`) does not check that the samples fit the timeline: the cycle time is not measured yet. Add a check once it is known | F208 | HO6 |
 | `run_sample` typed in `pio device monitor` skips the session tool: no record, no loading order, no timed list. One console for the operator (the host channel on native USB) | F210 | FW7 |
 | Renames, **not done yet** (2026-11-02, user: do it later, a rename now could break the code): `actuator_home` becomes `init`; the valves become `valve_air` (today `valve_1`, the air inlet V1) and `valve_water` (today `valve_manifold`, the deployment line Vman). Scope: the console commands and their help and docs (`commands.md`, the tutorial, the schedule tool's messages and tests, the Pi/host protocol if it names them), the C++ identifiers in `src/` and `include/`, and the tests. Do it in one step with a grep over the whole repo, then `pio run -e due`, `pio test -e native` and `pytest tools/`. Behaviour must not change | — | FW7 |
+| Field 2026-11-03 (Lexplore, Lake Geneva): the plate's orthogonality was off and was redone on site. Only fixable by the frame, in the V2 redesign (stage 2 and 3) | field log | HW (V2) |
+| Field 2026-11-03: **early fix HW9** (stage 2 §7.4): the manifold shifted twice that day. Lock the coupling first. Then: the manifold has two zeros, 3 slots apart (67.5°). The encoder is absolute and never zeroed by the code, so the cause is physical (encoder coupling). V2: a physical home switch on the manifold and a mechanical coupling lock | [field log §2](../logs/field-lexplore-geneva-2026-11-03.md) | HW9, V2 |
+| Field 2026-11-03: the pump turns on flash or reset, because the 24 V enable (D42) is not driven until setup. Hardware pull-down and the first lines of setup | [field log §3](../logs/field-lexplore-geneva-2026-11-03.md) | HW + FW |
+| Spool origin interrupts (F214, 2026-11-03): fixed in code (act only during a move). Flash, then bench check: idle tube, tap the switch, `tube out` must not change | [field log §6](../logs/field-lexplore-geneva-2026-11-03.md) | FW (bench) |
+| Fill dive keeps the deployment valve shut (F219): confirm the tube fills with lake water on the first dry fill | [LOG 2026-11-02](../logs/LOG.md) | HW |
+| Purge at 100 % and the spool prime at 60 % (F221): print the applied power; decide the prime's power | [LOG 2026-11-03 index](../logs/LOG.md) | FW |
+| Pump turns on flash or reset (F215): pull-down on D42, first lines of `setup()` | [field log §3](../logs/field-lexplore-geneva-2026-11-03.md) | HW + FW |
+| Spool origin move time limit is a fixed **20 min** (`SPOOL_HOME_MAX_MS`, F224, kept for stage 1 on 2026-11-03). It is too long: a full 40 m rewind takes about 2 min at the measured 31–37 cm/s. Revise it from the rewind times of the first runs (F220), so a stuck spool is caught sooner | F224, F220 | FW |
+| Spool origin: 30 min limit from an unknown position (D79), the 300 ms hold (D83) need a bench check after the flash. Revise the limits from the first runs | F232, F224 | FW (bench) |
+| A purge stopped by the pressure cap goes on to the sampling: count it as a failure, and put `purge_end=` on the TEST line (decision needed) | F233 | FW |
+| Pressure sensor shorts the shared SPI bus (F36, F234, F235): replace the sensor, check the cable, then `abp_raw` and the manometer before any pumping. A flat reading while the pump runs must stop the pump (decision) | F234, F235, F36, F126 | HW + FW |
+| Pressure sensor mount: it popped off the line under pressure (F234). Glue it to the tubing (user's proposal, 2026-11-04), with a strain relief on the cable, then re-run `abp_raw` (steady at rest) and the manometer check | F234 | HW |
+| Panel LEDs go off when the pressure sensor is unplugged (F237): trace the LED supply and the connector | F237 | HW |
+| Console froze after the sensor and encoder faults (F238): find the blocking read on the SPI bus | F238 | FW |
+| Manifold encoder: a single bad checksum can pass the 2-bit check; accept an angle only after two reads agree (F236) | F236, F235 | FW |
+| A saved schedule's times cannot be changed in place (F239): add `schedule time <row> <HH:MM>` (and depth) for waiting rows, and `schedule reload` | F239 | host |
+| Spool tube pulled sideways under a current (F240): the depth is inaccurate (the tube is at an angle), and the spool module has friction near the up-button guide. Measure the depth error at a known current; reduce the friction | F240 | mechanical |
+| Home the spool between every sample (D88), so each sample depth is known; log every panel spool move (F243). Not implemented yet | F241, F243, D88 | FW / host |
 | Relief valve, E-stop and leak at 3 bar (F144): **accepted by the user 2026-10-23, not raised again** | HW2, F144 | — |
 
 ---

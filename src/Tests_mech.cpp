@@ -328,6 +328,7 @@ static void cmd_help()
     Serial.println("Common options: x aborts at every pause; auto = no pauses; from=<slot> count=<n> order=index|fill");
     Serial.println("-- lock / rotation (FW2) --");
     Serial.println("  oring_state                   lock state, encoder angle, nearest slot, pressure-sensor flag");
+    Serial.println("  encoder_read [n]              n raw reads of the manifold encoder (SPI), OK or BAD checksum; read only, for the wiring check");
     Serial.println("  actuator_home                 aligned to a slot (+-" + String(ACTUATOR_HOME_SLOT_TOLERANCE_DEG, 1) + " deg): overdrive lock, unlock -> UNLOCKED. x aborts a move: state UNKNOWN");
     Serial.println("  oring_lock | oring_unlock     lock / unlock at the current slot (state must be known)");
     Serial.println("  lock_cycle [n] [auto]         n lock/unlock cycles here (default 5), times each move");
@@ -380,6 +381,41 @@ static void cmd_oring_state()
     else
         Serial.println("Encoder: no valid reading");
     Serial.println(String("PRESSURE_SENSOR_AVAILABLE = ") + (PRESSURE_SENSOR_AVAILABLE ? "true" : "false (pumping: sensorless tests only)"));
+}
+
+// encoder_read [n]: reads the manifold encoder n times over SPI (default 20, max 200), one frame each, with no retry, and
+// prints each frame: OK (checksum good, raw count and degrees) or BAD (checksum wrong). Read only: it never moves the manifold.
+// 2026-11-04 (field, wiring check after the SPI checksum errors of the night): BAD frames point to the cable or the connector.
+static void cmd_encoder_read(const Cmd &c)
+{
+    if (!check_args(c, "encoder_read [n]   (n reads of the manifold encoder, default 20, max 200; read only)", nullptr, 0, nullptr, 0, 1))
+        return;
+    long n = 20;
+    if (!positional_long(c, 0, &n, 1, 200, "n"))
+        return;
+    int ok = 0, bad = 0;
+    uint16_t raw_min = 0xFFFF, raw_max = 0;
+    for (long i = 1; i <= n; i++)
+    {
+        const uint16_t raw = getPositionSPI(ENCODER_MANIFOLD, RES12); // one frame, no retry: a bad frame shows up as BAD
+        if (raw == 0xFFFF)
+        {
+            bad++;
+            Serial.println(String("read ") + i + ": BAD (checksum)");
+        }
+        else
+        {
+            ok++;
+            raw_min = min(raw_min, raw);
+            raw_max = max(raw_max, raw);
+            Serial.println(String("read ") + i + ": OK raw=" + String(raw) + " deg=" + f2(raw * 360.0f / 4096.0f));
+        }
+        delay(100);
+    }
+    Serial.println(String("ENCODER | reads=") + String(n) + " ok=" + String(ok) + " bad=" + String(bad) +
+                   (ok > 0 ? String(" ok_raw_min=") + String(raw_min) + " ok_raw_max=" + String(raw_max) : String("")));
+    Serial.println(bad == 0 ? "ENCODER | all frames good: the SPI link works now (a fault that comes and goes is still possible: repeat the read)"
+                            : "ENCODER | bad frames: check the cable and the connector of the manifold encoder (SPI, CS D38), then read again");
 }
 
 static void cmd_actuator_home()
@@ -1372,11 +1408,9 @@ static String secs(uint32_t ms)
 }
 
 // One full operation cycle at `slot`; returns the TEST result.
-static bool ask_next_spool_depth(float *next_m); // below, next to ask()
-
 // depth_m = NAN: the spool is not touched. Otherwise (spool active): fill the tube with water and rise to that depth before the purge
-// (spool_fill_and_rise, 2026-11-02); after the shield ask
-// for the next sample's depth, and either keep the tube out (the next sample is waiting) or roll it up with V1 and Vman open.
+// (spool_fill_and_rise, 2026-11-02); after the shield, roll the tube up and empty it (2026-11-04: every sample dives to the session
+// depth and primes again, so no tube is kept out between samples).
 static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool empty, float volume, String *kv, float depth_m = NAN)
 {
     const bool use_depth = depth_m == depth_m; // not NaN
@@ -1452,31 +1486,13 @@ static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool e
     bool rewind_failed = false;
     if (ok && use_depth)
     {
-        // the shield is on: now the tube. If the next sample is waiting, stay out (the next run_sample goes straight to its depth)
-        float next_m = NAN, next_len = 0;
-        ask_next_spool_depth(&next_m);
-        const bool next_given = next_m == next_m;
-        const bool keep = next_given && core::spool_depth_to_length_cm(next_m, spool_height_cm, SPOOL_MAX_LENGTH_CM, &next_len);
-        if (next_given && !keep)
-        {
-            Serial.println("WARNING | run_sample: next depth " + String(next_m, 2) + " m is outside the spool range: rolling up");
-        }
-        if (keep)
-        {
-            spool_tube_wet = true; // the tube stays full: the next sample starts from this depth without the dive to the session depth
-            *kv += ";spool_end=kept_out;next_depth_m=" + String(next_m, 2);
-            Serial.println("META|spool;kept_out=y;length_cm=" + String(spool.length_cm(), 0) + ";next_depth_m=" + String(next_m, 2));
-        }
-        else
-        {
-            // 2026-11-02 (user): the group of samples at this timepoint is over: the spool tubing is emptied before the next
-            // timepoint (the next sample fills it again at the session depth). Not done between two samples of one timepoint
-            bool empty_failed = false;
-            rewind_failed = !spool_roll_up_and_empty(&t_rewind, &t_empty, &empty_failed);
-            failed_empty = empty_failed;
-            *kv += String(";spool_end=") + (rewind_failed ? "FAILED" : "rolled_up") + ";spool_emptied=" +
-                   (empty_failed ? "NO" : (rewind_failed ? "n" : "y")) + ";spool_empty_end=" + last_empty_end;
-        }
+        // the shield is on: now the tube is rolled up and emptied (2026-11-04: after every sample, so the next one dives to the
+        // session depth and primes again). The Monday keep-out between samples at one timepoint is archived (docs/archive/code)
+        bool empty_failed = false;
+        rewind_failed = !spool_roll_up_and_empty(&t_rewind, &t_empty, &empty_failed);
+        failed_empty = empty_failed;
+        *kv += String(";spool_end=") + (rewind_failed ? "FAILED" : "rolled_up") + ";spool_emptied=" +
+               (empty_failed ? "NO" : (rewind_failed ? "n" : "y")) + ";spool_empty_end=" + last_empty_end;
     }
     else if (use_depth && spool_active())
     {
@@ -1767,29 +1783,6 @@ static int read_answer(String &answer)
     return read_answer_for(answer, FIELD_ANSWER_WAIT_MS);
 }
 
-// The question at the end of a run_sample with a depth: how deep is the next sample, if it is already waiting?
-// The schedule tool answers from its list (a depth, or nothing); typed by hand: a depth in metres, or ENTER = none.
-// Nothing, x or no answer in SPOOL_NEXT_ANSWER_WAIT_MS = none = the spool rolls up. False = none.
-static bool ask_next_spool_depth(float *next_m)
-{
-    *next_m = NAN;
-    String a;
-    Serial.println("ASK | spool: next sample depth in m (ENTER = none, the spool rolls up)  (type the answer + ENTER, x = none)");
-    if (read_answer_for(a, SPOOL_NEXT_ANSWER_WAIT_MS) != 0 || a.length() == 0)
-    {
-        return false;
-    }
-    a.replace(',', '.');
-    float f;
-    if (!core::parse_float_strict(a.c_str(), &f))
-    {
-        Serial.println("WARNING | run_sample: next depth '" + a + "' is not a number: rolling up");
-        return false;
-    }
-    *next_m = f;
-    return true;
-}
-
 // Asks one question and waits for the answer. A required answer is asked again while it is empty. False = cancelled.
 static bool ask(const char *label, String &answer, bool required)
 {
@@ -1949,6 +1942,7 @@ static void cmd_spool_status()
                    " cm, longest tube out " + String(SPOOL_MAX_LENGTH_CM, 0) + " cm");
     Serial.println(String("spool: origin switch ") + (button_spool_up.getState() == 0 ? "PRESSED" : "released") + ", down end-stop " +
                    (button_spool_down.getState() == 0 ? "PRESSED" : "released") + ", encoder pulses " + String(encoder.get_pulses_A()));
+    Serial.println("spool: origin-switch edges ignored while idle since boot = " + String(spool_idle_edges_seen()));
 }
 
 static void cmd_spool_height(const Cmd &c)
@@ -2265,7 +2259,7 @@ bool mech_tests_dispatch(const String &line)
                            "lock_endurance", "rotate_all", "encoder_repeat", "valve_check", "leak_hold",
                            "multi_sample", "full_cycle", "full_all", "shield_only", "prime_shield", "pressure_ramp", "fill_test",
                            "session", "run_sample", "log_on", "spool_status", "spool_height", "spool_home", "spool_goto",
-                           "spool_calibrate"};
+                           "spool_calibrate", "encoder_read"};
     bool mine = false;
     for (unsigned i = 0; i < sizeof known / sizeof known[0]; i++)
     {
@@ -2283,6 +2277,8 @@ bool mech_tests_dispatch(const String &line)
 
     if (!strcmp(c.name, "help"))
         cmd_help();
+    else if (!strcmp(c.name, "encoder_read"))
+        cmd_encoder_read(c);
     else if (!strcmp(c.name, "oring_state"))
         cmd_oring_state();
     else if (!strcmp(c.name, "actuator_home"))

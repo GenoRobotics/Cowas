@@ -16,13 +16,16 @@ const float SPOOL_DRUM_DIAMETER_CM = 9.786f;    // Calibrated 2026-11-02 (user):
 const float SPOOL_MAX_LENGTH_CM = 4000.0f;     // longest tube out (origin to intake): 40 m (user 2026-11-02; about 45 m of tube on the drum). Only 2, 5, 10, 15 m are calibrated: deeper, the layer model says the real length is shorter than commanded (about 14 % at 40 m)
 const float SPOOL_MIN_CM_PER_S = 1.0f;        // cm/s. The slowest speed a move may run at: its time limit is SPOOL_MOVE_MARGIN_MS + distance / this (40 m = 67 min). The stall rule (no encoder pulse for SPOOL_STALL_MS) stops a stuck spool long before. Not measured: every move logs its real speed
 const uint32_t SPOOL_MOVE_MARGIN_MS = 60UL * 1000UL; // ms added to every move's time limit (start and stop)
+const uint32_t SPOOL_HOME_UNKNOWN_MAX_MS = 30UL * 60UL * 1000UL; // ms. Full roll up to the origin from an UNKNOWN position (after a reset or a lost position, 2026-11-03, user). Slow: the whole tube at SPOOL_HOME_SPEED
+const uint32_t SPOOL_HOLD_STOP_MS = 300; // ms. The top switch held (debounced) while the spool has counted nothing for this long: the spool is stopped at the top, so the push against it is at most this long (user, 2026-11-03)
+const float SPOOL_ORIGIN_TOL_CM = 30.0f; // cm. The origin switch counts as the origin only this close to the zero of the encoder (or when homing from an unknown position). 2026-11-03: a press at 300 cm reset the zero during a rise
+const uint32_t SPOOL_HOME_MAX_MS = 20UL * 60UL * 1000UL; // ms. The longest move to the origin switch (spool_home, rewind), whatever the encoder reads (F224, 2026-11-03). A full 40 m rewind takes about 2 min (31 to 37 cm/s measured); a stuck spool is stopped by the stall rule
 const uint32_t SPOOL_STALL_MS = 4000;          // ms with no encoder pulse while the motor runs: the move stops
 const float SPOOL_WRONG_WAY_CM = 5.0f;         // cm the length may go the wrong way before the move stops (encoder wired backwards)
 const uint8_t SPOOL_HOME_SPEED = 30;           // % . Speed to the origin switch when the position is unknown, and for the last SPOOL_SLOW_ZONE_CM
 const uint8_t SPOOL_SLOW_SPEED = 40;           // % . Approach speed near the goal depth
 const float SPOOL_SLOW_ZONE_CM = 30.0f;        // cm before the goal (or the origin) where the speed drops
 const uint32_t SPOOL_COAST_COUNT_MS = 300;     // ms the encoder keeps being read after the brake, to count the coast
-const uint32_t SPOOL_NEXT_ANSWER_WAIT_MS = 120000UL; // ms the "next sample depth" question waits (the schedule tool answers at once)
 // Water fill of the tube (2026-11-02, user): the tube is unrolled to the session's deepest point with air escaping at V1,
 // the purge slot is primed until the flowmeter shows flow, then the tube rolls up to the sample's depth with the deployment
 // valve shut (the water stays in the tube).

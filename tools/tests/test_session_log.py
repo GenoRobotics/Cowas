@@ -352,7 +352,7 @@ def test_the_session_depth_and_the_spool_height_come_from_the_device(tmp_path):
     assert session.spool_max_m is None
     sl.on_device_line(session, "META|spool;height_cm=35")
     assert session.spool_height_cm == 35.0
-    sl.on_device_line(session, "META|spool;kept_out=y;length_cm=1200;next_depth_m=2.00")
+    sl.on_device_line(session, "META|spool;something_else=y")
     assert session.spool_height_cm == 35.0  # a line without the height changes nothing
 
 
@@ -374,3 +374,133 @@ def test_the_depth_warnings_come_before_the_schedule_list(tmp_path):
     listing = next(i for i, line in enumerate(out) if line.startswith("The schedule will be"))
     assert conflict < listing
     assert not scheduled.active()
+
+
+# --- at the start: the samples used before this start; the forced slots at `schedule start` (2026-11-03)
+
+
+def test_the_start_question_lists_the_available_samples_and_the_next_is_the_first_of_them(tmp_path):
+    import sample_slots as ss
+
+    book = ss.SlotBook.new(str(tmp_path / "slots.json"), len(ss.LOADING_ORDER))
+    answers = iter(["x", "4-7,9,12-14", "y"])  # a bad answer is asked again; the list is applied on y
+    out = []
+    sl.ask_available_at_start(book, lambda prompt: next(answers), out.append)
+    assert [book.status(n) for n in (4, 7, 9, 12)] == [ss.AVAILABLE] * 4
+    assert book.status(1) == ss.USED and book.status(8) == ss.USED
+    assert book.next_available() == 14  # the first available in the loading order (1, 2, 3, 14, 13, ...)
+    assert any(line.startswith("REQUIRED") for line in out)
+
+
+def test_the_start_list_is_read_back_and_applied_only_on_yes(tmp_path):
+    # F244 (2026-11-04): the wrong answer 5-6 for 4-5 was applied with no check. Now it is read back first.
+    import sample_slots as ss
+
+    book = ss.SlotBook.new(str(tmp_path / "slots.json"), len(ss.LOADING_ORDER))
+    answers = iter(["5-6,8-11", "n", "4-5,8-11", "y"])
+    out = []
+    sl.ask_available_at_start(book, lambda prompt: next(answers), out.append)
+    readbacks = [line for line in out if line.startswith("Read back")]
+    assert readbacks[0] == "Read back: available 5, 6, 8, 9, 10, 11; becomes used 1, 2, 3, 4, 7, 12, 13, 14."
+    assert book.status(4) == ss.AVAILABLE and book.status(6) == ss.USED
+
+
+def test_nothing_is_applied_before_the_yes(tmp_path):
+    import sample_slots as ss
+
+    book = ss.SlotBook.new(str(tmp_path / "slots.json"), len(ss.LOADING_ORDER))
+    answers = iter(["5-6,8-11", "n", ""])  # the list is typed, read back and refused; ENTER then leaves it as it was
+    sl.ask_available_at_start(book, lambda prompt: next(answers), lambda t: None)
+    assert book.status(6) == ss.AVAILABLE and book.status(1) == ss.AVAILABLE
+
+
+def test_the_start_question_all_and_enter(tmp_path):
+    import sample_slots as ss
+
+    book = ss.SlotBook.new(str(tmp_path / "slots.json"), len(ss.LOADING_ORDER))
+    book.mark_used(3)
+    answers = iter(["all", "y"])
+    sl.ask_available_at_start(book, lambda prompt: next(answers), lambda t: None)
+    assert book.status(3) == ss.AVAILABLE
+    book.mark_used(5)
+    sl.ask_available_at_start(book, lambda prompt: "", lambda t: None)  # ENTER: no change
+    assert book.status(5) == ss.USED
+
+
+def test_a_forced_slot_that_is_used_is_asked_before_the_list_and_nothing_starts_on_n(tmp_path):
+    import datetime as _dt
+
+    import sample_slots as ss
+    import sample_schedule as sc
+
+    book = ss.SlotBook.new(str(tmp_path / "slots.json"), len(ss.LOADING_ORDER))
+    book.mark_used(7)
+    csv_path = tmp_path / "in.csv"
+    csv_path.write_text("date,time,name,condition,spool,depth_m,force_slot\n+0,09:00,deep,control,,,7\n", encoding="utf-8")
+    scheduled = sc.Schedule(sc.read_schedule(str(csv_path)), str(tmp_path / "state.csv"), pick=lambda: "run_sample 1",
+                            send=lambda t: None, say=lambda t: None)
+    answers = iter(["n"])
+    out = []
+    sl.schedule_command(["start"], scheduled, _dt.date(2026, 10, 26), lambda p: next(answers), out.append,
+                        session_max_m=40.0, spool_height_cm=0.0, book=book)
+    assert any(line.startswith("SLOT | forced slot 7") for line in out)
+    assert "The schedule will be:" not in out  # stopped before the list
+    assert "Not started." in out
+    assert book.status(7) == ss.USED and not scheduled.active()
+
+
+def test_two_rows_forced_to_the_same_slot_block_the_start(tmp_path):
+    import datetime as _dt
+
+    import sample_schedule as sc
+
+    csv_path = tmp_path / "in.csv"
+    csv_path.write_text(
+        "date,time,name,condition,spool,depth_m,force_slot\n+0,09:00,one,control,,,4\n+0,10:00,two,control,,,4\n",
+        encoding="utf-8",
+    )
+    scheduled = sc.Schedule(sc.read_schedule(str(csv_path)), str(tmp_path / "state.csv"), pick=lambda: "run_sample 1",
+                            send=lambda t: None, say=lambda t: None)
+    out = []
+    sl.schedule_command(["start"], scheduled, _dt.date(2026, 10, 26), lambda p: "y", out.append, book=None)
+    assert any(line.startswith("BLOCKED | slot 4 is forced by two rows") for line in out)
+    assert not scheduled.active()
+
+
+def test_schedule_start_at_a_row_shows_the_restart_list_and_changes_nothing_until_yes(tmp_path):
+    # 2026-11-03 (user): after a failure is solved, the list restarts at the row chosen. Nothing changes until the yes
+    import datetime as dt
+
+    import sample_schedule as sc
+
+    csv_path = tmp_path / "in.csv"
+    csv_path.write_text("date,time,name,condition,spool,depth_m" + chr(10) + "+0,09:00,a,control,off," + chr(10)
+                        + "+0,09:30,b,control,off," + chr(10), encoding="utf-8")
+    samples = sc.read_schedule(str(csv_path))
+    scheduled = sc.Schedule(samples, str(tmp_path / "state.csv"), pick=lambda: "run_sample 1", send=lambda t: None, say=lambda t: None)
+    samples[0].status = sc.FAIL
+    out = []
+    sl.schedule_command([], scheduled, dt.date(2026, 10, 26), lambda p: "n", out.append)
+    assert out[0].startswith("  1 ")  # the rows are numbered
+    out.clear()
+    sl.schedule_command(["start", "2"], scheduled, dt.date(2026, 10, 26), lambda p: "n", out.append)
+    assert any(line.startswith("Restart at row 2") for line in out)
+    assert "Not started." in out and samples[0].status == sc.FAIL and samples[1].status == sc.WAITING
+    out.clear()
+    sl.schedule_command(["start", "9"], scheduled, dt.date(2026, 10, 26), lambda p: "n", out.append)
+    assert out[0].startswith("REFUSED")
+
+
+def test_a_run_stopped_before_its_filter_was_loaded_frees_the_slot(tmp_path):
+    # 2026-11-03 (user): a filter is precious. Stopped during the dive or the purge: no filter was used, so it is available.
+    # Stopped from the sampling on: the filter is used.
+    import sample_slots as ss
+
+    for stopped_at, expect in (("purge", ss.AVAILABLE), ("dive", ss.AVAILABLE), ("sampling", ss.USED)):
+        s = new_session(tmp_path / stopped_at)
+        book = ss.SlotBook.new(str(tmp_path / stopped_at / "slots.json"), len(ss.LOADING_ORDER))
+        s.open_slot = 12
+        book.mark_used(12)
+        sl.on_device_line(s, f"TEST|run_sample|12|FAIL|slot=12;aborted=x;failed_at={stopped_at}", book)
+        assert book.status(12) == expect, stopped_at
+        assert s.open_slot is None

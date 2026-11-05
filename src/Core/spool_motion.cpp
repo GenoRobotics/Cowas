@@ -123,3 +123,13 @@ float spool_new_diameter_cm(float old_diameter_cm, float scale)
 }
 
 } // namespace core
+
+namespace core
+{
+
+bool spool_origin_press_real(bool homing, float length_cm, float tol_cm)
+{
+    return homing || fabsf(length_cm) <= tol_cm;
+}
+
+} // namespace core

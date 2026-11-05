@@ -1,0 +1,451 @@
+--- a/src/Tests_mech.cpp
++++ b/src/Tests_mech.cpp
+@@ -1408,11 +1408,9 @@
+ }
+ 
+ // One full operation cycle at `slot`; returns the TEST result.
+-static bool ask_next_spool_depth(float *next_m); // below, next to ask()
+-
+ // depth_m = NAN: the spool is not touched. Otherwise (spool active): fill the tube with water and rise to that depth before the purge
+-// (spool_fill_and_rise, 2026-11-02); after the shield ask
+-// for the next sample's depth, and either keep the tube out (the next sample is waiting) or roll it up with V1 and Vman open.
++// (spool_fill_and_rise, 2026-11-02); after the shield, roll the tube up and empty it (2026-11-04: every sample dives to the session
++// depth and primes again, so no tube is kept out between samples).
+ static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool empty, float volume, String *kv, float depth_m = NAN)
+ {
+     const bool use_depth = depth_m == depth_m; // not NaN
+@@ -1488,32 +1486,13 @@
+     bool rewind_failed = false;
+     if (ok && use_depth)
+     {
+-        // the shield is on: now the tube. If the next sample is waiting, stay out (the next run_sample goes straight to its depth)
+-        float next_m = NAN, next_len = 0;
+-        ask_next_spool_depth(&next_m);
+-        const bool next_given = next_m == next_m;
+-        const bool keep = next_given && core::spool_depth_to_length_cm(next_m, spool_height_cm, SPOOL_MAX_LENGTH_CM, &next_len);
+-        if (next_given && !keep)
+-        {
+-            Serial.println("WARNING | run_sample: next depth " + String(next_m, 2) + " m is outside the spool range: rolling up");
+-        }
+-        if (keep)
+-        {
+-            spool_tube_wet = true; // the tube stays full: the next sample starts from this depth without the dive to the session depth
+-            spool_kept_length_cm = spool.length_cm(); // where it stays: the next fill checks the encoder still reads here
+-            *kv += ";spool_end=kept_out;next_depth_m=" + String(next_m, 2);
+-            Serial.println("META|spool;kept_out=y;length_cm=" + String(spool.length_cm(), 0) + ";next_depth_m=" + String(next_m, 2));
+-        }
+-        else
+-        {
+-            // 2026-11-02 (user): the group of samples at this timepoint is over: the spool tubing is emptied before the next
+-            // timepoint (the next sample fills it again at the session depth). Not done between two samples of one timepoint
+-            bool empty_failed = false;
+-            rewind_failed = !spool_roll_up_and_empty(&t_rewind, &t_empty, &empty_failed);
+-            failed_empty = empty_failed;
+-            *kv += String(";spool_end=") + (rewind_failed ? "FAILED" : "rolled_up") + ";spool_emptied=" +
+-                   (empty_failed ? "NO" : (rewind_failed ? "n" : "y")) + ";spool_empty_end=" + last_empty_end;
+-        }
++        // the shield is on: now the tube is rolled up and emptied (2026-11-04: after every sample, so the next one dives to the
++        // session depth and primes again). The Monday keep-out between samples at one timepoint is archived (docs/archive/code)
++        bool empty_failed = false;
++        rewind_failed = !spool_roll_up_and_empty(&t_rewind, &t_empty, &empty_failed);
++        failed_empty = empty_failed;
++        *kv += String(";spool_end=") + (rewind_failed ? "FAILED" : "rolled_up") + ";spool_emptied=" +
++               (empty_failed ? "NO" : (rewind_failed ? "n" : "y")) + ";spool_empty_end=" + last_empty_end;
+     }
+     else if (use_depth && spool_active())
+     {
+@@ -1804,29 +1783,6 @@
+     return read_answer_for(answer, FIELD_ANSWER_WAIT_MS);
+ }
+ 
+-// The question at the end of a run_sample with a depth: how deep is the next sample, if it is already waiting?
+-// The schedule tool answers from its list (a depth, or nothing); typed by hand: a depth in metres, or ENTER = none.
+-// Nothing, x or no answer in SPOOL_NEXT_ANSWER_WAIT_MS = none = the spool rolls up. False = none.
+-static bool ask_next_spool_depth(float *next_m)
+-{
+-    *next_m = NAN;
+-    String a;
+-    Serial.println("ASK | spool: next sample depth in m (ENTER = none, the spool rolls up)  (type the answer + ENTER, x = none)");
+-    if (read_answer_for(a, SPOOL_NEXT_ANSWER_WAIT_MS) != 0 || a.length() == 0)
+-    {
+-        return false;
+-    }
+-    a.replace(',', '.');
+-    float f;
+-    if (!core::parse_float_strict(a.c_str(), &f))
+-    {
+-        Serial.println("WARNING | run_sample: next depth '" + a + "' is not a number: rolling up");
+-        return false;
+-    }
+-    *next_m = f;
+-    return true;
+-}
+-
+ // Asks one question and waits for the answer. A required answer is asked again while it is empty. False = cancelled.
+ static bool ask(const char *label, String &answer, bool required)
+ {
+Binary files a/src/Step_functions.cpp and b/src/Step_functions.cpp differ
+--- a/include/Step_functions.h
++++ b/include/Step_functions.h
+@@ -29,8 +29,6 @@
+ bool spool_roll_up_and_empty(uint32_t *t_rewind_ms, uint32_t *t_empty_ms, bool *empty_failed); // roll up, then empty the tubing (2026-11-02)                                    // step_rewind without the session check; drain=false: no manifold or valve, just roll up (spool_home)
+ bool spool_fill_and_rise(int depth_cm);                       // water fill before a sample at depth: dive to the session depth if dry, prime, rise to depth (2026-11-02)
+ int spool_reachable_cm();                                          // deepest intake depth (cm) with the height: the tube total never passes SPOOL_MAX_LENGTH_CM (-1 = none)
+-extern bool spool_tube_wet;                                        // the tube holds water and was kept out after the last sample (set by run_full_cycle)
+-extern float spool_kept_length_cm;                                 // the length (cm out) where the tube was kept after the last sample (2026-11-03)
+ bool step_empty();                                                // drains water from deployment module
+ bool step_DNA_shield(int slot_manifold);                          // insert DNA shield to sterivex
+ void sample_process(int depth, int manifold_slot = -1);
+--- a/include/Settings.h
++++ b/include/Settings.h
+@@ -26,7 +26,6 @@
+ const uint8_t SPOOL_SLOW_SPEED = 40;           // % . Approach speed near the goal depth
+ const float SPOOL_SLOW_ZONE_CM = 30.0f;        // cm before the goal (or the origin) where the speed drops
+ const uint32_t SPOOL_COAST_COUNT_MS = 300;     // ms the encoder keeps being read after the brake, to count the coast
+-const uint32_t SPOOL_NEXT_ANSWER_WAIT_MS = 120000UL; // ms the "next sample depth" question waits (the schedule tool answers at once)
+ // Water fill of the tube (2026-11-02, user): the tube is unrolled to the session's deepest point with air escaping at V1,
+ // the purge slot is primed until the flowmeter shows flow, then the tube rolls up to the sample's depth with the deployment
+ // valve shut (the water stays in the tube).
+--- a/tools/sample_schedule.py
++++ b/tools/sample_schedule.py
+@@ -21,11 +21,10 @@
+                 Off = the spool is not moved (the session must still say whether the module is on the machine: it sets the purge).
+     depth_m     metres, 0 to 40, only when spool is on (2.5 or 2,5). Empty otherwise.
+ 
+-Samples at the same time run one after the other, the deepest first (spool off last), then in the order of the file.
+-The device fills the tube at the session's deepest point and rolls up to each depth, so shallower samples at the same time cost no
+-new dive. When the sample on the device has ended its shield step, the device asks `spool: next sample depth`. The tool answers
+-with the depth of the next waiting sample only if that sample has the spool on and the SAME date and time (the tube stays full and
+-goes straight to that depth). Otherwise it answers nothing and the tube rolls up with the air and water valves open so it empties.
++Samples run in date and time order; samples at the same time run in the order of the file. Every spool sample starts from a dry
++tube: the device dives to the session's deepest point, primes, and rises to the sample's depth (2026-11-04: the Monday
++"deepest first, keep the tube out" plan is archived in docs/archive/code/superseded). The tube is rolled up and emptied after
++each sample, so the device asks no next-depth question.
+ 
+ Pure logic and one thread. No serial port here: session_log.py sends the lines and passes in the device's lines.
+ """
+@@ -46,7 +45,6 @@
+ NO_CONDITION = "not_given"  # no space: the device takes none in a name or condition
+ MAX_TUBE_M = 40.0  # the total tube, depth + spool height (SPOOL_MAX_LENGTH_CM in Settings.h); the device never goes beyond it
+ MAX_DEPTH_M = 40.0  # the longest tube of the spool (SPOOL_MAX_LENGTH_CM in Settings.h; the device also checks the height)
+-NEXT_GRACE_MIN = 10  # the next sample counts as waiting if it is due within this many minutes of the end of the sample
+ POLL_S = 0.5  # how often the waits look at the clock
+ REMIND_S = 600  # while a sample has no TEST line, the log says so this often
+ RETRY_MAX = 2  # a row that fails before its filter was loaded is tried again this many times, on the same filter (then the list goes on)
+@@ -279,10 +277,10 @@
+             else s.date
+         )
+         out.append(replace(s, date=date, name=s.name or f"{date} {s.time}"))
+-    # ISO dates and HH:MM sort correctly as text. Samples at the same time: the deepest first (2026-11-02, user): the tube is
+-    # filled at the session's deepest point, then rises from one sample depth to the next. Spool off counts as 0 m (last).
++    # ISO dates and HH:MM sort correctly as text. Samples at the same time keep the order of the file (2026-11-04: the
++    # deepest-first sort of 2026-11-02 is archived with the keep-out)
+     return sorted(
+-        out, key=lambda s: (s.date, s.time, -_depth_or_zero(s))
++        out, key=lambda s: (s.date, s.time)
+     )
+ 
+ 
+@@ -304,11 +302,6 @@
+     return out
+ 
+ 
+-def _depth_or_zero(sample):
+-    """The depth of a sample in metres, 0 when the spool is off (no depth)."""
+-    return float(sample.depth_m) if sample.depth_m else 0.0
+-
+-
+ def load_state(path):
+     """The samples saved in a run folder. A sample that was RUNNING when the tool was closed becomes INTERRUPTED."""
+     samples = []
+@@ -663,7 +656,6 @@
+             sample.slot = line.split()[1] if len(line.split()) > 1 else ""
+             if sample.spool:
+                 line += f" depth={depth_arg(sample.depth_m)}"
+-                self.answers["spool: next sample depth"] = lambda: self._next_depth(sample)
+                 if sample_key(sample) in self.accepted_deeper:
+                     self.answers["run_sample: solve it or proceed?"] = "y"
+             sample.started = stamp()
+@@ -676,25 +668,6 @@
+         self.send(line)
+         return True
+ 
+-    def _next_depth(self, sample):
+-        """The answer to `spool: next sample depth`: the depth of the next waiting sample when it is already due (or due
+-        within NEXT_GRACE_MIN minutes) and has the spool on, else "" (the tube rolls up). Called with the lock held."""
+-        if self._halt.is_set():
+-            return ""  # `schedule stop`: no further sample starts
+-        position = next(i for i, s in enumerate(self.samples) if s is sample)  # identity: equal rows can exist
+-        following = next(
+-            (s for s in self.samples[position + 1 :] if s.status == WAITING), None
+-        )
+-        if following is None or not following.spool:
+-            return ""
+-        if (following.date, following.time) != (sample.date, sample.time):
+-            return ""  # 2026-11-02 (user): only a sample at the same timepoint keeps the tube full; otherwise it rolls up
+-        try:
+-            wait = (following.due - self.now()).total_seconds()
+-        except ValueError:  # a date not resolved yet: roll up, the safe answer
+-            return ""
+-        return depth_arg(following.depth_m) if wait <= NEXT_GRACE_MIN * 60 else ""
+-
+     # --- the device's lines (called by the reader thread)
+ 
+     def device_line(self, text):
+--- a/tools/tests/test_sample_schedule.py
++++ b/tools/tests/test_sample_schedule.py
+@@ -524,9 +524,7 @@
+     assert wait_for(lambda: device.sent == ["run_sample 1"])
+ 
+ 
+-# --- the spool: the depth goes to the device, and the next-depth question (2026-11-02)
+-
+-ASK_NEXT = "ASK | spool: next sample depth in m (ENTER = none, the spool rolls up)  (type the answer + ENTER, x = none)"
++# --- the spool: the depth goes to the device (2026-11-02; the next-depth question was archived 2026-11-04)
+ 
+ 
+ def test_a_spool_sample_is_sent_with_its_depth_and_a_spool_off_sample_is_not(tmp_path):
+@@ -540,45 +538,6 @@
+     assert device.sent[-1] == "run_sample 5"
+ 
+ 
+-def test_the_next_spool_sample_at_the_same_time_keeps_the_tube_out(tmp_path):
+-    first = sample("11:50", name="first", spool=True, depth_m="15")
+-    second = sample("11:50", name="second", spool=True, depth_m="7,5".replace(",", "."))
+-    schedule, _ = make([first, second], tmp_path)  # the deepest first: the 7.5 m sample follows at the same time
+-    started(schedule, first)
+-    assert schedule.device_line(ASK_NEXT) == "7.5"
+-
+-
+-def test_a_sample_a_few_minutes_later_does_not_keep_the_tube_out(tmp_path):
+-    # 2026-11-02 (user): only the same timepoint keeps the tube full; a later one rolls the tube up
+-    first = sample("11:50", name="first", spool=True, depth_m="2")
+-    second = sample("12:05", name="second", spool=True, depth_m="7,5".replace(",", "."))
+-    schedule, _ = make([first, second], tmp_path)
+-    started(schedule, first)
+-    assert schedule.device_line(ASK_NEXT) == ""
+-
+-
+-def test_the_tube_rolls_up_when_the_next_sample_is_far_off_or_has_no_spool_or_is_none(tmp_path):
+-    for second in (
+-        sample("14:00", name="later", spool=True, depth_m="3"),  # due in 2 h
+-        sample("12:01", name="no spool"),  # due now but spool off
+-    ):
+-        first = sample("11:50", name="first", spool=True, depth_m="2")
+-        schedule, _ = make([first, second], tmp_path)
+-        started(schedule, first)
+-        assert schedule.device_line(ASK_NEXT) == ""
+-    alone = sample("11:50", name="alone", spool=True, depth_m="2")
+-    schedule, _ = make([alone], tmp_path)
+-    started(schedule, alone)
+-    assert schedule.device_line(ASK_NEXT) == ""
+-
+-
+-def test_the_tube_rolls_up_after_schedule_stop(tmp_path):
+-    first = sample("11:50", name="first", spool=True, depth_m="2")
+-    second = sample("12:00", name="second", spool=True, depth_m="4")
+-    schedule, _ = make([first, second], tmp_path)
+-    started(schedule, first)
+-    schedule.stop()
+-    assert schedule.device_line(ASK_NEXT) == ""
+ 
+ 
+ def test_a_sample_that_leaves_the_spool_out_stops_the_schedule(tmp_path):
+@@ -633,35 +592,14 @@
+     assert (out[0].status, out[0].slot, out[0].started) == (sc.WAITING, "", "")
+ 
+ 
+-def test_equal_rows_do_not_confuse_the_next_sample(tmp_path):
+-    # two identical rows (same time, same default name): the next one is still the second, not the first again
+-    one = sample("11:50", name="same", spool=True, depth_m="2")
+-    two = sample("11:50", name="same", spool=True, depth_m="2")
+-    three = sample("11:50", name="third", spool=True, depth_m="1")
+-    schedule, _ = make([one, two, three], tmp_path)
+-    started(schedule, two)
+-    assert schedule.device_line(ASK_NEXT) == "1"
+-
+-
+ def test_samples_at_the_same_time_keep_the_order_of_the_file(tmp_path):
+     rows = [sample("09:30", name=n, date="+0") for n in ("b", "a", "c")]
+     resolved = sc.resolve(rows, dt.date(2026, 10, 26))
+     assert [s.name for s in resolved] == ["b", "a", "c"]
+ 
+ 
+-def test_samples_at_the_same_time_run_the_deepest_first_then_the_file_order(tmp_path):
+-    rows = [
+-        sample("09:30", name="one_m", spool=True, depth_m="1"),
+-        sample("09:30", name="off", spool=False),
+-        sample("09:30", name="fifteen_m", spool=True, depth_m="15"),
+-        sample("09:30", name="five_m", spool=True, depth_m="5"),
+-        sample("09:30", name="five_m_again", spool=True, depth_m="5"),
+-    ]
+-    resolved = sc.resolve(rows, dt.date(2026, 10, 26))
+-    assert [s.name for s in resolved] == ["fifteen_m", "five_m", "five_m_again", "one_m", "off"]
+-
+-
+-def test_deepest_first_does_not_move_samples_at_other_times(tmp_path):
++def test_the_time_order_is_kept_whatever_the_depth(tmp_path):
++    # 2026-11-04: the deepest-first sort of 2026-11-02 is archived; the order is date, time, then the file
+     rows = [
+         sample("10:00", name="late_deep", spool=True, depth_m="15"),
+         sample("09:30", name="early_shallow", spool=True, depth_m="1"),
+@@ -788,7 +726,7 @@
+     schedule.thread.join(10)
+     assert [t.split()[1] for t in sent if t.startswith("run_sample")] == ["1", "2", "3", "4"]
+     names = [line.split(",")[2] for line in state.read_text(encoding="utf-8").splitlines()[1:]]
+-    assert names == ["early", "fifteen_m", "five_m", "one_m"]
++    assert names == ["early", "one_m", "fifteen_m", "five_m"]  # time order, then the file order at 09:00 (2026-11-04)
+ 
+ 
+ # --- the force_slot column (2026-11-03)
+@@ -834,71 +772,71 @@
+     schedule.start(dt.date(2026, 10, 26))
+     schedule.thread.join(10)
+     assert [t.split()[1] for t in sent if t.startswith("run_sample")] == ["7"]
+-
+-
+-# --- a failure before the filter was loaded (2026-11-03, user): the same filter, twice, then the next row; no thread
+-
+-
+-def run_loop(rows, tmp_path, reply):
+-    """Runs the list's loop (Schedule._run). Each run_sample is answered at once with reply(attempt) (1, 2, ...), a device line.
+-    pick gives a new slot each time, so a retry that takes another slot shows up in `sent`."""
+-    resolved = sc.resolve(rows, dt.date(2026, 10, 26))
+-    device = Device()
+-    slots = iter(range(1, 100))
+-    attempts = []
+-
+-    def send(text):
+-        device.sent.append(text)
+-        slot = int(text.split()[1])
+-        attempts.append(slot)
+-        schedule.device_line(reply(len(attempts), slot))
+-
+-    schedule = sc.Schedule(
+-        resolved, str(tmp_path / "state.csv"), pick=lambda: f"run_sample {next(slots)}", send=send,
+-        say=device.say, now=lambda: dt.datetime(2026, 10, 26, 10, 0),
+-        pick_slot=lambda slot: f"run_sample {slot}",
+-    )
+-    halt = threading.Event()
+-    schedule._halt = halt
+-    schedule._run(halt)
+-    return schedule, device, halt
+-
+-
+-PURGE_FAIL = "TEST|run_sample|{slot}|FAIL|slot={slot};failed_at=purge;spool_end=rolled_up_after_failure"
+-
+-
+-def test_a_failure_before_the_filter_is_tried_again_on_the_same_filter(tmp_path):
+-    schedule, device, halt = run_loop([sample("09:00", name="a")], tmp_path,
+-                                      lambda n, slot: PURGE_FAIL.format(slot=slot) if n < 3 else PURGE_FAIL.replace("FAIL", "PASS").format(slot=slot))
+-    assert device.sent == ["run_sample 1", "run_sample 1", "run_sample 1"]  # the first try and the retries: slot 1 each time
+-    assert schedule.samples[0].status == sc.PASS and not halt.is_set()
+-    assert any("Trying again on the same filter 1, 1 of 2" in line for line in device.said)
+-
+-
+-def test_after_two_retries_the_row_stays_failed_and_the_list_goes_on_with_the_next_row(tmp_path):
+-    rows = [sample("09:00", name="a"), sample("09:30", name="b")]
+-    schedule, device, halt = run_loop(rows, tmp_path,
+-                                      lambda n, slot: PURGE_FAIL.format(slot=slot) if n <= 3 else PURGE_FAIL.replace("FAIL", "PASS").format(slot=slot))
+-    assert len(device.sent) == 4 and not halt.is_set()  # a: three tries, then b
+-    assert [s.status for s in schedule.samples] == [sc.FAIL, sc.PASS]
+-    assert any("Not run again; the list goes on" in line for line in device.said)
+-
+-
+-def test_an_x_is_never_tried_again(tmp_path):
+-    schedule, device, halt = run_loop([sample("09:00", name="a")], tmp_path,
+-                                      lambda n, slot: f"TEST|run_sample|{slot}|FAIL|slot={slot};aborted=x;failed_at=purge;spool_end=rolled_up_after_x")
+-    assert len(device.sent) == 1 and halt.is_set()
+-
+-
+-def test_a_failure_with_the_spool_out_is_not_tried_again(tmp_path):
+-    schedule, device, halt = run_loop([sample("09:00", name="a")], tmp_path,
+-                                      lambda n, slot: f"TEST|run_sample|{slot}|FAIL|slot={slot};failed_at=purge;spool_end=FAILED")
+-    assert len(device.sent) == 1 and halt.is_set()
+-
+-
+-def test_a_failure_after_the_sampling_is_not_tried_again_and_the_list_goes_on(tmp_path):
+-    rows = [sample("09:00", name="a"), sample("09:30", name="b")]
+-    schedule, device, halt = run_loop(rows, tmp_path,
+-                                      lambda n, slot: f"TEST|run_sample|{slot}|FAIL|slot={slot};failed_at=sampling;spool_end=rolled_up_after_failure")
+-    assert len(device.sent) == 2 and not halt.is_set()
+-    assert [s.status for s in schedule.samples] == [sc.FAIL, sc.FAIL]
++
++
++# --- a failure before the filter was loaded (2026-11-03, user): the same filter, twice, then the next row; no thread
++
++
++def run_loop(rows, tmp_path, reply):
++    """Runs the list's loop (Schedule._run). Each run_sample is answered at once with reply(attempt) (1, 2, ...), a device line.
++    pick gives a new slot each time, so a retry that takes another slot shows up in `sent`."""
++    resolved = sc.resolve(rows, dt.date(2026, 10, 26))
++    device = Device()
++    slots = iter(range(1, 100))
++    attempts = []
++
++    def send(text):
++        device.sent.append(text)
++        slot = int(text.split()[1])
++        attempts.append(slot)
++        schedule.device_line(reply(len(attempts), slot))
++
++    schedule = sc.Schedule(
++        resolved, str(tmp_path / "state.csv"), pick=lambda: f"run_sample {next(slots)}", send=send,
++        say=device.say, now=lambda: dt.datetime(2026, 10, 26, 10, 0),
++        pick_slot=lambda slot: f"run_sample {slot}",
++    )
++    halt = threading.Event()
++    schedule._halt = halt
++    schedule._run(halt)
++    return schedule, device, halt
++
++
++PURGE_FAIL = "TEST|run_sample|{slot}|FAIL|slot={slot};failed_at=purge;spool_end=rolled_up_after_failure"
++
++
++def test_a_failure_before_the_filter_is_tried_again_on_the_same_filter(tmp_path):
++    schedule, device, halt = run_loop([sample("09:00", name="a")], tmp_path,
++                                      lambda n, slot: PURGE_FAIL.format(slot=slot) if n < 3 else PURGE_FAIL.replace("FAIL", "PASS").format(slot=slot))
++    assert device.sent == ["run_sample 1", "run_sample 1", "run_sample 1"]  # the first try and the retries: slot 1 each time
++    assert schedule.samples[0].status == sc.PASS and not halt.is_set()
++    assert any("Trying again on the same filter 1, 1 of 2" in line for line in device.said)
++
++
++def test_after_two_retries_the_row_stays_failed_and_the_list_goes_on_with_the_next_row(tmp_path):
++    rows = [sample("09:00", name="a"), sample("09:30", name="b")]
++    schedule, device, halt = run_loop(rows, tmp_path,
++                                      lambda n, slot: PURGE_FAIL.format(slot=slot) if n <= 3 else PURGE_FAIL.replace("FAIL", "PASS").format(slot=slot))
++    assert len(device.sent) == 4 and not halt.is_set()  # a: three tries, then b
++    assert [s.status for s in schedule.samples] == [sc.FAIL, sc.PASS]
++    assert any("Not run again; the list goes on" in line for line in device.said)
++
++
++def test_an_x_is_never_tried_again(tmp_path):
++    schedule, device, halt = run_loop([sample("09:00", name="a")], tmp_path,
++                                      lambda n, slot: f"TEST|run_sample|{slot}|FAIL|slot={slot};aborted=x;failed_at=purge;spool_end=rolled_up_after_x")
++    assert len(device.sent) == 1 and halt.is_set()
++
++
++def test_a_failure_with_the_spool_out_is_not_tried_again(tmp_path):
++    schedule, device, halt = run_loop([sample("09:00", name="a")], tmp_path,
++                                      lambda n, slot: f"TEST|run_sample|{slot}|FAIL|slot={slot};failed_at=purge;spool_end=FAILED")
++    assert len(device.sent) == 1 and halt.is_set()
++
++
++def test_a_failure_after_the_sampling_is_not_tried_again_and_the_list_goes_on(tmp_path):
++    rows = [sample("09:00", name="a"), sample("09:30", name="b")]
++    schedule, device, halt = run_loop(rows, tmp_path,
++                                      lambda n, slot: f"TEST|run_sample|{slot}|FAIL|slot={slot};failed_at=sampling;spool_end=rolled_up_after_failure")
++    assert len(device.sent) == 2 and not halt.is_set()
++    assert [s.status for s in schedule.samples] == [sc.FAIL, sc.FAIL]
+--- a/tools/tests/test_session_log.py
++++ b/tools/tests/test_session_log.py
+@@ -352,7 +352,7 @@
+     assert session.spool_max_m is None
+     sl.on_device_line(session, "META|spool;height_cm=35")
+     assert session.spool_height_cm == 35.0
+-    sl.on_device_line(session, "META|spool;kept_out=y;length_cm=1200;next_depth_m=2.00")
++    sl.on_device_line(session, "META|spool;something_else=y")
+     assert session.spool_height_cm == 35.0  # a line without the height changes nothing
+ 
+ 

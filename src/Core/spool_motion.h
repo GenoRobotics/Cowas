@@ -47,6 +47,11 @@ const char *spool_move_name(SpoolMove m);
 // stuck spool long before this. distance_cm <= 0 gives the margin only.
 uint32_t spool_move_limit_ms(float distance_cm, float min_cm_per_s, uint32_t margin_ms);
 
+// The origin switch (held, debounced by the caller) is taken as the origin only where the tube can be at the origin: within
+// tol_cm of the origin, or while homing from an unknown position (homing = true: any place). Elsewhere it is a false press
+// (2026-11-03: a press at 300 cm during a rise reset the encoder and the rise stopped short). The move goes on.
+bool spool_origin_press_real(bool homing, float length_cm, float tol_cm);
+
 // Speed for the approach: slow_speed once the remaining distance (cm, > 0) is inside slow_zone_cm, else fast_speed.
 uint8_t spool_approach_speed(float remaining_cm, float slow_zone_cm, uint8_t fast_speed, uint8_t slow_speed);
 

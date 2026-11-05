@@ -424,28 +424,41 @@ def ask_yes_no(prompt, read):
     return read(prompt).strip().lower() in ("y", "yes")
 
 
-def ask_loaded(read, write):
-    """The start of a new folder: how many samples are loaded (the first ones of the loading order), and whether they are
-    sorted on the device as numbered. Asks again until the operator confirms. Returns the count."""
-    count = len(ss.LOADING_ORDER)
-    order = ", ".join(str(s) for s in ss.LOADING_ORDER)
+def ask_available_at_start(book, read, write):
+    """At every start of the tool (2026-11-03, user): which samples are available now. `all`, a list such as 1-14 or
+    4-7,9,12-14, or ENTER = no change. The listed samples become available, the other available ones become used.
+    The parsed list is read back and applied only on y (F244, 2026-11-04). Asks again on a bad answer or on n.
+    The next run_sample or schedule starts from the first available one."""
+    write(f"Samples now: {book.summary()}")
     while True:
-        write(f"How many samples are loaded? 0 to {count}. The loaded ones are the first in the loading order: {order}.")
-        answer = read("loaded> ").strip()
-        if not answer.isdigit() or int(answer) > count:
-            write(f"Type a number from 0 to {count}.")
+        answer = read("Which samples are AVAILABLE? (all, 1-14, or e.g. 4-7,9,12-14; ENTER = no change) ").strip()
+        if answer == "":
+            write("No change.")
+            return
+        if answer.lower() == "all":
+            chosen = set(ss.LOADING_ORDER)
+        else:
+            try:
+                chosen = ss.parse_slot_list(answer)
+            except ValueError as error:
+                write(f"REQUIRED | {error}. Try again.")
+                continue
+        # F244 (2026-11-04): read the parsed list back, and apply it only on a yes, so a typo such as 5-6 for 4-5 is seen
+        become_used = sorted(s for s in ss.LOADING_ORDER if book.status(s) == ss.AVAILABLE and s not in chosen)
+        write(f"Read back: available {', '.join(str(x) for x in sorted(chosen)) or 'none'}; "
+              f"becomes used {', '.join(str(x) for x in become_used) or 'none'}.")
+        if read("Is this right? (y = yes, n = type the list again) ").strip().lower() not in ("y", "yes"):
             continue
-        n = int(answer)
-        write(f"Loaded: {', '.join(str(s) for s in ss.LOADING_ORDER[:n]) or 'none'}. The others are not loaded.")
-        if ask_yes_no("Are these samples on the device, numbered as above and in this order? (y/n) ", read):
-            return n
-        write("Not confirmed. Sort the samples on the device, then answer again.")
+        book.set_available(chosen)
+        write(f"Available: {', '.join(str(x) for x in sorted(chosen)) or 'none'}. Next sample: {book.next_available() or 'none left'}.")
+        write(f"Samples now: {book.summary()}")
+        return
 
 
-SCHEDULE_HELP = "Schedule commands: `schedule` (the list), `schedule start`, `schedule stop`."
+SCHEDULE_HELP = "Schedule commands: `schedule` (the list, numbered), `schedule start [row]`, `schedule stop`."
 
 
-def schedule_command(args, scheduled, today, read, write, session_max_m=None, spool_height_cm=None):
+def schedule_command(args, scheduled, today, read, write, session_max_m=None, spool_height_cm=None, book=None):
     """The `schedule` commands typed in the tool. `schedule start` shows the dates and asks for a yes before anything runs.
     `today` is the day the schedule starts, for the +N dates. session_max_m: the session's deepest point from the device
     (None = no session with the spool yet). spool_height_cm: the spool height from the device (None = not told yet)."""
@@ -453,18 +466,46 @@ def schedule_command(args, scheduled, today, read, write, session_max_m=None, sp
         write("No schedule: start the tool with --schedule FILE.csv.")
         return
     if not args:
-        for line in scheduled.table():
-            write(line)
+        for number, line in enumerate(scheduled.table(), 1):
+            write(f"{number:>3}{line}")
         return
-    if args == ["start"]:
+    if args[:1] == ["start"] and len(args) <= 2:
         if scheduled.active():
             write("The schedule is running already.")
             return
-        if not scheduled.pending():
+        rows = list(scheduled.samples)
+        if len(args) == 2:
+            # schedule start <row> (2026-11-03, user): restart at the row chosen, after a failure was solved
+            if not args[1].isdigit() or not 1 <= int(args[1]) <= len(rows):
+                write(f"REFUSED | `schedule start {args[1]}`: give a row number from `schedule` (1 to {len(rows)}).")
+                return
+            rows = sched.restart_rows(rows, int(args[1]))
+            write(f"Restart at row {args[1]}: the rows before it that waited are skipped. From it on, every row that has not passed runs.")
+        pending = [s for s in rows if s.status == sched.WAITING]
+        if not pending:
             write("Nothing left to run.")
             return
         # 2026-11-02 (user): the warnings come first, before the list and before anything runs
-        resolved = sched.resolve(scheduled.pending(), today)
+        resolved = sched.resolve(pending, today)
+        forced = {}  # slot -> the row that forces it (2026-11-03)
+        for s in resolved:
+            if s.force_slot:
+                slot = int(s.force_slot)
+                if slot in forced:
+                    write(f"BLOCKED | slot {slot} is forced by two rows ({forced[slot].name} and {s.name}): give one of them another slot or none.")
+                    return
+                forced[slot] = s
+        if book is not None:
+            taken = [slot for slot in forced if book.status(slot) != ss.AVAILABLE]
+            if taken:
+                for slot in taken:
+                    write(f"SLOT | forced slot {slot} ({forced[slot].name} {forced[slot].date} {forced[slot].time}) is {book.status(slot)}.")
+                write("y = erase these slots and run their rows there. n = not started: type the slot you want at the start, or change the list.")
+                if not ask_yes_no("Erase the forced slots? (y/n) ", read):
+                    write("Not started.")
+                    return
+                for slot in taken:
+                    book.erase(slot)
         if any(s.spool for s in resolved):
             if session_max_m is None:
                 write("BLOCKED | the schedule has spool samples, but the session has no spool depth: type `session` with the spool answer y first.")
@@ -489,13 +530,13 @@ def schedule_command(args, scheduled, today, read, write, session_max_m=None, sp
                 return
             accepted = [sched.sample_key(s) for s in conflicts]
         write("The schedule will be:")
-        for line in scheduled.preview(today):
+        for line in scheduled.preview(today, rows):
             write(line)
         write("The device needs `session` first (site, date, experiment).")
         if not ask_yes_no("Start the schedule now? (y/n) ", read):
             write("Not started.")
             return
-        scheduled.start(today, accepted_deeper=accepted)
+        scheduled.start(today, accepted_deeper=accepted, rows=rows)
         write("Schedule started. Each sample runs at its time. Type `schedule stop` to stop it.")
         return
     if args == ["stop"]:
@@ -509,7 +550,7 @@ def schedule_command(args, scheduled, today, read, write, session_max_m=None, sp
     write(SCHEDULE_HELP)
 
 
-def route_run_sample(line, book, read, write):
+def route_run_sample(line, book, read, write, exclude=()):
     """What to send to the Due for a typed line, or None when nothing must be sent.
 
     `run_sample <slot>` sends that slot if it is available; if it is used or not loaded, asks to erase it first (y), and
@@ -532,7 +573,7 @@ def route_run_sample(line, book, read, write):
             book.erase(slot)
             write(f"Sample {slot} erased: available again.")
     else:
-        slot = book.next_available()
+        slot = book.next_available(exclude)
         if slot is None:
             write("REFUSED | run_sample: every loaded sample is used or not loaded. Type run_sample <slot> to force one.")
             return None
@@ -573,6 +614,13 @@ def on_device_line(session, text, book=None):
     if rec:
         session.test(rec)
         if rec["name"] == "run_sample" and rec["id"] != "summary":
+            # 2026-11-03 (user): a run stopped before its filter was loaded (the dive or the purge) used no filter: the slot
+            # is available again. From the sampling on, the filter is used
+            if book is not None and session.open_slot is not None and ("failed_at=dive" in text or "failed_at=purge" in text):
+                book.release(session.open_slot)
+                message = f"sample {session.open_slot} is available again (stopped before the filter was loaded)"
+                session.line("!", message)
+                print(message, flush=True)
             session.open_slot = None
             session.run_end(now_iso())  # the run_sample is done: PASS or FAIL
     try:
@@ -647,8 +695,9 @@ def main(argv=None):
     try:
         book = ss.SlotBook.load(book_path)
         if book is None:  # a new folder: ask the samples (a restart with the same tag keeps its state)
-            book = ss.SlotBook.new(book_path, ask_loaded(read_line, say))
+            book = ss.SlotBook.new(book_path, len(ss.LOADING_ORDER))  # all available until the start question says otherwise
         say(f"Samples (loading order): {book.summary()}")
+        ask_available_at_start(book, read_line, say)
         state_path = os.path.join(os.path.dirname(session.log_path), sched.STATE_NAME)
         plan = sched.load_plan(args.schedule, state_path, say)  # None when there is no list
     except (EOFError, KeyboardInterrupt) as error:
@@ -707,7 +756,9 @@ def main(argv=None):
         scheduled = sched.Schedule(
             plan,
             state_path,
-            pick=lambda: route_run_sample("run_sample", book, None, say),  # the bare run_sample asks nothing
+            # the automatic order skips the slots that the rows force; a forced row sends its own slot (2026-11-03)
+            pick=lambda: route_run_sample("run_sample", book, None, say, exclude=scheduled.reserved_slots()),
+            pick_slot=lambda slot: route_run_sample(f"run_sample {slot}", book, lambda prompt: "n", say),
             send=send_scheduled,
             say=say,
         )
@@ -736,7 +787,7 @@ def main(argv=None):
             session.line(">", line)
             words = line.split()
             if words and words[0].lower() == "schedule":
-                schedule_command(words[1:], scheduled, _dt.date.today(), read_line, say, session.spool_max_m, session.spool_height_cm)
+                schedule_command(words[1:], scheduled, _dt.date.today(), read_line, say, session.spool_max_m, session.spool_height_cm, book)
                 continue
             if scheduled is not None and words and words[0].lower() == "run_sample":
                 if scheduled.active():  # the list would start a sample on top of this one: ask first

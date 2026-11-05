@@ -27,7 +27,7 @@ const float encoder_to_deg = 360.0 / 4096.0;
 // physical spot; they no longer have to be.
 // The reference is raw 0, which is human slot 7 (the table walks from the purge at raw 8).
 // So `cal` is done with the rotor on slot 7 (2026-10-22). Not the purge hole.
-const float purge_angle = 342.51; // D40 (F191): 276.77 + 67.5 (3 slots). The rotor was aligned to the table, but the reference sat on slot 10: `slot7` landed on physical slot 10. Eye-checked by the user 2026-10-23. Replaces 276.77 (D39, did not fix it); was 276.42 (encoder 3145.00, D37); was 275.45 (encoder 3134.00, D35); was 279.58 (encoder 3181.00, D34, loose encoder); was 345.06 (cal 2026-10-22, encoder 3926.00, D33, loose encoder); was 270.44 (cal 2026-10-20, encoder 3077.00, F165); was 341.37 (cal 2026-10-12, encoder 3884.00)
+const float purge_angle = 340.75; // 2026-11-03 (user, second shift of the day, 3 slots CW): cal on slot 7, encoder 3877.00 = 340.75 deg (3877 x 360 / 4096), O-ring locked. Replaces 47.11 (encoder 536.00, same day, morning, set after the first shift). Replaces 342.51 (D40, F191). Previously: 276.77 + 67.5 (3 slots). The rotor was aligned to the table, but the reference sat on slot 10: `slot7` landed on physical slot 10. Eye-checked by the user 2026-10-23. Replaces 276.77 (D39, did not fix it); was 276.42 (encoder 3145.00, D37); was 275.45 (encoder 3134.00, D35); was 279.58 (encoder 3181.00, D34, loose encoder); was 345.06 (cal 2026-10-22, encoder 3926.00, D33, loose encoder); was 270.44 (cal 2026-10-20, encoder 3077.00, F165); was 341.37 (cal 2026-10-12, encoder 3884.00)
 // for the diff of both:
 // * option 1
 // const float purge_angle = 88.24; //is the angle at which the purge hole is aligned with the rotor hole
@@ -60,7 +60,7 @@ const uint16_t MANIFOLD_CAL_SPEED = 20; // slow but confirmed to actually move t
 // ! make them const again after testing
 extern float angle_offset_pos; // 3; //5.2 for 160 of speed
 // const float angle_offset_neg = 4.9+6.3;
-const float angle_offset_neg = 2.5; // when turning CCW. 2026-10-22 (user): rotate_all dry, CCW moves mean -1.28 deg overshoot, so 1.2 + 1.28 (F128 history: was -1.05 at speed 40, 2026-10-12). Check with rotate_all dry order=fill auto
+const float angle_offset_neg = 3.7; // when turning CCW. 2026-11-03 (user): set by hand after rotate_all dry; was 2.5 (2026-10-22: CCW overshoot -1.28 deg, 1.2 + 1.28; F128 history: -1.05 at speed 40, 2026-10-12). Check with rotate_all dry order=fill auto
 
 enum slot_state
 {

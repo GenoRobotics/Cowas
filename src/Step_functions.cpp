@@ -822,7 +822,6 @@ bool spool_roll_up(bool drain)
     {
         return false;
     }
-    spool_tube_wet = false; // a roll up empties the tube (or the dry roll up leaves it dry): the next sample fills it again
     if (!drain)
     {
         const char *why_dry = "";
@@ -909,11 +908,9 @@ bool spool_roll_up_and_empty(uint32_t *t_rewind_ms, uint32_t *t_empty_ms, bool *
 // Water fill of the spool tube (2026-11-02, user). Before a sample at a depth: the tube is unrolled to the session's deepest
 // point with the air valve V1 open (the air escapes as the tube fills with lake water), the purge slot is primed until the
 // flowmeter counts SPOOL_PRIME_FLOW_ML, then the tube rolls up to the sample's depth while the pump runs. The tube then holds
-// water, so the pump only lifts what remains. The next sample of the same batch (shallower, the tube kept out) skips the first
-// dive. Pure checks in src/Core/spool_fill.
+// water, so the pump only lifts what remains. Every sample starts from a dry tube (2026-11-04: the tube is emptied after each
+// sample). Pure checks in src/Core/spool_fill.
 // ---------------------------------------------------------------------------------------------------------------------
-
-bool spool_tube_wet = false; // the tube holds water and was kept out after the last sample (set by run_full_cycle)
 
 static const float SPOOL_DEPTH_TOL_CM = 0.5f; // cm. A length this close to a goal counts as there
 
@@ -941,14 +938,15 @@ static bool spool_prime_flow()
 
 /**
  * @brief Fills the spool tube with water and brings the intake to a sample's depth, before the sample's purge.
- * Dry tube: dive to the session's deepest point (V1 open, air escapes), or to the sample's depth if that is deeper (the
- * operator proceeded past the session depth). Wet tube (kept out after the last sample): dive only if the sample is deeper
- * than the tube is now. Then the flow check at the purge slot (pump, then off), then the roll up to depth_cm with the
- * deployment valve shut, so the water stays in the tube. No pump runs during the roll up.
+ * Every sample starts from a dry tube (the tube is rolled up and emptied after each sample, 2026-11-04): dive to the session's
+ * deepest point (V1 open, air escapes), or to the sample's depth if that is deeper (the operator proceeded past the session
+ * depth). Then the flow check at the purge slot (pump, then off), then the roll up to depth_cm with the deployment valve
+ * shut, so the water stays in the tube. No pump runs during the roll up. The keep-out between samples of one timepoint
+ * (Monday, 2026-11-02) is archived in docs/archive/code/superseded.
  * No-op (true) when the spool is not active.
  *
  * @param depth_cm intake depth of the sample, in centimeters below the water.
- * @return false if stopped: the caller must not pump, and the tube is no longer trusted to be wet.
+ * @return false if stopped: the caller must not pump.
  */
 bool spool_fill_and_rise(int depth_cm)
 {
@@ -960,8 +958,18 @@ bool spool_fill_and_rise(int depth_cm)
     {
         return false;
     }
-    const bool was_wet = spool_tube_wet;
-    spool_tube_wet = false; // stays false until the caller keeps the tube out after the sample
+    if (spool.depth_in_doubt())
+    {
+        // 2026-11-04 (user): a top-switch press disagreed with the encoder, so the depth is in doubt. Before the filter is loaded,
+        // home to the origin so that the depth of this sample is known
+        output.println("Spool: depth in doubt (top-switch event): rolling up to the origin before the sample");
+        const char *why_home = "";
+        if (!spool.go_home(&why_home))
+        {
+            output.println(String("ERROR | spool fill: the homing before the sample failed: ") + why_home + ". Nothing was pumped. Check the tube, then spool_home");
+            return false;
+        }
+    }
     // the total tube length never exceeds SPOOL_MAX_LENGTH_CM: the depths are cut at the height's limit (run_sample asks first)
     const int reach_cm = spool_reachable_cm();
     if (reach_cm < 0)
@@ -987,22 +995,11 @@ bool spool_fill_and_rise(int depth_cm)
         return false;
     }
 
-    // 1) unroll: a dry tube goes to the dive depth; a wet one is lowered only when the sample is deeper
-    if (!was_wet)
+    // 1) unroll: the tube is dry, so it goes to the dive depth (the session's deepest point, or the sample's if deeper)
+    output.println("Spool fill: dry tube, unrolling to " + String(dive_cm / 100.0f, 2) + " m (session depth " + String(spool_session_max_m, 2) + " m)");
+    if (!spool_move_depth(dive_cm))
     {
-        output.println("Spool fill: dry tube, unrolling to " + String(dive_cm / 100.0f, 2) + " m (session depth " + String(spool_session_max_m, 2) + " m)");
-        if (!spool_move_depth(dive_cm))
-        {
-            return false; // nothing pumped
-        }
-    }
-    else if (target_len > spool.length_cm() + SPOOL_DEPTH_TOL_CM)
-    {
-        output.println("Spool fill: tube kept out, lowering to the sample depth " + String(depth_cm / 100.0f, 2) + " m");
-        if (!spool_move_depth(depth_cm))
-        {
-            return false;
-        }
+        return false; // nothing pumped
     }
 
     // 2) prime the purge slot until the flowmeter shows water; the pump is off and Vman shut when this returns

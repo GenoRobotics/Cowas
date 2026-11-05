@@ -373,31 +373,31 @@ static bool ask_unused_slots(const char *args, bool *unused)
 {
     String text = args ? String(args) : String("");
     text.trim();
-    bool given = text.length() > 0;
+    if (text.length() == 0)
+    {
+        // 2026-11-04 (user): ask whether ALL slots need cleaning; only on a no, ask which ones do NOT need it
+        const CleanAnswer a = clean_ask_yes_no("Do all slots need cleaning?");
+        if (a == CLEAN_ANSWER_CANCEL)
+        {
+            return false;
+        }
+        if (a == CLEAN_ANSWER_YES)
+        {
+            for (int i = 0; i < NB_SLOT; i++)
+            {
+                unused[i] = false;
+            }
+            return true;
+        }
+        Serial.println("ASK | Type the slot numbers that do NOT need cleaning, separated by commas or spaces (ranges like 3-5 work), then ENTER. x = cancel");
+        if (!read_clean_answer(text))
+        {
+            return false;
+        }
+    }
+    // An invalid list is refused and asked again here, not by the yes/no question above
     for (;;)
     {
-        if (!given)
-        {
-            const CleanAnswer a = clean_ask_yes_no("Were some of the slots 1-14 not used, so they do not need cleaning?");
-            if (a == CLEAN_ANSWER_CANCEL)
-            {
-                return false;
-            }
-            if (a == CLEAN_ANSWER_NO)
-            {
-                for (int i = 0; i < NB_SLOT; i++)
-                {
-                    unused[i] = false;
-                }
-                return true;
-            }
-            Serial.println("ASK | Type the UNUSED slot numbers, separated by commas or spaces (ranges like 3-5 work), then ENTER. x = cancel");
-            if (!read_clean_answer(text))
-            {
-                return false;
-            }
-        }
-        given = false;
         int bad = -1;
         const int n = core::parse_unused_slots(text.c_str(), NB_SLOT, PURGE_SLOT, unused, &bad);
         if (n >= 0)
@@ -413,7 +413,11 @@ static bool ask_unused_slots(const char *args, bool *unused)
         {
             Serial.println("REFUSED | could not read the list. Examples: 3,7,12   or   3 7 12   or   2-5,9   or   none");
         }
-        text = "";
+        Serial.println("ASK | Type the slot numbers that do NOT need cleaning (x = cancel)");
+        if (!read_clean_answer(text))
+        {
+            return false;
+        }
     }
 }
 
@@ -424,7 +428,9 @@ void purge_pipes_manifold(const char *args)
         return;
     }
 
-    if (!core::may_rotate(oring_lock_state()))
+    // 2026-11-04 (user): a LOCKED O-ring is no reason to refuse. Each slot change unlocks it (rotateMotor / goto_slot_locked)
+    // and locks it again at the slot, so only UNKNOWN stops here (the unlock would be a blind move).
+    if (!core::may_unlock(oring_lock_state()))
     {
         Serial.println(String("REFUSED | ethanol_purge: O-ring lock state is ") + oring_lock_state_name() +
                        " - run actuator_home first (the manifold must rotate between slots)");

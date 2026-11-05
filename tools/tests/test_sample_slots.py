@@ -119,24 +119,6 @@ def collect():
 # --- the start of a folder: how many are loaded
 
 
-def test_ask_loaded_confirms_the_count_once_sorted():
-    read, _ = answers("5", "y")
-    write, lines = collect()
-    assert sl.ask_loaded(read, write) == 5
-    assert any("1, 2, 3, 14, 13" in line for line in lines)
-
-
-def test_ask_loaded_asks_again_when_not_confirmed_and_when_out_of_range():
-    read, _ = answers("20", "3", "n", "3", "y")
-    write, lines = collect()
-    assert sl.ask_loaded(read, write) == 3
-    assert any("Type a number from 0 to 14" in line for line in lines)
-    assert any("Not confirmed" in line for line in lines)
-
-
-# --- routing of a typed run_sample
-
-
 def routed(line, book, *items):
     read, prompts = answers(*items)
     write, lines = collect()
@@ -273,3 +255,48 @@ def test_a_finished_run_clears_the_open_slot_so_a_later_refusal_frees_nothing(tm
     )
     assert book.status(2) == ss.USED  # the run had ended: the sample stays used
     session.close()
+
+
+# --- the slot list typed at the start, and the automatic order that skips forced slots (2026-11-03)
+
+
+def test_the_slot_list_typed_at_the_start_is_parsed():
+    assert ss.parse_slot_list("") == set()
+    assert ss.parse_slot_list("none") == set()
+    assert ss.parse_slot_list("1,2,3") == {1, 2, 3}
+    assert ss.parse_slot_list("1 2  3") == {1, 2, 3}
+    assert ss.parse_slot_list("2-5, 9") == {2, 3, 4, 5, 9}
+    for bad in ("0", "15", "5-2", "abc", "1-"):
+        with pytest.raises(ValueError):
+            ss.parse_slot_list(bad)
+
+
+def test_the_automatic_order_skips_the_excluded_slots(tmp_path):
+    book = ss.SlotBook.new(str(tmp_path / "slots.json"), len(ss.LOADING_ORDER))
+    first, second = ss.LOADING_ORDER[0], ss.LOADING_ORDER[1]
+    assert book.next_available() == first
+    assert book.next_available(exclude={first}) == second
+    assert book.next_available(exclude=set(ss.LOADING_ORDER)) is None
+
+
+# --- the start question: which samples are available (2026-11-03)
+
+
+def test_set_available_marks_the_others_used_and_keeps_the_not_loaded(tmp_path):
+    book = ss.SlotBook.new(str(tmp_path / "slots.json"), len(ss.LOADING_ORDER))
+    book.set_available({4, 5, 9})
+    assert book.status(4) == ss.AVAILABLE and book.status(9) == ss.AVAILABLE
+    assert book.status(1) == ss.USED and book.status(14) == ss.USED
+    assert book.next_available() == 9  # the loading order: 9 comes before 4 in LOADING_ORDER
+    not_loaded = ss.SlotBook.new(str(tmp_path / "b.json"), 3)  # 4..14 not loaded
+    not_loaded.set_available({1, 2, 3, 4})
+    assert not_loaded.status(4) == ss.AVAILABLE  # listed: available, even if it was not loaded
+    assert not_loaded.status(14) == ss.UNAVAILABLE  # not listed and not available before: stays not loaded
+
+
+def test_a_used_sample_listed_again_becomes_available(tmp_path):
+    book = ss.SlotBook.new(str(tmp_path / "slots.json"), len(ss.LOADING_ORDER))
+    book.mark_used(2)
+    book.set_available(set(ss.LOADING_ORDER))  # "all"
+    assert book.status(2) == ss.AVAILABLE
+

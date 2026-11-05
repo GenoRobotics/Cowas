@@ -386,14 +386,14 @@ def test_the_saved_list_has_the_real_times_at_each_change(tmp_path):
     assert rows[0] == sc.INPUT_COLUMNS + sc.STATE_COLUMNS
     assert rows[1][:6] == ["2026-10-26", "09:30", "lake A", "control", "on", "2.5"]
     assert (
-        rows[1][6] == "3"
-        and rows[1][7]
-        and rows[1][8] == ""
-        and rows[1][9] == sc.RUNNING
+        rows[1][7] == "3"
+        and rows[1][8]
+        and rows[1][9] == ""
+        and rows[1][10] == sc.RUNNING
     )
     schedule.device_line("TEST|run_sample|3|PASS|")
     rows = rows_of(tmp_path / "schedule.csv")
-    assert rows[1][8] and rows[1][9] == sc.PASS
+    assert rows[1][9] and rows[1][10] == sc.PASS
 
 
 def test_a_sample_due_while_the_one_before_runs_waits_for_it(tmp_path):
@@ -524,9 +524,7 @@ def test_an_error_in_the_thread_is_reported_and_the_list_can_be_started_again(tm
     assert wait_for(lambda: device.sent == ["run_sample 1"])
 
 
-# --- the spool: the depth goes to the device, and the next-depth question (2026-11-02)
-
-ASK_NEXT = "ASK | spool: next sample depth in m (ENTER = none, the spool rolls up)  (type the answer + ENTER, x = none)"
+# --- the spool: the depth goes to the device (2026-11-02; the next-depth question was archived 2026-11-04)
 
 
 def test_a_spool_sample_is_sent_with_its_depth_and_a_spool_off_sample_is_not(tmp_path):
@@ -540,55 +538,58 @@ def test_a_spool_sample_is_sent_with_its_depth_and_a_spool_off_sample_is_not(tmp
     assert device.sent[-1] == "run_sample 5"
 
 
-def test_the_next_spool_sample_at_the_same_time_keeps_the_tube_out(tmp_path):
-    first = sample("11:50", name="first", spool=True, depth_m="15")
-    second = sample("11:50", name="second", spool=True, depth_m="7,5".replace(",", "."))
-    schedule, _ = make([first, second], tmp_path)  # the deepest first: the 7.5 m sample follows at the same time
-    started(schedule, first)
-    assert schedule.device_line(ASK_NEXT) == "7.5"
 
 
-def test_a_sample_a_few_minutes_later_does_not_keep_the_tube_out(tmp_path):
-    # 2026-11-02 (user): only the same timepoint keeps the tube full; a later one rolls the tube up
-    first = sample("11:50", name="first", spool=True, depth_m="2")
-    second = sample("12:05", name="second", spool=True, depth_m="7,5".replace(",", "."))
-    schedule, _ = make([first, second], tmp_path)
-    started(schedule, first)
-    assert schedule.device_line(ASK_NEXT) == ""
-
-
-def test_the_tube_rolls_up_when_the_next_sample_is_far_off_or_has_no_spool_or_is_none(tmp_path):
-    for second in (
-        sample("14:00", name="later", spool=True, depth_m="3"),  # due in 2 h
-        sample("12:01", name="no spool"),  # due now but spool off
-    ):
-        first = sample("11:50", name="first", spool=True, depth_m="2")
-        schedule, _ = make([first, second], tmp_path)
-        started(schedule, first)
-        assert schedule.device_line(ASK_NEXT) == ""
-    alone = sample("11:50", name="alone", spool=True, depth_m="2")
-    schedule, _ = make([alone], tmp_path)
-    started(schedule, alone)
-    assert schedule.device_line(ASK_NEXT) == ""
-
-
-def test_the_tube_rolls_up_after_schedule_stop(tmp_path):
+def test_a_sample_that_leaves_the_spool_out_stops_the_schedule(tmp_path):
+    # 2026-11-03 (field): a failed rewind left the tube out and the next sample ran from it. Now nothing more starts.
     first = sample("11:50", name="first", spool=True, depth_m="2")
     second = sample("12:00", name="second", spool=True, depth_m="4")
-    schedule, _ = make([first, second], tmp_path)
-    started(schedule, first)
-    schedule.stop()
-    assert schedule.device_line(ASK_NEXT) == ""
+    schedule, device = make([first, second], tmp_path)
+    started(schedule, first, "run_sample 4")
+    schedule.device_line("TEST|run_sample|4|FAIL|spool_end=FAILED;failed_at=purge")
+    assert schedule._halt.is_set()
+    assert any("STOPPED" in line for line in device.said)
 
 
-def test_equal_rows_do_not_confuse_the_next_sample(tmp_path):
-    # two identical rows (same time, same default name): the next one is still the second, not the first again
-    one = sample("11:50", name="same", spool=True, depth_m="2")
-    two = sample("11:50", name="same", spool=True, depth_m="2")
-    three = sample("11:50", name="third", spool=True, depth_m="1")
-    schedule, _ = make([one, two, three], tmp_path)
-    started(schedule, two)
-    assert schedule.device_line(ASK_NEXT) == "1"
+def test_a_refused_sample_stops_the_schedule_so_the_rest_are_not_refused_in_a_row(tmp_path):
+    first = sample("11:50", name="first", spool=True, depth_m="2")
+    second = sample("12:00", name="second", spool=True, depth_m="4")
+    schedule, device = make([first, second], tmp_path)
+    started(schedule, first, "run_sample 4")
+    schedule.device_line("REFUSED | run_sample: O-ring lock state is UNKNOWN - run actuator_home")
+    assert first.status == sc.REFUSED and schedule._halt.is_set()
+    assert any("STOPPED" in line for line in device.said)
+
+
+def test_an_x_stops_the_schedule_even_when_the_roll_up_worked(tmp_path):
+    # 2026-11-03 (F225): the operator's x stops the sample; the list stops too, it does not run the next row
+    first = sample("11:50", name="first", spool=True, depth_m="2")
+    second = sample("12:00", name="second", spool=True, depth_m="4")
+    schedule, device = make([first, second], tmp_path)
+    started(schedule, first, "run_sample 4")
+    schedule.device_line("TEST|run_sample|4|FAIL|slot=4;aborted=x;spool_end=rolled_up_after_x")
+    assert first.status == sc.FAIL and schedule._halt.is_set()
+    assert any("stopped with x" in line and "schedule start <row>" in line for line in device.said)
+
+
+def test_restart_at_a_row_skips_the_waiting_rows_before_it_and_keeps_the_passed_ones(tmp_path):
+    def rows():
+        out = [sample("09:00", name=n) for n in ("a", "b", "c", "d")]
+        for s, status in zip(out, (sc.WAITING, sc.FAIL, sc.WAITING, sc.PASS)):
+            s.status = status
+        return out
+
+    before = rows()
+    assert [s.status for s in sc.restart_rows(before, 3)] == [sc.SKIPPED, sc.FAIL, sc.WAITING, sc.PASS]
+    assert [s.status for s in sc.restart_rows(before, 2)] == [sc.SKIPPED, sc.WAITING, sc.WAITING, sc.PASS]
+    assert before[0].status == sc.WAITING  # copies: the list itself is not changed
+
+
+def test_restart_at_a_passed_row_runs_it_again_and_its_slot_is_cleared(tmp_path):
+    s = sample("09:00", name="a")
+    s.status, s.slot, s.started = sc.PASS, "12", "2026-11-03T09:00:00"
+    out = sc.restart_rows([s], 1)
+    assert (out[0].status, out[0].slot, out[0].started) == (sc.WAITING, "", "")
 
 
 def test_samples_at_the_same_time_keep_the_order_of_the_file(tmp_path):
@@ -597,19 +598,8 @@ def test_samples_at_the_same_time_keep_the_order_of_the_file(tmp_path):
     assert [s.name for s in resolved] == ["b", "a", "c"]
 
 
-def test_samples_at_the_same_time_run_the_deepest_first_then_the_file_order(tmp_path):
-    rows = [
-        sample("09:30", name="one_m", spool=True, depth_m="1"),
-        sample("09:30", name="off", spool=False),
-        sample("09:30", name="fifteen_m", spool=True, depth_m="15"),
-        sample("09:30", name="five_m", spool=True, depth_m="5"),
-        sample("09:30", name="five_m_again", spool=True, depth_m="5"),
-    ]
-    resolved = sc.resolve(rows, dt.date(2026, 10, 26))
-    assert [s.name for s in resolved] == ["fifteen_m", "five_m", "five_m_again", "one_m", "off"]
-
-
-def test_deepest_first_does_not_move_samples_at_other_times(tmp_path):
+def test_the_time_order_is_kept_whatever_the_depth(tmp_path):
+    # 2026-11-04: the deepest-first sort of 2026-11-02 is archived; the order is date, time, then the file
     rows = [
         sample("10:00", name="late_deep", spool=True, depth_m="15"),
         sample("09:30", name="early_shallow", spool=True, depth_m="1"),
@@ -736,4 +726,117 @@ def test_the_schedule_runs_and_logs_in_the_operational_order(tmp_path):
     schedule.thread.join(10)
     assert [t.split()[1] for t in sent if t.startswith("run_sample")] == ["1", "2", "3", "4"]
     names = [line.split(",")[2] for line in state.read_text(encoding="utf-8").splitlines()[1:]]
-    assert names == ["early", "fifteen_m", "five_m", "one_m"]
+    assert names == ["early", "one_m", "fifteen_m", "five_m"]  # time order, then the file order at 09:00 (2026-11-04)
+
+
+# --- the force_slot column (2026-11-03)
+
+
+def test_a_forced_slot_is_read_checked_and_saved(tmp_path):
+    path = tmp_path / "in.csv"
+    path.write_text(
+        "date,time,name,condition,spool,depth_m,force_slot\n+0,09:30,a,control,,,3\n+0,10:00,b,control,,,\n",
+        encoding="utf-8",
+    )
+    samples = sc.read_schedule(str(path))
+    assert [s.force_slot for s in samples] == ["3", ""]
+    bad = tmp_path / "bad.csv"
+    bad.write_text("date,time,name,condition,spool,depth_m,force_slot\n+0,09:30,a,control,,,15\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="force_slot"):
+        sc.read_schedule(str(bad))
+    state = tmp_path / "state.csv"
+    sc.write_state(str(state), samples)
+    assert [s.force_slot for s in sc.load_state(str(state))] == ["3", ""]
+
+
+def test_a_forced_row_is_sent_to_its_own_slot_and_reserves_it(tmp_path):
+    forced = sample("09:30", name="forced", spool=False)
+    forced.force_slot = "7"
+    sent = []
+
+    def send(text):
+        sent.append(text)
+        if text.startswith("run_sample"):
+            threading.Timer(0.02, lambda: schedule.device_line(f"TEST|run_sample|{text.split()[1]}|PASS|")).start()
+
+    schedule = sc.Schedule(
+        [forced],
+        str(tmp_path / "state.csv"),
+        pick=lambda: "run_sample 1",  # the automatic order is not used for a forced row
+        send=send,
+        say=lambda text: None,
+        now=lambda: NOON,
+        pick_slot=lambda slot: f"run_sample {slot}",
+    )
+    assert schedule.reserved_slots() == {7}
+    schedule.start(dt.date(2026, 10, 26))
+    schedule.thread.join(10)
+    assert [t.split()[1] for t in sent if t.startswith("run_sample")] == ["7"]
+
+
+# --- a failure before the filter was loaded (2026-11-03, user): the same filter, twice, then the next row; no thread
+
+
+def run_loop(rows, tmp_path, reply):
+    """Runs the list's loop (Schedule._run). Each run_sample is answered at once with reply(attempt) (1, 2, ...), a device line.
+    pick gives a new slot each time, so a retry that takes another slot shows up in `sent`."""
+    resolved = sc.resolve(rows, dt.date(2026, 10, 26))
+    device = Device()
+    slots = iter(range(1, 100))
+    attempts = []
+
+    def send(text):
+        device.sent.append(text)
+        slot = int(text.split()[1])
+        attempts.append(slot)
+        schedule.device_line(reply(len(attempts), slot))
+
+    schedule = sc.Schedule(
+        resolved, str(tmp_path / "state.csv"), pick=lambda: f"run_sample {next(slots)}", send=send,
+        say=device.say, now=lambda: dt.datetime(2026, 10, 26, 10, 0),
+        pick_slot=lambda slot: f"run_sample {slot}",
+    )
+    halt = threading.Event()
+    schedule._halt = halt
+    schedule._run(halt)
+    return schedule, device, halt
+
+
+PURGE_FAIL = "TEST|run_sample|{slot}|FAIL|slot={slot};failed_at=purge;spool_end=rolled_up_after_failure"
+
+
+def test_a_failure_before_the_filter_is_tried_again_on_the_same_filter(tmp_path):
+    schedule, device, halt = run_loop([sample("09:00", name="a")], tmp_path,
+                                      lambda n, slot: PURGE_FAIL.format(slot=slot) if n < 3 else PURGE_FAIL.replace("FAIL", "PASS").format(slot=slot))
+    assert device.sent == ["run_sample 1", "run_sample 1", "run_sample 1"]  # the first try and the retries: slot 1 each time
+    assert schedule.samples[0].status == sc.PASS and not halt.is_set()
+    assert any("Trying again on the same filter 1, 1 of 2" in line for line in device.said)
+
+
+def test_after_two_retries_the_row_stays_failed_and_the_list_goes_on_with_the_next_row(tmp_path):
+    rows = [sample("09:00", name="a"), sample("09:30", name="b")]
+    schedule, device, halt = run_loop(rows, tmp_path,
+                                      lambda n, slot: PURGE_FAIL.format(slot=slot) if n <= 3 else PURGE_FAIL.replace("FAIL", "PASS").format(slot=slot))
+    assert len(device.sent) == 4 and not halt.is_set()  # a: three tries, then b
+    assert [s.status for s in schedule.samples] == [sc.FAIL, sc.PASS]
+    assert any("Not run again; the list goes on" in line for line in device.said)
+
+
+def test_an_x_is_never_tried_again(tmp_path):
+    schedule, device, halt = run_loop([sample("09:00", name="a")], tmp_path,
+                                      lambda n, slot: f"TEST|run_sample|{slot}|FAIL|slot={slot};aborted=x;failed_at=purge;spool_end=rolled_up_after_x")
+    assert len(device.sent) == 1 and halt.is_set()
+
+
+def test_a_failure_with_the_spool_out_is_not_tried_again(tmp_path):
+    schedule, device, halt = run_loop([sample("09:00", name="a")], tmp_path,
+                                      lambda n, slot: f"TEST|run_sample|{slot}|FAIL|slot={slot};failed_at=purge;spool_end=FAILED")
+    assert len(device.sent) == 1 and halt.is_set()
+
+
+def test_a_failure_after_the_sampling_is_not_tried_again_and_the_list_goes_on(tmp_path):
+    rows = [sample("09:00", name="a"), sample("09:30", name="b")]
+    schedule, device, halt = run_loop(rows, tmp_path,
+                                      lambda n, slot: f"TEST|run_sample|{slot}|FAIL|slot={slot};failed_at=sampling;spool_end=rolled_up_after_failure")
+    assert len(device.sent) == 2 and not halt.is_set()
+    assert [s.status for s in schedule.samples] == [sc.FAIL, sc.FAIL]

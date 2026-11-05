@@ -1,0 +1,10 @@
+date,time,name,condition,spool,depth_m
+0,13:05,E1_T6_20M_R1,sample,on,20
+0,13:05,E1_T6_20M_R2,sample,on,20
+0,13:05,E1_T6_05M_R1,sample,on,5
+0,13:05,E1_T6_05M_R2,sample,on,5
+0,13:05,E1_T6_01M_R1,sample,on,1
+0,13:05,E1_T6_01M_R2,sample,on,1
+0,16:00,E1_T7_20M_R1,sample,on,20
+0,16:00,E1_T7_05M_R1,sample,on,5
+0,16:00,E1_T7_01M_R1,sample,on,1

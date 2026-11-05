@@ -56,6 +56,17 @@ void test_move_arrives(void)
     TEST_ASSERT_EQUAL(SPOOL_MOVE_ARRIVED, spool_move_state(up_to(100), 250, 96, 9000, 0));
 }
 
+void test_origin_press_only_where_the_origin_can_be(void)
+{
+    // 2026-11-03: a press far from the origin during a rise is a false press; homing takes any place
+    TEST_ASSERT_TRUE(spool_origin_press_real(false, 0.0f, 30.0f));
+    TEST_ASSERT_TRUE(spool_origin_press_real(false, 25.0f, 30.0f));
+    TEST_ASSERT_TRUE(spool_origin_press_real(false, -20.0f, 30.0f)); // encoder a little negative after a coast
+    TEST_ASSERT_FALSE(spool_origin_press_real(false, 300.0f, 30.0f));
+    TEST_ASSERT_FALSE(spool_origin_press_real(false, 590.0f, 30.0f));
+    TEST_ASSERT_TRUE(spool_origin_press_real(true, 4000.0f, 30.0f)); // homing from an unknown position
+}
+
 void test_move_wrong_way(void)
 {
     // unrolling, but the length shrinks by more than 5 cm: encoder wired the other way round
@@ -140,6 +151,7 @@ int main(int, char **)
     RUN_TEST(test_depth_to_length);
     RUN_TEST(test_depth_to_length_refuses);
     RUN_TEST(test_move_arrives);
+    RUN_TEST(test_origin_press_only_where_the_origin_can_be);
     RUN_TEST(test_move_wrong_way);
     RUN_TEST(test_move_stalled_and_timeout);
     RUN_TEST(test_move_to_switch_ignores_goal_and_direction);

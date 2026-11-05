@@ -21,11 +21,10 @@ Columns of the input file (first line, any case; ',' or ';' as separator, so Fre
                 Off = the spool is not moved (the session must still say whether the module is on the machine: it sets the purge).
     depth_m     metres, 0 to 40, only when spool is on (2.5 or 2,5). Empty otherwise.
 
-Samples at the same time run one after the other, the deepest first (spool off last), then in the order of the file.
-The device fills the tube at the session's deepest point and rolls up to each depth, so shallower samples at the same time cost no
-new dive. When the sample on the device has ended its shield step, the device asks `spool: next sample depth`. The tool answers
-with the depth of the next waiting sample only if that sample has the spool on and the SAME date and time (the tube stays full and
-goes straight to that depth). Otherwise it answers nothing and the tube rolls up with the air and water valves open so it empties.
+Samples run in date and time order; samples at the same time run in the order of the file. Every spool sample starts from a dry
+tube: the device dives to the session's deepest point, primes, and rises to the sample's depth (2026-11-04: the Monday
+"deepest first, keep the tube out" plan is archived in docs/archive/code/superseded). The tube is rolled up and emptied after
+each sample, so the device asks no next-depth question.
 
 Pure logic and one thread. No serial port here: session_log.py sends the lines and passes in the device's lines.
 """
@@ -38,15 +37,17 @@ import re
 import threading
 from dataclasses import dataclass, replace
 
-INPUT_COLUMNS = ["date", "time", "name", "condition", "spool", "depth_m"]
+import sample_slots as ss
+
+INPUT_COLUMNS = ["date", "time", "name", "condition", "spool", "depth_m", "force_slot"]
 STATE_COLUMNS = ["slot", "started_pc", "finished_pc", "status"]
 STATE_NAME = "schedule.csv"  # in the run folder
 NO_CONDITION = "not_given"  # no space: the device takes none in a name or condition
 MAX_TUBE_M = 40.0  # the total tube, depth + spool height (SPOOL_MAX_LENGTH_CM in Settings.h); the device never goes beyond it
 MAX_DEPTH_M = 40.0  # the longest tube of the spool (SPOOL_MAX_LENGTH_CM in Settings.h; the device also checks the height)
-NEXT_GRACE_MIN = 10  # the next sample counts as waiting if it is due within this many minutes of the end of the sample
 POLL_S = 0.5  # how often the waits look at the clock
 REMIND_S = 600  # while a sample has no TEST line, the log says so this often
+RETRY_MAX = 2  # a row that fails before its filter was loaded is tried again this many times, on the same filter (then the list goes on)
 
 # Status of a sample. Only WAITING samples are run by `schedule start`.
 WAITING = "waiting"
@@ -56,8 +57,11 @@ INTERRUPTED = (
 )
 NO_SAMPLE_LEFT = "no sample left"
 REFUSED = "refused"  # the device did not start it: its slot is still unused
+SKIPPED = "skipped"  # waiting, but before the row chosen at `schedule start <row>`: not run
 PASS, FAIL, SKIP = "PASS", "FAIL", "SKIP"  # the device's result
-STARTED = (RUNNING, INTERRUPTED, NO_SAMPLE_LEFT, REFUSED, PASS, FAIL, SKIP)
+STARTED = (RUNNING, INTERRUPTED, NO_SAMPLE_LEFT, REFUSED, SKIPPED, PASS, FAIL, SKIP)
+# the statuses that `schedule start <row>` puts back to waiting from the row on (a PASS is never run twice)
+RERUN_STATUSES = (FAIL, REFUSED, INTERRUPTED, NO_SAMPLE_LEFT, WAITING)
 
 # The device's lines (Tests_mech.cpp)
 ASK_PREFIX = "ASK | "
@@ -86,6 +90,7 @@ class Sample:
     started: str = ""  # PC time the run_sample was sent
     finished: str = ""  # PC time of its TEST line, or of the refusal
     status: str = WAITING
+    force_slot: str = ""  # "" = the next available sample; a sample number = this row runs on that slot (2026-11-03)
 
     @property
     def due(self):
@@ -193,7 +198,15 @@ def sample_from_cells(cells):
             raise ValueError(
                 f"depth_m cannot be more than {MAX_DEPTH_M:g} m (the longest tube of the spool)"
             )
+    force = cells.get("force_slot", "").strip()
+    if force:
+        if not force.isdigit() or int(force) not in ss.LOADING_ORDER:
+            raise ValueError(
+                f"force_slot must be a sample number 1 to {len(ss.LOADING_ORDER)}, or empty, not {force!r}"
+            )
+        force = str(int(force))
     return Sample(
+        force_slot=force,
         date=parse_date(cells["date"]),
         time=parse_time(cells.get("time", "")),
         name=cells.get("name", "").replace(" ", "_"),  # the device takes no space in a sample name
@@ -264,16 +277,29 @@ def resolve(samples, base):
             else s.date
         )
         out.append(replace(s, date=date, name=s.name or f"{date} {s.time}"))
-    # ISO dates and HH:MM sort correctly as text. Samples at the same time: the deepest first (2026-11-02, user): the tube is
-    # filled at the session's deepest point, then rises from one sample depth to the next. Spool off counts as 0 m (last).
+    # ISO dates and HH:MM sort correctly as text. Samples at the same time keep the order of the file (2026-11-04: the
+    # deepest-first sort of 2026-11-02 is archived with the keep-out)
     return sorted(
-        out, key=lambda s: (s.date, s.time, -_depth_or_zero(s))
+        out, key=lambda s: (s.date, s.time)
     )
 
 
-def _depth_or_zero(sample):
-    """The depth of a sample in metres, 0 when the spool is off (no depth)."""
-    return float(sample.depth_m) if sample.depth_m else 0.0
+def restart_rows(samples, row):
+    """The list after `schedule start <row>` (row = 1-based, as `schedule` numbers it). Copies: nothing is changed.
+    Rows before `row` that still wait are SKIPPED (not run). The row itself waits again, even if it passed. From it on, every
+    row that has not passed waits again (RERUN_STATUSES). PASS stays PASS. Slot and times of a re-run row are cleared; the
+    earlier attempt stays in the session log and the sample records."""
+    out = []
+    for number, s in enumerate(samples, 1):
+        t = replace(s)
+        if number < row:
+            if t.status == WAITING:
+                t.status = SKIPPED
+        elif number == row or t.status in RERUN_STATUSES:
+            t.status = WAITING
+            t.slot = t.started = t.finished = ""
+        out.append(t)
+    return out
 
 
 def load_state(path):
@@ -309,6 +335,7 @@ def write_state(path, samples):
                     s.condition,
                     "on" if s.spool else "off",
                     s.depth_m,
+                    s.force_slot,
                     s.slot,
                     s.started,
                     s.finished,
@@ -368,6 +395,8 @@ def table_lines(samples, now):
     lines = []
     for s in samples:
         spool = f"spool on at {s.depth_m} m" if s.spool else "spool off"
+        if s.force_slot:
+            spool += f", forced to slot {s.force_slot}"
         late = ""
         if s.status == WAITING and not s.date.startswith("+") and s.due < now:
             late = "  (time passed: runs as soon as the one before has finished)"
@@ -386,6 +415,12 @@ def spool_note(samples):
             "sample is waiting). The session must have the spool answer y, and spool_height must be set after a reset."
         )
     return None
+
+
+def unused_filter(device_text):
+    """True when the run stopped before its filter was loaded: the dive or the purge (the filter is only touched at the
+    sampling, D75). The device's TEST line says failed_at=dive or failed_at=purge."""
+    return "failed_at=dive" in device_text or "failed_at=purge" in device_text
 
 
 def run_outcome(text):
@@ -411,7 +446,7 @@ class Schedule:
     The list is saved in state_path at every change.
     """
 
-    def __init__(self, samples, state_path, pick, send, say, now=None):
+    def __init__(self, samples, state_path, pick, send, say, now=None, pick_slot=None):
         self.samples = samples
         self.state_path = state_path
         self.pick = pick
@@ -432,12 +467,31 @@ class Schedule:
         self._halt = threading.Event()  # set = no further sample starts
         self._halt.set()
         self.accepted_deeper = set()  # set by start(): the depth conflicts the operator accepted
+        # pick_slot(slot) -> the line for a row that forces its slot (2026-11-03); the default sends it as typed
+        self.pick_slot = pick_slot or (lambda slot: f"run_sample {slot}")
         self.thread = None
+        self.retries = {}  # id(sample) -> how many times the row was tried again (a failure before its filter was loaded)
+        self.retry_slot = {}  # id(sample) -> the filter of the failed try: the retry uses that same filter
 
     # --- what the operator sees
 
     def pending(self):
         return [s for s in self.samples if s.status == WAITING]
+
+    def _retry_wanted(self, sample, outcome, device_text):
+        """A FAIL before the filter was loaded, with the spool not left out and no x, is tried again (RETRY_MAX times per row).
+        Any other failure goes on as before (the halt rules in _end)."""
+        return (
+            outcome == FAIL
+            and unused_filter(device_text)
+            and "spool_end=FAILED" not in device_text
+            and "aborted=x" not in device_text
+            and self.retries.get(id(sample), 0) < RETRY_MAX
+        )
+
+    def reserved_slots(self):
+        """The slots the waiting rows force: the automatic order must not take them (2026-11-03)."""
+        return {int(s.force_slot) for s in self.pending() if s.force_slot}
 
     def active(self):
         """True while the list runs (started and not stopped)."""
@@ -454,17 +508,23 @@ class Schedule:
     def table(self):
         return table_lines(self.samples, self.now())
 
-    def preview(self, base):
-        """The list with the dates it would have if started on `base`. Nothing is changed."""
-        return table_lines(resolve(self.samples, base), self.now())
+    def preview(self, base, rows=None):
+        """The list with the dates it would have if started on `base` (rows: the list a restart would run, see restart_rows).
+        Nothing is changed."""
+        return table_lines(resolve(self.samples if rows is None else rows, base), self.now())
 
     # --- control
 
-    def start(self, base, accepted_deeper=()):
+    def start(self, base, accepted_deeper=(), rows=None):
         """`schedule start`: fixes the dates (+N counts from `base`) and runs what is left. False if it runs already.
         accepted_deeper: the sample_key()s of the rows the operator accepted at start (the depth conflicts). Only those
-        get `y` when the device asks about their depth; any other deep sample is left to the operator."""
-        if self.active() or not self.pending():
+        get `y` when the device asks about their depth; any other deep sample is left to the operator.
+        rows: the list to run instead of the saved one (`schedule start <row>`, see restart_rows)."""
+        if self.active():
+            return False
+        if rows is not None:
+            self.samples[:] = rows
+        if not self.pending():
             return False
         self.samples[:] = resolve(self.samples, base)
         self.write()
@@ -516,8 +576,11 @@ class Schedule:
             )
 
     def _run(self, halt):
-        for sample in list(self.samples):
+        i = 0
+        while i < len(self.samples):
+            sample = self.samples[i]
             if sample.status != WAITING:
+                i += 1
                 continue
             if not self._wait_for_time(sample, halt):
                 return
@@ -527,15 +590,31 @@ class Schedule:
                 )
             if not self._wait_idle(halt):
                 return
-            line = self.pick()
+            # a retry takes the same filter as the failed try (it was not used): the row's own slot, not the next free one
+            retry_slot = self.retry_slot.get(id(sample))
+            if retry_slot is not None:
+                line = self.pick_slot(retry_slot)
+            elif sample.force_slot:
+                line = self.pick_slot(int(sample.force_slot))
+            else:
+                line = self.pick()
             if line is None:
                 with self._lock:
                     sample.status = NO_SAMPLE_LEFT
                 self.write()
-                self.say(f"schedule: {sample.name}: no sample left, not run")
+                if retry_slot is not None:
+                    self.say(f"schedule: {sample.name}: its filter {retry_slot} is not free for the retry, not run")
+                else:
+                    self.say(f"schedule: {sample.name}: no sample left, not run")
+                i += 1
                 continue
             if not self._start_sample(sample, line, halt):
                 return
+            # the sample ends first. _end either ends the row, or sets it WAITING again for a retry (the same row, next pass)
+            if not self._wait_idle(halt):
+                return
+            if sample.status != WAITING:
+                i += 1
         if self._wait_idle(halt):
             self.say("schedule: every sample has run, been refused or been skipped")
 
@@ -577,7 +656,6 @@ class Schedule:
             sample.slot = line.split()[1] if len(line.split()) > 1 else ""
             if sample.spool:
                 line += f" depth={depth_arg(sample.depth_m)}"
-                self.answers["spool: next sample depth"] = lambda: self._next_depth(sample)
                 if sample_key(sample) in self.accepted_deeper:
                     self.answers["run_sample: solve it or proceed?"] = "y"
             sample.started = stamp()
@@ -589,25 +667,6 @@ class Schedule:
         )
         self.send(line)
         return True
-
-    def _next_depth(self, sample):
-        """The answer to `spool: next sample depth`: the depth of the next waiting sample when it is already due (or due
-        within NEXT_GRACE_MIN minutes) and has the spool on, else "" (the tube rolls up). Called with the lock held."""
-        if self._halt.is_set():
-            return ""  # `schedule stop`: no further sample starts
-        position = next(i for i, s in enumerate(self.samples) if s is sample)  # identity: equal rows can exist
-        following = next(
-            (s for s in self.samples[position + 1 :] if s.status == WAITING), None
-        )
-        if following is None or not following.spool:
-            return ""
-        if (following.date, following.time) != (sample.date, sample.time):
-            return ""  # 2026-11-02 (user): only a sample at the same timepoint keeps the tube full; otherwise it rolls up
-        try:
-            wait = (following.due - self.now()).total_seconds()
-        except ValueError:  # a date not resolved yet: roll up, the safe answer
-            return ""
-        return depth_arg(following.depth_m) if wait <= NEXT_GRACE_MIN * 60 else ""
 
     # --- the device's lines (called by the reader thread)
 
@@ -642,10 +701,50 @@ class Schedule:
 
     def _end(self, outcome, device_text):
         sample, self.current = self.current, None
+        if self._retry_wanted(sample, outcome, device_text):
+            # 2026-11-03 (user): a failure before the filter was loaded used no filter: the same row is tried again, on the next
+            # free filter (the released one comes first). The list does not stop
+            used = self.retries.get(id(sample), 0) + 1
+            self.retries[id(sample)] = used
+            self.retry_slot[id(sample)] = int(sample.slot)  # the same filter: it was not used
+            sample.status = WAITING
+            sample.slot = sample.started = sample.finished = ""
+            self.write()
+            self.say(
+                f"schedule: {sample.name} ({sample.date} {sample.time}): failed before its filter was loaded "
+                f"({device_text.split('failed_at=')[-1].split(';')[0]}). Trying again on the same filter "
+                f"{self.retry_slot[id(sample)]}, {used} of {RETRY_MAX}"
+            )
+            self._idle.set()
+            return
         sample.finished = stamp()
         sample.status = outcome
+        self.retry_slot.pop(id(sample), None)  # the row is over: no retry pending on its filter
         self.write()
         self.say(
             f"schedule: {sample.name} ({sample.date} {sample.time}): {outcome} at {sample.finished}  ({device_text})"
         )
+        # Any of these stops the list: no further sample starts. The samples left stay waiting in the file. The operator
+        # fixes the cause, then `schedule start <row>` runs again from the row chosen (see `schedule`).
+        restart = "Then `schedule start <row>` runs again from the row you choose (`schedule` shows the numbers)."
+        if "spool_end=FAILED" in device_text:
+            # the tube may be out: the next sample would dive from a wrong position
+            self._halt.set()
+            self.say(
+                "schedule STOPPED: the spool did not roll up (spool_end=FAILED). The tube may be out: check it, "
+                f"spool_home. {restart}"
+            )
+        elif "aborted=x" in device_text:
+            # x (2026-11-03, F225): the operator stopped this sample, so the list stops too
+            self._halt.set()
+            self.say(f"schedule STOPPED: the sample was stopped with x. Check the device and the tube. {restart}")
+        elif outcome == REFUSED:
+            # a refusal (O-ring UNKNOWN, no session, height, manifold not aligned, a question not answered) comes back for every
+            # sample until the device is fixed: stop, so the samples left are not all refused in a row
+            self._halt.set()
+            self.say(f"schedule STOPPED: the device refused a sample (the reason is above). Fix it. {restart}")
+        elif outcome == FAIL and unused_filter(device_text):
+            # the tries of this row are used up (user, 2026-11-03): the row stays FAIL, its filter stays free, and the list goes on
+            # with the next row at its own time
+            self.say(f"schedule: {sample.name}: {RETRY_MAX + 1} tries failed before the filter was loaded. Not run again; the list goes on.")
         self._idle.set()  # last: the thread goes on only after the result is shown

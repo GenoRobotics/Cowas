@@ -39,6 +39,30 @@ UNAVAILABLE = "unavailable"  # not loaded in this session (the session start sai
 STATE_NAME = "slots.json"
 
 
+def parse_slot_list(text):
+    """The samples typed at the start of a session: '1,2,3', '1 2 3', '2-5,9' or none/ENTER (empty set).
+    Returns a set of samples. Raises ValueError with the reason (a number that is not a sample, or a bad word)."""
+    text = text.strip().lower()
+    if text in ("", "none", "no", "n"):
+        return set()
+    chosen = set()
+    for token in text.replace(",", " ").split():
+        if "-" in token:
+            first, _, last = token.partition("-")
+            if not (first.isdigit() and last.isdigit()) or int(first) > int(last):
+                raise ValueError(f"not a range: {token!r} (use 2-5)")
+            numbers = range(int(first), int(last) + 1)
+        elif token.isdigit():
+            numbers = [int(token)]
+        else:
+            raise ValueError(f"not a sample number: {token!r}")
+        for n in numbers:
+            if n not in LOADING_ORDER:
+                raise ValueError(f"slot {n} is not a sample (1 to {len(LOADING_ORDER)})")
+            chosen.add(n)
+    return chosen
+
+
 class SlotBook:
     """The status of each sample in one session. `path` is written on every change."""
 
@@ -96,13 +120,26 @@ class SlotBook:
         with self._lock:
             return self.slots.get(slot)
 
-    def next_available(self):
-        """The first sample in LOADING_ORDER that is available, or None if none is left."""
+    def next_available(self, exclude=()):
+        """The first sample in LOADING_ORDER that is available and not in `exclude`, or None if none is left.
+        `exclude`: the slots a schedule row forces (2026-11-03): the automatic order must not take them."""
         with self._lock:
             for s in LOADING_ORDER:
-                if self.slots[s] == AVAILABLE:
+                if self.slots[s] == AVAILABLE and s not in exclude:
                     return s
         return None
+
+    def set_available(self, available):
+        """The start question (2026-11-03): `available` is the set of samples that can be run now. Each of them becomes
+        AVAILABLE (also a used one, when the operator says it is available again). A sample that was available and is not
+        listed becomes USED. A sample not loaded stays not loaded."""
+        with self._lock:
+            for s in LOADING_ORDER:
+                if s in available:
+                    self.slots[s] = AVAILABLE
+                elif self.slots[s] == AVAILABLE:
+                    self.slots[s] = USED
+        self.save()
 
     def mark_used(self, slot):
         """A run_sample has started on `slot`. Slots that are not samples are ignored."""
@@ -110,6 +147,14 @@ class SlotBook:
             return
         with self._lock:
             self.slots[slot] = USED
+        self.save()
+
+    def release(self, slot):
+        """A run stopped before its filter was loaded (the dive or the purge): the filter is unused, so the slot is available
+        again. A slot that is not used is left as it is."""
+        with self._lock:
+            if self.slots.get(slot) == USED:
+                self.slots[slot] = AVAILABLE
         self.save()
 
     def erase(self, slot):

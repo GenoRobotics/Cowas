@@ -72,6 +72,14 @@ void Motor::set_speed(uint8_t _speed, motor_direction _direction)
  * @brief Start the motor with the current settings of speed and direction
  *
  */
+// 2026-11-03 (field, the 20 m sample): the origin-switch interrupts zero the encoder. Their direction test used the last
+// direction, which stays "up" after an upward move, so a falling edge on the switch pin while the spool was idle reset the
+// position (the tube was taken as at the top, and the next sample went 5 m too deep). They now act only while a move runs.
+static volatile bool spool_moving = false;
+// 2026-11-03: falling edges on the origin switch seen while the spool was idle (ignored, not a press). Shown by spool_status.
+static volatile uint32_t spool_idle_edges = 0;
+uint32_t spool_idle_edges_seen() { return spool_idle_edges; }
+
 void Motor::start()
 {
      if (ID=="MANIFOLD")
@@ -102,6 +110,7 @@ void Motor::start()
         {
             endstop_up = false;
             endstop_down = false;
+            if (ID != "MANIFOLD") spool_moving = true; // the spool interrupts act from here until stop()
             // set here direction of motor
             md.setM1Speed(speed * (direction == up ? 1 : -1));
             if (VERBOSE_MOTOR){output.println("Motor started with speed " + String(speed) + " in direction " + (direction == up ? "up" : "down"));}
@@ -151,6 +160,42 @@ static void spool_apply_speed(Motor &m, uint8_t pct, motor_direction dir)
     md.setM1Speed(dir == up ? duty : -duty);
 }
 
+// Keeps the flag set while drive() runs, including on every early return after the start.
+struct SpoolMovingGuard
+{
+    SpoolMovingGuard() {}
+    ~SpoolMovingGuard() { spool_moving = false; }
+};
+
+// One line per spool move, printed when the move ends (2026-11-04, user): the time it took, the length the encoder says it
+// passed, and the average speed, so the depth can be checked against the log. Printed in the destructor, after drive() has
+// stopped the motor and outside the loop (the loop must keep polling the encoder). A move refused before it starts is not logged
+// here: its reason is printed by the caller.
+struct SpoolMoveReport
+{
+    Motor *motor;
+    motor_direction dir;
+    bool to_switch;
+    float start_cm;
+    float goal_cm;
+    uint8_t start_pct;
+    const char **why;
+    uint32_t t0;
+    SpoolMoveReport(Motor *m, motor_direction d, bool sw, float start, float goal, uint8_t pct, const char **w)
+        : motor(m), dir(d), to_switch(sw), start_cm(start), goal_cm(goal), start_pct(pct), why(w), t0(millis()) {}
+    ~SpoolMoveReport()
+    {
+        const float end_cm = motor->length_cm();
+        const float passed_cm = fabsf(end_cm - start_cm);
+        const float seconds = (millis() - t0) / 1000.0f;
+        const float average = seconds > 0.0f ? passed_cm / seconds : 0.0f;
+        output.println(String("Spool move: ") + (dir == up ? "up" : "down") + (to_switch ? " to the origin switch" : " to " + String(goal_cm, 0) + " cm") +
+                       " | time " + String(seconds, 1) + " s | encoder " + String(start_cm, 0) + " -> " + String(end_cm, 0) + " cm (" +
+                       String(passed_cm, 0) + " cm passed) | average " + String(average, 1) + " cm/s | start " + String(start_pct) + " % | " +
+                       ((*why)[0] != '\0' ? String(*why) : String("ok")));
+    }
+};
+
 /**
  * @brief One spool move, blocking. Goes `dir` until the goal length (or the origin switch when to_switch) and stops on the
  * first of: arrival, origin switch, down end-stop, no encoder pulse for SPOOL_STALL_MS, the length going the wrong way,
@@ -172,11 +217,12 @@ bool Motor::drive(motor_direction dir, uint8_t fast_speed, float goal_cm, bool t
     endstop_down = false;
     if (dir == up && button_spool_up.getState() == 0)
     {
-        if (homed && encoder.get_distance_f() > 3.0f * SPOOL_SLOW_ZONE_CM)
+        // the same rule as a press during the move (2026-11-03, F232): the switch is the zero only where the tube can be at the origin
+        if (homed && !core::spool_origin_press_real(false, encoder.get_distance_f(), SPOOL_ORIGIN_TOL_CM))
         {
             // the encoder says the tube is well out but the switch says it is at the top: wrong wiring level or lost position.
             // Do not "arrive" without moving: the tube would stay out and the next dive would start from a false zero.
-            *why = "origin switch reads pressed but the encoder says the tube is out: check the switch wiring (spool_status)";
+            *why = "origin switch is pressed but the encoder says the tube is out: release the switch, or check the wiring (spool_status)";
             return false;
         }
         // already on the origin switch: the ISR only fires on a new press
@@ -184,6 +230,7 @@ bool Motor::drive(motor_direction dir, uint8_t fast_speed, float goal_cm, bool t
         homed = true;
         if (to_switch)
         {
+            depth_doubt = false; // the switch was held where the tube can be at the origin (checked above): the depth is known
             return true;
         }
         *why = "origin switch already pressed: the position was wrong, re-homed";
@@ -196,10 +243,13 @@ bool Motor::drive(motor_direction dir, uint8_t fast_speed, float goal_cm, bool t
     }
 
     const float start_cm = encoder.get_distance_f();
-    // the longest time follows the distance (2026-11-02): margin + distance at the slowest allowed speed. To the switch from a
-    // known position the distance is the tube out now; from an unknown one, the whole tube.
-    const float move_cm = to_switch ? (homed ? start_cm : SPOOL_MAX_LENGTH_CM) : fabsf(goal_cm - start_cm);
-    const uint32_t max_ms = core::spool_move_limit_ms(move_cm, SPOOL_MIN_CM_PER_S, SPOOL_MOVE_MARGIN_MS);
+    // the longest time follows the distance (2026-11-02): margin + distance at the slowest allowed speed. A move to the origin
+    // switch has a fixed limit, SPOOL_HOME_MAX_MS (F224, 2026-11-03): the encoder length can read 0 with the tube out, which
+    // gave a 60 s limit and a timeout. The stall rule still stops a stuck spool.
+    const float move_cm = fabsf(goal_cm - start_cm);
+    // a move to the origin: 20 min from a known position, 30 min from an unknown one (the whole tube at the slow speed)
+    const uint32_t max_ms = to_switch ? (homed ? SPOOL_HOME_MAX_MS : SPOOL_HOME_UNKNOWN_MAX_MS) : core::spool_move_limit_ms(move_cm, SPOOL_MIN_CM_PER_S, SPOOL_MOVE_MARGIN_MS);
+    const bool homing = to_switch && !homed; // the position is unknown: the switch counts wherever it is pressed
     core::SpoolMoveParams p = {dir == down ? +1 : -1, to_switch, goal_cm, max_ms, SPOOL_STALL_MS, SPOOL_WRONG_WAY_CM};
     // speed: unknown position = slow all the way to the switch; known = fast, slow near the goal or the origin
     auto speed_for = [&](float now_cm) -> uint8_t {
@@ -211,12 +261,16 @@ bool Motor::drive(motor_direction dir, uint8_t fast_speed, float goal_cm, bool t
     };
     uint8_t speed_now = speed_for(start_cm);
     set_speed(speed_now, dir);
+    SpoolMoveReport report(this, dir, to_switch, start_cm, goal_cm, speed_now, why); // declared first: printed after the guard clears
+    SpoolMovingGuard moving_now; // the interrupts may act from here until drive() returns
     start();
 
     int32_t last_pulses = encoder.get_pulses_A();
     const uint32_t t0 = millis();
     uint32_t t_pulse = t0, t_tick = t0, t_key = t0;
     bool arrived = false, at_switch = false;
+    bool false_press = false; // the origin switch was held where the tube cannot be at the origin (ignored)
+    float false_press_cm = 0.0f;
     for (;;)
     {
         encoder.step_counter();
@@ -232,15 +286,26 @@ bool Motor::drive(motor_direction dir, uint8_t fast_speed, float goal_cm, bool t
             last_pulses = pulses;
             t_pulse = now;
         }
-        if (dir == up)
+        // origin switch (2026-11-03, fail safe): the button state is debounced (Button, 50 ms). A press counts only where the
+        // tube can be at the origin, or when homing; elsewhere it is a false press: noted, and the move goes on (the stall
+        // rule still stops a stuck spool)
+        if (dir == up && button_spool_up.getState() == 0)
         {
-            if (endstop_up || button_spool_up.getState() == 0)
+            const float here = encoder.get_distance_f();
+            // the origin: a press where the tube can be at the origin, or the switch held while the drum has stopped (no
+            // pulse for SPOOL_HOLD_STOP_MS): the drum is against the top. A press while the drum still turns, far from the zero, is a false press
+            if (core::spool_origin_press_real(homing, here, SPOOL_ORIGIN_TOL_CM) || now - t_pulse >= SPOOL_HOLD_STOP_MS)
             {
                 at_switch = true;
                 break;
             }
+            if (!false_press)
+            {
+                false_press = true;
+                false_press_cm = here;
+            }
         }
-        else if (button_spool_down.getState() == 0)
+        else if (dir == down && button_spool_down.getState() == 0)
         {
             *why = "down end-stop pressed";
             break;
@@ -279,10 +344,18 @@ bool Motor::drive(motor_direction dir, uint8_t fast_speed, float goal_cm, bool t
         }
     }
     stop();
+    spool_moving = true; // the coast still moves the tube: a switch touch in it is real (cleared by the guard on return)
     const uint32_t t_coast = millis();
     while (millis() - t_coast < SPOOL_COAST_COUNT_MS)
     {
         encoder.step_counter();
+    }
+    if (false_press)
+    {
+        // printed here, outside the loop (the loop must keep polling the encoder)
+        output.println("WARNING | spool: origin switch held at " + String(false_press_cm, 0) +
+                       " cm out, not at the origin: ignored, the move goes on (check the switch if this repeats)");
+        depth_doubt = true; // 2026-11-04 (user): the encoder disagreed with the switch during this move
     }
     if (at_switch)
     {
@@ -290,6 +363,11 @@ bool Motor::drive(motor_direction dir, uint8_t fast_speed, float goal_cm, bool t
         homed = true;
         if (to_switch)
         {
+            // a homing move that ends at the switch with no disagreeing press during it: the depth is known again
+            if (!false_press)
+            {
+                depth_doubt = false;
+            }
             return true;
         }
         *why = "origin switch reached before the goal: the position was wrong, re-homed";
@@ -368,7 +446,9 @@ void Motor::stop()
         md.setM2Brake(400);
     }
     else{
-        md.setM1Brake(300);}
+        md.setM1Brake(300);
+        spool_moving = false; // the spool interrupts stop acting: the motor is braked
+    }
     if (VERBOSE_MOTOR){output.println("Motor stopped");}
 }
 
@@ -392,13 +472,15 @@ void Motor::stopIfFault()
  */
 void ISR_emergency_stop_up()
 {
-    if (spool.direction == up && spool.endstop_up == false)
+    if (!spool_moving)
     {
-        spool.endstop_up = true;
-        md.setM1Brake(400);
-        encoder.reset();
-        if (VERBOSE_MOTOR){output.println("Endstop up touched");}
+        // idle: an edge is not a press (2026-11-03: the position went to 0 with no move). Count it and keep the position.
+        spool_idle_edges++;
+        return;
     }
+    // 2026-11-03 (fail safe): during a move the interrupt does nothing. It used to brake and zero the encoder on any raw
+    // edge, with no debounce and no check of the tube's length (a false press at 300 cm stopped the rise and reset the zero).
+    // The move loop (Motor::drive) decides, from the debounced button and the encoder (core::spool_origin_press_real).
 }
 
 /**
@@ -408,7 +490,7 @@ void ISR_emergency_stop_up()
  */
 void ISR_emergency_stop_down()
 {
-    if (spool.direction == down && spool.endstop_down == false)
+    if (spool_moving && spool.direction == down && spool.endstop_down == false)
     {
         spool.endstop_down = true;
         md.setM1Brake(400);

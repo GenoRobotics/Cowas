@@ -13,6 +13,7 @@
 4. **Weigh one spool-on purge** to check that the 3 L purge covers the 2.54 L spool volume (the spool volume is still geometry, F130; the purge is 3 L since 2026-10-26, D50). Weigh the outlet water, and check the purge with `pressure_max` on the record (F207).
 5. **Field.** Operator guide: [field/operator-tutorial.md](../field/operator-tutorial.md).
 6. **Timed sample list test** (two real samples, before the night run): [section below](#quick-test-the-timed-sample-list-field).
+7. **EARLY FIX: manifold shifts (HW9, F216).** The manifold shifted 3 slots twice on 2026-11-03 (`purge_angle` 47.11, then 340.75). Lock the encoder coupling mechanically before the next field run, then `encoder_repeat` and one `cal`. Issue log: [field log §14](../logs/field-lexplore-geneva-2026-11-03.md#14-manifold-shifts-issue-log-open-early-fix-in-the-roadmap).
 
 ---
 
