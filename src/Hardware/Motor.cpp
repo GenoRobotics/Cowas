@@ -8,6 +8,7 @@
 #include "C_output.h"
 #include "Run_keys.h"
 #include "Core/spool_motion.h"
+#include "Run_steps.h"
 #include <math.h>
 
 extern C_output output;
@@ -189,6 +190,7 @@ struct SpoolMoveReport
         const float passed_cm = fabsf(end_cm - start_cm);
         const float seconds = (millis() - t0) / 1000.0f;
         const float average = seconds > 0.0f ? passed_cm / seconds : 0.0f;
+        run_steps().add(dir == up ? "spool_up" : "spool_down", t0, millis()); // the move is a step of the run (2026-11-06)
         output.println(String("Spool move: ") + (dir == up ? "up" : "down") + (to_switch ? " to the origin switch" : " to " + String(goal_cm, 0) + " cm") +
                        " | time " + String(seconds, 1) + " s | encoder " + String(start_cm, 0) + " -> " + String(end_cm, 0) + " cm (" +
                        String(passed_cm, 0) + " cm passed) | average " + String(average, 1) + " cm/s | start " + String(start_pct) + " % | " +
@@ -421,7 +423,16 @@ bool Motor::go_home(const char **why)
         *why = "SPOOL_USE is false";
         return false;
     }
-    return drive(up, SPEED_UP, 0.0f, true, why);
+    // 2026-11-06 (user): every roll up to the origin is done twice. When the spool is already at the switch the second pass takes
+    // no time; when the first pass ended short, the second one finishes it. Each pass has its own stall, direction and time limits.
+    for (int pass = 1; pass <= SPOOL_HOME_PASSES; pass++)
+    {
+        if (!drive(up, SPEED_UP, 0.0f, true, why))
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 /**

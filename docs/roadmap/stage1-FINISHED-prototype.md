@@ -1,7 +1,7 @@
 # CoWaS roadmap, stage 1: the prefield test
 
 **Goal:** the operator runs samples, one command per sample, and the records come back.
-**Status (2026-10-23):** the prefield tests have passed. Stage 1 is done apart from the items below. Done steps are in [LOG.md](../logs/LOG.md).
+**Status (2026-11-05):** the prefield tests passed on 2026-10-23. Field use with the spool continues (2026-11-03 to 2026-11-05, see the field log); the items below are unchanged. Stage 1 is done apart from the items below. Done steps are in [LOG.md](../logs/LOG.md).
 
 ---
 
@@ -14,6 +14,7 @@
 5. **Field.** Operator guide: [field/operator-tutorial.md](../field/operator-tutorial.md).
 6. **Timed sample list test** (two real samples, before the night run): [section below](#quick-test-the-timed-sample-list-field).
 7. **EARLY FIX: manifold shifts (HW9, F216).** The manifold shifted 3 slots twice on 2026-11-03 (`purge_angle` 47.11, then 340.75). Lock the encoder coupling mechanically before the next field run, then `encoder_repeat` and one `cal`. Issue log: [field log §14](../logs/field-lexplore-geneva-2026-11-03.md#14-manifold-shifts-issue-log-open-early-fix-in-the-roadmap).
+8. **BLOCKING: CoWaS out of service after 2026-11-06 (F257).** The manifold tangled itself after E2_T7_05M_R1 and the computer lost the link (COM6). Cause unknown. Debug on the bench before any new run. Also: E2_T7_01M_R1 was never taken; the ethanol purge of the three slots used in schedule 3 is not done. [Field log §38](../logs/field-lexplore-geneva-2026-11-03.md#38-manifold-over-travel-and-lost-link-after-e2_t7_05m_r1-2026-11-06).
 
 ---
 

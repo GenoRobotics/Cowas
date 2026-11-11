@@ -39,6 +39,27 @@ void test_session_depth_refuses_out_of_range_and_words(void)
     TEST_ASSERT_EQUAL_INT(-1, spool_session_depth_parse("-3", 0.5f, 40.0f, &m));
 }
 
+void test_prime_is_retried_only_on_no_flow_and_only_up_to_the_limit(void)
+{
+    // no flow (timeout): retried while tries are left
+    TEST_ASSERT_TRUE(spool_prime_may_retry("timeout", 1, 3));
+    TEST_ASSERT_TRUE(spool_prime_may_retry("timeout", 2, 3));
+    // the last try: no more
+    TEST_ASSERT_FALSE(spool_prime_may_retry("timeout", 3, 3));
+    TEST_ASSERT_FALSE(spool_prime_may_retry("timeout", 1, 1));
+}
+
+void test_prime_never_retried_on_cap_sensor_skip_or_abort(void)
+{
+    TEST_ASSERT_FALSE(spool_prime_may_retry("cap", 1, 3));
+    TEST_ASSERT_FALSE(spool_prime_may_retry("sensor", 1, 3));
+    TEST_ASSERT_FALSE(spool_prime_may_retry("skipped", 1, 3));
+    TEST_ASSERT_FALSE(spool_prime_may_retry("aborted", 1, 3));
+    TEST_ASSERT_FALSE(spool_prime_may_retry("refused", 1, 3));
+    TEST_ASSERT_FALSE(spool_prime_may_retry("cond", 1, 3));
+    TEST_ASSERT_FALSE(spool_prime_may_retry(nullptr, 1, 3));
+}
+
 int main(int argc, char **argv)
 {
     (void)argc;
@@ -47,5 +68,7 @@ int main(int argc, char **argv)
     RUN_TEST(test_empty_session_depth_means_the_default);
     RUN_TEST(test_session_depth_reads_numbers_with_a_point_or_a_comma);
     RUN_TEST(test_session_depth_refuses_out_of_range_and_words);
+    RUN_TEST(test_prime_is_retried_only_on_no_flow_and_only_up_to_the_limit);
+    RUN_TEST(test_prime_never_retried_on_cap_sensor_skip_or_abort);
     return UNITY_END();
 }

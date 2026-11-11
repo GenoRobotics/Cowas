@@ -504,3 +504,84 @@ def test_a_run_stopped_before_its_filter_was_loaded_frees_the_slot(tmp_path):
         sl.on_device_line(s, f"TEST|run_sample|12|FAIL|slot=12;aborted=x;failed_at={stopped_at}", book)
         assert book.status(12) == expect, stopped_at
         assert s.open_slot is None
+
+
+# ---- the steps line of a run (2026-11-06): added to the sample file of the same id ----
+
+STEPS = {
+    "t": "steps",
+    "id": "auto-1",
+    "slot": 5,
+    "steps": [
+        {"name": "purge", "start_ms": 1000, "end_ms": 4000, "dur_ms": 3000},
+        {"name": "sample_pump", "start_ms": 4100, "end_ms": 9000, "dur_ms": 4900},
+    ],
+    "steps_dropped": 0,
+}
+
+
+def steps_line(doc=STEPS):
+    return json.dumps(doc, separators=(",", ":"))
+
+
+def test_parse_steps_line():
+    assert sl.parse_steps(steps_line())["steps"][1]["name"] == "sample_pump"
+    assert sl.parse_steps(sample_line()) is None
+    assert sl.parse_sample(steps_line()) is None
+
+
+def test_attach_steps_uses_the_record_with_the_same_id():
+    records = [{"id": "auto-1"}, {"id": "E2_T2_20M_R1"}]
+    record = sl.attach_steps(records, STEPS)
+    assert record is records[0]
+    assert record["steps"] == STEPS["steps"]
+    assert "steps" not in records[1]
+
+
+def test_attach_steps_with_empty_id_uses_the_last_record():
+    records = [{"id": "auto-1"}, {"id": "auto-2"}]
+    assert sl.attach_steps(records, dict(STEPS, id="")) is records[1]
+
+
+def test_attach_steps_without_a_record_returns_none():
+    assert sl.attach_steps([{"id": "auto-9"}], STEPS) is None
+    assert sl.attach_steps([], STEPS) is None
+
+
+def test_steps_are_written_into_the_saved_sample_file(tmp_path):
+    s = new_session(tmp_path)
+    name = s.sample(sl.parse_sample(sample_line()))
+    s.steps(sl.parse_steps(steps_line()))
+    s.close()
+    with open(os.path.join(s.samples_dir, name), encoding="utf-8") as f:
+        saved = json.load(f)
+    assert saved["end_reason"] == "volume"  # the sample record is unchanged
+    assert [st["name"] for st in saved["steps"]] == ["purge", "sample_pump"]
+    assert saved["steps"][0]["dur_ms"] == 3000
+    assert saved["steps_dropped"] == 0
+
+
+def test_steps_without_a_sample_are_reported_in_the_log(tmp_path):
+    s = new_session(tmp_path)
+    s.steps(sl.parse_steps(steps_line()))
+    s.close()
+    with open(s.log_path, encoding="utf-8") as f:
+        text = f.read()
+    assert "no sample record to add them to" in text
+
+
+def test_rebuild_adds_the_steps_from_the_log(tmp_path):
+    run = tmp_path / "01_field-test"
+    run.mkdir()
+    (run / "session.log").write_text(
+        "2026-10-21T10:00:00.000+02:00 < === run_sample ===\n"
+        f"2026-10-21T10:00:05.000+02:00 < {sample_line()}\n"
+        f"2026-10-21T10:01:00.000+02:00 < {steps_line()}\n"
+        "2026-10-21T10:01:01.000+02:00 < TEST|run_sample|3|PASS|slot=3\n",
+        encoding="utf-8",
+    )
+    sl.rebuild_samples(str(run))
+    with open(run / "samples" / "100005000_auto-1.json", encoding="utf-8") as f:
+        record = json.load(f)
+    assert [st["name"] for st in record["steps"]] == ["purge", "sample_pump"]
+    assert record["run_start_pc"] == "2026-10-21T10:00:00.000+02:00"

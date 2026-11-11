@@ -1,208 +1,198 @@
 # CoWaS operator tutorial
 
-**Safety:** someone stays at the 24 V switch for every sample. If you see `SAFETY`, cut the 24 V switch and call the engineer. Never type `stop`.
+**Safety.** Someone stays at the 24 V switch for every sample. On `SAFETY`, or a pressure of 3.6 bar: cut the 24 V switch and call the engineer. Never type `stop`.
 
-Open a terminal in the **project folder** (the one with `tools` and `docs`). Type the commands in the log window (section 1).
+**The day:** 1 Start → 2 Samples → 3 End of the day (with the ethanol cleaning, section 4). Problems: Appendix A.
 
-**The day:** 1 start of the day → 2 samples (2a one sample by hand, or 2b several from a schedule; 2c the spool) → 3 if something goes wrong → 4 end of the day. Section 5 is the ethanol cleaning of the tubing, done at the end of the day (or the start, if the last cleaning was missed).
+Type every command in the **log window** (section 1), never in PowerShell, and never paste: read the line before ENTER. `x` + ENTER stops the running command (pump off, valves closed, O-ring locked). `s` + ENTER skips only the current pump step.
+
+---
+
+## 0. Before you leave
+
+- **20 µm prefilter first in the inlet line, then the Sterivex filters. Nothing between them.** On Lexplore (bacterial work) the prefilter is **changed at every ethanol cleaning**: fit a new one before the next filter set (a plastic spacer there clogged the prefilter on 5 Nov: flow fell to a quarter, dives and primes failed). The first purge of the day should give about 450 mL/min.
+- Filters labelled and in date (check the expiry date), the paper sheet ready (slot, filter ID and batch, sample name, planned time).
+- Ethanol (70 %): 0.1 L per slot plus 3 L with the spool. MilliQ for blanks: 4 to 5 L.
+- Laptop on AC, USB cable locked, Windows updates paused.
+- Spool: tube, drum, level-wind guide and top switch checked by hand (nothing wooden or loose).
 
 ---
 
 ## 1. Start of the day
 
-1. Plug in the Due. Close other programs that use its COM port (Arduino IDE, PlatformIO monitor). The port is in Device Manager (COM6 here).
-2. Start the log and keep its window open all day:
+1. Plug in the Due. Close every program that uses its COM port (Arduino IDE, PlatformIO monitor). The port is in Device Manager (COM6 here).
+2. In a terminal in the **project folder**:
    ```
-   tools\session_log.cmd --port COM6 --tag field-<site>-<date>
+   tools\session_log.cmd --port COM6 --tag <site>-<date>
    ```
-   Wait for `=== Test menu READY`.
-3. `actuator_home`. Check: `state=UNLOCKED`.
-4. `session`, and answer:
-   - site, date (for example `2026-10-23`), experiment name, operator (optional);
-   - **spool module on the machine? (y/n)**. If `y`: **the deepest depth of this session, in m** (ENTER = 40 m, the full tube). Every sample at depth starts from this depth, so give a depth the tube can reach without touching the ground.
-5. **Tubing:** clean it with ethanol if it was not done at the end of the last day (section 5). Filters out.
-6. `fill_DNA`: loads the DNA shield until the check valve.
-7. **Spool (only if `session` said `y`):**
-   - `spool_height <cm>`: distance from the top switch to the water surface. Type what you measured.
-     **How to measure it** (intake at the top, tube not yet in the water):
-     1. `spool_status`: the origin switch must read `PRESSED`.
-     2. Unroll in steps: `spool_goto length=0.5`, then `length=1`, `length=1.5` and so on, in metres of tube out. Stop as soon as the intake touches the water surface (the lake's surface, not the bottom).
-     3. `spool_status` now prints `tube out = X cm out`. That X is the height: type `spool_height X` (whole cm).
-     4. Check: `spool_goto 0` (depth 0 = the surface) should print `tube out` = the same X. Then `spool_home drain=n`.
-     The reading is about ±2 cm. Repeat the measurement after any reset, because `spool_height` is kept in RAM only.
-   - `spool_status`: `origin switch PRESSED` when the intake is at the top, `released` when it is not.
-   - `spool_goto length=1`: `PASS`, and a tape from the origin mark reads **0.98 m ± 5 cm**.
-   - `spool_home drain=n`: rolls the tube back up. Wait for it.
+   Keep the window open all day. Wait for `=== Test menu READY`.
+3. The tool asks **which samples are AVAILABLE** (the filters you loaded): `all`, `1-14`, `4-7,9,12-14`, or ENTER for no change. Read the answer back and confirm. Slots outside the list are never used.
+4. `actuator_home`. Check `state=UNLOCKED`. (Needs the manifold within ±3° of a slot.)
+5. `session`: site, date, experiment, operator, **spool module (y/n)**, and with `y` the **deepest depth of the session** in m (ENTER = 40 m; use a depth the tube reaches without touching the ground).
+6. Tubing cleaned with ethanol (section 4) if the last cleaning was missed, then filters in.
+7. `fill_DNA`: loads the DNA shield up to the check valve.
+8. **Spool only:** `spool_height <cm>` (intake at the top to the water surface; how to measure it: Appendix B), then `spool_status` (origin switch `PRESSED`), `spool_home drain=n`.
 
-Redo steps 3, 4 and 7 after any reset or flash. A reset is: the Due unplugged, reset, or the serial port closed and reopened. After a reset the spool does not know where the tube is: its next move first rolls up slowly to the top switch (a few minutes).
+**Redo steps 4, 5 and 8 after any reset** (Due unplugged or reset, port closed and reopened). A reset forgets the lock state, the spool height and the tube position; the spool's next move first rolls up to the top (a few minutes, up to 30).
 
 ---
 
 ## 2. Samples
 
-Two ways to run samples. Both use the same procedure and the same paper sheet: **2a** one sample, typed by hand; **2b** several samples at set times, from a schedule file. **2c** explains the spool (depth) for both.
-
-### 2a. One sample, by hand
-
-1. Put a new, labelled filter in the next slot.
-2. Type `run_sample` and the slot, for example `run_sample 7`. With the spool, add the intake depth in metres: `run_sample 7 depth=2.5`.
-3. Answer the questions: sample name (no spaces), condition, notes (ENTER to skip).
-4. Send nothing else. The machine purges, samples, adds the shield and unlocks by itself. Someone stays at the switch. Time: about 5–8 min without the spool; about 20 min with it (the purge alone is about 11 min).
-5. Read the last line, `TEST|run_sample|...`. Check: `PASS`.
-6. On the paper sheet, write: slot, filter ID, sample name, `sample_end=`, `trusted_ml=`, `sampled_ml=`.
-
-- Use `trusted_ml`. `sampled_ml` is the flowmeter total, which is not reliable at slow flow.
-- With the spool, the machine does not ask a next-depth question. Every sample dives to the session's deepest point, primes, rises to its depth, and the tube is rolled up and emptied after the sample (2026-11-04).
-- To stop the sample now: `x` + ENTER. To skip only the current pump step: `s` + ENTER.
-
-### 2b. Several samples, from a schedule
-
-The tool runs the samples at their times. You do not type each `run_sample`.
-
-**Write the list.** Copy `tools\schedule_example.csv` into the project folder and rename it, for example `schedule.csv`. Keep the first line (the column names) and fill one row per sample. Save as CSV (comma or semicolon, both work).
-
-| Column | What to write | Example |
+| Mode | Use | Time per sample |
 |---|---|---|
-| `date` | `2026-10-27` or `27/10/2026`; `+0` = the day you start the schedule, `+1` the next day… | `+1` |
-| `time` | clock time of the **PC**, 24 h, `HH:MM`. Required | `00:30` |
-| `name` | sample name. A space becomes `_` (`lake A` → `lake_A`). Empty = the date and time | `lake A` |
-| `condition` | `control`, `blank`, `filter A`… A space becomes `_`. Empty = `not_given` | `filter A` |
-| `spool` | `on` or `off`. Empty = `off` | `on` |
-| `depth_m` | depth in metres, **only** when `spool` is `on` (0 to 40) | `2.5` |
-| `force_slot` | empty = the next available sample in the loading order. A sample number (1 to 14) = this row runs on that slot, not the automatic order | `7` |
+| 2.1 by hand | one sample | about 20 min (about 30 with the spool: dive, 3 L purge, emptying) |
+| 2.2 schedule | several samples at set times | same, no overlap |
 
-**How the rows run:**
-- Rows are sorted by date and time. Rows at the **same** time run in file order.
-- A row due while the previous sample still runs waits for it. Nothing overlaps. Allow about 5–8 min per sample without the spool, about 20 min with it.
-- A row whose time has passed runs as soon as the sample before it has finished. The table marks it.
-- A wrong row (bad date, time, spool or depth) stops the whole file. The tool shows the line number. Fix the file and start the tool again.
-- Times are the PC clock. Check it before you start.
+### 2.1 One sample
 
-**Start the tool with the list** (path relative to the project folder):
+1. New labelled filter in the next slot.
+2. `run_sample <slot>` (with the spool: `run_sample 7 depth=2.5`, depth in m). Answer: name (no spaces), condition, notes (ENTER to skip).
+3. Send nothing else. The machine purges, samples, adds the shield and unlocks by itself.
+4. Last line `TEST|run_sample|...`: check `PASS`. On the sheet: slot, filter ID, name, `sample_end=`, `trusted_ml=`.
+
+**Use `trusted_ml`**, not `sampled_ml` (the flowmeter total is unreliable at low flow).
+`sample_end=volume` is a full 1000 mL; `clogged`, `stalled`, `pressure`, `timeout` mean the filter stopped early. That is normal on turbid water: note it and go on.
+
+### 2.2 Schedule
+
+**The file.** Copy `tools\schedule_example.csv` to `schedule.csv`; keep the header line, one row per sample, CSV with comma or semicolon.
+
+| Column | Value |
+|---|---|
+| `date` | `2026-11-06`, `06/11/2026`, or `+0` (today), `+1` (tomorrow). **Use full dates for runs past midnight**: `+N` counts from the day you type `schedule start` |
+| `time` | PC clock, 24 h `HH:MM` (required) |
+| `name` | spaces become `_`; empty = date and time |
+| `condition` | `control`, `blank`, ...; empty = `not_given` |
+| `spool` | `on` / `off` (empty = off) |
+| `depth_m` | 0 to 40, only with `spool on` |
+| `force_slot` | empty = next available slot in the loading order; 1 to 14 = that slot |
+
+Rows run in date/time order, same time = file order. A row never starts while the previous sample runs. **A row whose time has already passed runs at once**: delete rows you do not want. One wrong row stops the whole file (the tool gives the line number).
+
+**Run it**
 ```
 tools\session_log.cmd --port COM6 --tag <run name> --schedule schedule.csv
 ```
-The tool shows your list. **Nothing runs yet.**
+1. Answer the AVAILABLE question. Check the printed list (times, names, spool, slots).
+2. `session` (spool answer and deepest depth).
+3. `schedule start`. Warnings come first: `CONFLICT` (a depth deeper than the session's, or a tube total over 40 m) and `BLOCKED` (spool rows without a spool session: run `session` with `y`). `y` accepts, `n` stops.
 
-1. The tool asks **which samples are AVAILABLE** at each start: `all`, a list such as `1-14` or `4-7,9,12-14`, or ENTER for no change. Samples not in the list are skipped: the next run starts from the first available one.
-2. Check the list on the screen (times, names, spool, forced slots).
-3. Type `session` and answer its questions, with the spool answer and the deepest depth (section 1, step 4). Do this before the first sample.
-4. Type `schedule start`. The first thing you see, before the list, are the warnings: the samples that need your answer (a depth deeper than the session, or a tube total over 40 m). Then the list with the full dates. Then:
-   - **Depth conflict:** if a spool sample is deeper than the session's deepest point, the tool prints `CONFLICT` and lists those samples. Answer `y` to run them anyway (each goes to its depth), or `n` to stop. On `n`, type `session` with the deeper depth, then `schedule start` again.
-   - Without a spool depth in the session, the tool does not start the spool samples (`BLOCKED`): type `session` with the spool answer `y` first.
-   - Answer `y` to start the list.
+**While it runs:** type nothing except `s` / `x`. `schedule` shows `[waiting] [running] [PASS] [FAIL] [refused]`; `schedule stop` stops after the current sample. The reminder `still waiting ... no TEST line yet` every 10 min is normal.
 
-**While it runs:**
-- `schedule` shows each sample: `[waiting]`, `[running]`, `[PASS]`, `[FAIL]`, `[refused]`.
-- `schedule stop` stops the list after the sample now on the device. `schedule start` runs the samples left.
-- Type nothing else during a sample, except `s` or `x`.
-- **A failure before the filter was loaded** (`failed_at=dive` or `purge`): the tool tries the same row again, on the **same** filter, twice at most. If it fails again, that row stays `FAIL` and the list goes on with the next row at its own time. The filter was not used, so it stays free.
-- **The list stops by itself** after a sample that you stopped with `x`, that left the spool out (`spool_end=FAILED`), or that the device refused (`[refused]`). Nothing else starts. The tool says `schedule STOPPED` and why.
-- **To restart after a failure:**
-  1. Fix the cause. Check the tube with `spool_status` (origin switch `PRESSED` when it is rolled up).
-  2. Type `schedule`. The rows are numbered. Note the number of the row to run again, for example the 5 m row, which is `3`.
-  3. Type `schedule start 3`. The tool shows the list it will run: the rows before row 3 that were still waiting are **skipped**; row 3 and every later row that did not pass **run**. Rows that passed are not run again.
-  4. Answer `y`.
-  - A re-run uses the **next available** filter.
-  - **Filters:** a run stopped **before the filter was loaded** (during the dive or the purge) used no filter: the tool makes that slot available again, so the re-run can use it. A run stopped during or after the sampling keeps its filter used.
-  - The schedule file is not changed. The list of the run is kept in the run folder (`schedule.csv`).
-  - Without a number, `schedule start` runs the rows still waiting, as before.
-- To run one sample by hand, type `run_sample`. The tool asks *stop the schedule?*: answer `y`. When your sample has ended, the tool says to type `schedule start` to go on.
+**A failure before the filter was loaded** (`failed_at=dive` or `purge`): the same row is retried on the same filter, twice at most; the filter stays free.
+**The list stops by itself** (`schedule STOPPED` and the reason) after an `x`, a spool left out (`spool_end=FAILED`) or a refusal. Fix the cause, then see Appendix C.
 
-**If the tool was closed** (PC restart, or work on the code): start it again with the **same `--tag`** and without `--schedule`. The list is loaded with what already ran. Type `schedule start` and `y`. A sample that was running when the tool closed is **not** run again: check it on the device, and run it by hand if needed.
+**Manual sample during a schedule:** `run_sample`, answer `y` to *stop the schedule?*; afterwards `schedule start`, `y`.
 
-**Afterwards:** the run folder holds `schedule.csv` (the real start and finish of each sample) and `session.log`.
+**Tool closed (PC restart):** start again with the **same `--tag`** and no `--schedule`, `schedule start`, `y`. The sample that was running is not repeated: check it on the device.
 
-### 2c. The spool (depth)
+### 2.3 With the spool (depth)
 
-With `session` answered `y`, a sample with a depth goes like this:
+Per sample the machine: dives (a dry tube fills with lake water), primes the purge slot (flow check, 100 mL), rises to the depth, purges 3 L, samples, adds the shield, rolls up and **empties the tube** (`spool_emptied=y`). Nothing stays out between samples. The tube total (depth + height) never exceeds 40 m: a deeper depth is cut with a warning and `solve it or proceed?` (`y` = go to the cut depth).
 
-1. **Fill.** If the tube is dry (after a roll-up or a reset), the spool unrolls to the session's deepest point with the air valve open, so the tube fills with lake water.
-2. **Flow check.** The purge slot is primed until the flowmeter counts 100 mL (about 2 min at the slowest confident flow). No flow in 4 min: the sample stops, nothing more is pumped.
-3. **Roll up to the depth.** The pump is off and the deployment valve is shut, so the water stays in the tube. The spool moves to the sample depth.
-4. **Purge, sample, shield** as in 2a.
-5. **Roll up.** After the shield, the tube rolls up with the valves open. Every sample is rolled up, never kept out (2026-11-04).
-6. **Empty.** After every sample, and after a failed sample, the spool is rolled up with the valves open, and the spool tubing is emptied: air is pulled through the purge slot until the line is empty. The `TEST` line shows `spool_emptied=y`. Water left in the tube would deposit organic matter before the next sample, so it is never left there. The next sample fills the tube again: it dives to the session's deepest point, primes, then rises to its depth.
+**After each sample at depth, read the `Spool move:` lines.** The rise must end at the depth plus the height (20 m, 90 cm: about 2090 cm). `length_cm= 0` or anything unexpected: `schedule stop` and call the engineer.
 
-The deployment valve is shut whenever the tube is out and nothing pumps through it (manifold turns, air drying, DNA shield). That keeps the water in the tube.
+If the prime finds no flow it retries (up to 3 tries, 10 s apart). Three failures stop with `no flow at the purge slot`: check prefilter, tube and intake, then `spool_home`.
 
-- **The 40 m total:** the tube (depth + spool height) never goes beyond 40 m, whatever the height. A deeper depth is cut at the limit (40 m minus the height) with a warning, and the machine asks `run_sample: solve it or proceed?`. `y` goes to the cut depth; anything else stops with nothing started. The same question comes for a depth deeper than the session's deepest point. From a schedule, `schedule start` lists these rows as `CONFLICT` first and answers the machine `y` only for them (2b).
-- Every spool move logs its speed (`cm/s`). Send the `spool` lines of the first run with the run folder: the speed is measured for the first time on the bench.
+### 2.4 Blank (negative control)
+
+A blank gets the same 3 L purge as a spool sample but **the spool does not move**: tip of the intake in milliQ by hand.
+
+1. Tip in the milliQ, **kept there until the water runs out** (the flow stops changing). Write the time it leaves on the sheet. At least 4 L, ideally 5.
+2. After a reset: `spool_height <cm>`. `session` with spool `y` (3 L purge).
+3. In a schedule: `schedule stop` first, wait for the current sample.
+4. `run_sample <slot>` with **no `depth=`** (never `depth=0`: it still dives). Name e.g. `BLANK`, condition `blank`. Give the slot explicitly unless it is the first free one.
+5. Expect `WARNING | run_sample: ... no depth= was given: it is NOT moved`, then `PASS` with `purge_ml=3000`. A blank primes more slowly than a sample: do not stop it.
+6. Take the tip out of the milliQ, then `schedule start`, `y`. The next scheduled sample rolls the tube up first; that is expected.
+
+Without the spool, a blank is a plain `run_sample` with condition `blank` (500 mL purge).
 
 ---
 
-### 2d. The blank (negative control), by hand
+## 3. End of the day
 
-Use this for a blank with the same purge as a spool sample, but **no spool movement** (the tip of the spool stays in the blank water).
-
-1. `session` with the spool answered `y`: the purge is then the 3 L spool purge.
-2. At the start question (`Which samples are AVAILABLE?`), leave the blank's slot out of the list, so no schedule or bare `run_sample` takes it. Read the list back and answer `y`.
-3. Check the spool position with `spool_status` (the blank stays where the tube is).
-4. Type `run_sample <slot>` with **no** `depth=`. The tool asks to erase the slot: answer `y`. The device prints `WARNING | ... no depth= was given: it is NOT moved`. That is expected.
-5. Name it so it is clear, for example `NEG_CONTROL`, and answer the condition `control` or `blank`.
-6. Read the last line, `TEST|run_sample|...`, and the `purge_ml=3000` on it.
-
-## 3. If something goes wrong
-
-| What you see | Meaning | Do |
-|---|---|---|
-| `sample_end=volume` | 1000 mL reached | Next sample |
-| `sample_end=clogged`, `stalled`, `pressure`, `timeout` | Filter stopped early (normal) | Note it. Next sample |
-| `Vent: ... NOT released` | Line still above 0.3 bar after the vent. The run went on | Note it on the sheet. Tell the engineer |
-| `could not open port 'COM6': PermissionError ... Access is denied` | Another program has the COM port: a PlatformIO `device monitor` (VS Code) or the Arduino IDE. Close it, then start the tool again | Only one program can use the port |
-| `actuator_home: ... not recognized` in PowerShell | The command was typed in PowerShell, not in the log window | Type device commands only in the `session_log` window |
-| `REFUSED \| spool_home ... O-ring lock state is UNKNOWN` | After a reset the lock state is unknown (the manifold may not be on a slot) | `actuator_home` first, then `spool_home`. Or `spool_home drain=n` (no manifold move, no drain) |
-| `spool_home` times out (`timeout`, with the tube still out) | The encoder reading may be wrong (F214). Do not repeat it more than twice | Free the tube by hand, check `spool_status`, call the engineer |
-| `WARNING \| spool: origin switch held at ... cm out ... ignored` | A press of the top switch while the tube is out. The program ignores it and the move goes on. Normal once | Note it. If it repeats, call the engineer (the switch or its wiring) |
-| `spool` position lost: the run says `origin switch reached before the goal`, or the tube is down when it should be up | The zero is no longer trusted | Do not dive. `actuator_home`, then `spool_home` (up to 30 min, slow). Check `spool_status` (origin `PRESSED`, tube out `0`). Then `schedule start <row>` for the failed sample: it is retried from the start |
-| `abp_raw` shows `00 00 00` (or the same value on every line) | The pressure sensor is shorted or dead. Water on its pins is the usual cause | Do not pump. Unplug the sensor, keep the encoder apart, and call the engineer |
-| `oring_state` shows `Encoder: no valid reading` | The manifold encoder bus is faulty, often because the pressure sensor is shorting it | Unplug the pressure sensor, then read again. If it's still bad, call the engineer. Do not rotate the manifold |
-| `SAFETY \| implausible pressure reading` | The sensor reads below zero: it is not trustworthy | Pump stopped. Do not restart the pump. Call the engineer |
-| `SAFETY`, or pressure at 3.6 bar | Stop | Cut the 24 V switch. Call the engineer |
-
-**Check the spool position after each sample at depth:** each spool move prints a `Spool move:` line (time in seconds, the encoder length before and after, the length passed, the average speed in cm/s). Check the length that the rise ends at: it must match the sample depth plus the height (for 20 m with 90 cm: about 2090). If it prints `length_cm= 0` or any value that is not the expected one, **stop the schedule (`schedule stop`) and call the engineer** before the next sample. This is how the 2026-11-03 position reset was seen (findings F214).
-
-`x` + ENTER aborts a command (pump off, valves closed, O-ring locked). After an `x` the spool is still rolled up (a move, no pump), but the emptying is skipped: the log says `spool_emptied=NO`. Then run `spool_home` (it empties).
+1. `python tools\run_report.py <run folder>`: pauses, purge flow, prime tries, spool warnings, errors. Read-only.
+2. **Spool:** `spool_status` must read origin `PRESSED` (rolled up). If not, `spool_home` (rolls up and empties). Never leave the tube out.
+3. Ethanol cleaning (section 4), every filter out.
+4. `:quit` + ENTER.
+5. When the filters are out, check that each Sterivex is nearly full of DNA Shield (about 2.2 mL); cap both ends, bag and label them. A visibly emptier filter: note it on the sheet.
+6. Send the run folder `docs\logs\test-logs\<date>\<NN>_<tag>\` (`session.log`, `tests.csv`, `samples\`, `schedule.csv`) and the paper sheet to the engineer.
 
 ---
 
-## 4. End of the day
+## 4. Ethanol cleaning
 
-1. **Spool (if on):** the last sample of the day empties it (2c, step 6). Check with `spool_status`: `origin switch PRESSED` means it is rolled up. If it is not (after an `x`, or a roll up that failed), run `spool_home`: it rolls the tube up and empties it. Do it before the ethanol cleaning.
-2. **Tubing:** clean it with ethanol (section 5), with every filter out.
-3. Type `:quit` + ENTER. The log closes.
-4. Copy the run folder `docs\logs\test-logs\<date>\<NN>_<tag>\` (it holds `session.log`, `tests.csv`, `samples\`, and `schedule.csv` if you used a schedule). Add the paper sheet. Send them to the engineer.
+At the end of the day, or at the start if the last cleaning was missed. **No filter in the manifold**: the pump runs at 100 %, which a filter would not survive.
 
----
-
-## 5. Cleaning the tubing with ethanol
-
-**When:** at the end of the day (section 4). At the start of the day only if the last cleaning was missed. **No filter may be in the manifold:** the pump runs at **100 %** here, which a filter would not survive.
-
-1. **Take every filter out.** Put the inlet and the outlet tubes in 70 % ethanol (they stay there), outlets draining to a waste container. Ethanol needed: 0.1 L per slot to clean, plus 3 L with the spool (0.1 L without).
-2. `session` first, so the spool answer is right. `actuator_home` only if the board was reset since the last sample (an `UNKNOWN` lock state is refused); a `LOCKED` lock is fine, the machine unlocks it for each slot.
-3. Type `ethanol_purge`.
-   - The machine asks **Do all slots need cleaning?** Answer `y` to clean every slot. Answer `n` and it asks which slots do **not** need cleaning: type their numbers (`3,7,12`, `3 7 12`, `2-5,9`). Or give them at once: `ethanol_purge skip=3,7,12`.
-   - Then it asks **Filters removed, inlet and outlet in 70 % ethanol?** Answer `y` only when every filter is out.
-   - Check the printed slot list and the ethanol quantity, then answer `y` to start.
-4. The machine flushes the purge slot (prime), then 0.1 L through each slot, then blows air 30 s through each slot and 1 min at the purge slot. Roughly 1–2 min per slot. Stay with it. `x` + ENTER aborts (pump off, valves closed, O-ring locked).
-5. Check the last line: `Ethanol cleaning complete: ... 0 warning(s)`. A `WARNING` line (skipped run, air that never reached air level) means a slot may still be wet: look at its outlet, then rerun with `skip=` listing the slots that are fine.
-
-The intake tube before the pump is not emptied (the air comes in by the air valve). The purge at the start of each sample flushes it.
+1. Filters out. Inlet and outlet tubes in 70 % ethanol, outlets draining to a waste container. Take the 20 µm prefilter out: it is replaced after the cleaning (Lexplore, bacterial work).
+2. `session` (right spool answer). `actuator_home` only after a reset.
+3. `ethanol_purge` (or `ethanol_purge skip=3,7,12`). Answer: all slots need cleaning `y`, or `n` and the numbers that do **not**; filters removed `y`; check the list and quantity, `y`.
+4. About 1 to 2 min per slot: prime, 0.1 L per slot, then air. Stay with it.
+5. Last line `Ethanol cleaning complete: ... 0 warning(s)`. A `WARNING` means a slot may still be wet: check its outlet, rerun with `skip=` for the slots that are fine.
 
 ---
 
-## 6. Commands used
+## Commands
 
 | Command | Does |
 |---|---|
-| `session` | site, date, experiment, operator; spool y/n and the deepest depth |
-| `actuator_home` | finds the manifold; needed after a reset |
-| `encoder_read [n]` | n raw reads of the manifold encoder over SPI, each OK or BAD (checksum). Read only, never moves the manifold. For the wiring check (cable, connector) |
+| `session` | site, date, experiment, operator, spool y/n, deepest depth |
+| `actuator_home` | finds the manifold; after every reset |
 | `fill_DNA` | loads the DNA shield |
-| `run_sample <slot> [depth=m]` | one sample (2a) |
-| `schedule`, `schedule start [row]`, `schedule stop` | the list (2b); `schedule start 3` restarts at row 3 |
-| `ethanol_purge [skip=…]` | cleaning of the tubing (section 5) |
-| `spool_status`, `spool_height <cm>`, `spool_goto <m>` / `length=<m>`, `spool_home [drain=n]`, `spool_calibrate` | the spool (sections 1 and 2c) |
-| `x` + ENTER / `s` + ENTER | stop the command / skip the current pump step |
-| `:quit` | closes the log |
+| `run_sample <slot> [depth=m]` | one sample |
+| `schedule`, `schedule start [row]`, `schedule stop` | the list |
+| `ethanol_purge [skip=...]` | cleaning |
+| `spool_status`, `spool_height <cm>`, `spool_goto <m>` / `length=<m>`, `spool_home [drain=n]` | the spool |
+| `oring_state`, `encoder_read [n]`, `abp_raw` | read-only checks of the lock, the manifold encoder, the pressure sensor |
+| `x` / `s` + ENTER, `:quit` | stop / skip a step, close the log |
+
+---
+
+# Appendices
+
+## A. Problems
+
+| You see | Do |
+|---|---|
+| `could not open port ... Access is denied` | Another program holds the port (PlatformIO monitor, Arduino IDE). Close it, restart the tool |
+| `actuator_home: not recognized` | Typed in PowerShell. Type device commands in the log window |
+| `actuator_home` FAIL, error above 3° | Manifold not within tolerance (it still unlocks). Align with `slotN` / `cal` before relying on it; see the manifold note below |
+| `REFUSED ... lock state is UNKNOWN` | `actuator_home` first; or `spool_home drain=n` (no manifold move) |
+| `SAFETY \| implausible pressure reading` | Pump stopped. Do not restart it. Call the engineer |
+| `abp_raw` shows `00 00 00` or one fixed value; `oring_state` shows `no valid reading` | Pressure sensor shorted (water on its pins also corrupts the manifold encoder). Do not pump, do not rotate. Unplug the sensor, call the engineer |
+| Pressure falls to about 0.04 bar while the pump runs | Sensor loose or dead (no automatic stop for this). Stop, check its mount |
+| `Vent: ... NOT released` | Line still above 0.3 bar; the run went on. Note it, tell the engineer |
+| `PAUSE n in this run (cap margin, normal)` | Pump pauses near the cap. Many per sample is normal at 3 bar. Note only if the flow stops for minutes |
+| `WARNING \| pause of only ... ms` | Suspect pressure reading. Note it |
+| `WARNING \| spool: origin switch held at ... ignored` | Normal once. If it repeats, call the engineer (switch or wiring) |
+| `Spool: depth in doubt ...: rolling up to the origin` | Nothing: the sample goes on after the roll up |
+| `Spool move: ... stalled (encoder not counting)` | Check tube and drum by hand and `spool_status`, then `spool_home`. No spool sample until fixed |
+| `spool_home` times out with the tube out | Do not repeat more than twice. Free the tube by hand, check `spool_status`, call the engineer |
+| Run says `origin switch reached before the goal`, or the tube is down when it should be up | Zero not trusted. No dive. `actuator_home`, `spool_home` (up to 30 min), check origin `PRESSED` and tube out `0`, then `schedule start <row>` |
+| `Sample N erased: available again` | You reused a used slot and said yes. Nothing |
+| A stray line was sent in front of a command (paste, typo) | Check `session.log`; type, do not paste |
+
+**Manifold drift.** The manifold has twice read 3 slots (67.5°) off in one day. If a slot is visibly wrong, do not sample: tell the engineer, who redoes `cal` on slot 7 with the O-ring locked.
+**Leaks and joints.** Check the DNA shield inlet (check valve and T connector) for a sharply bent tube; a leak lowers the shield dose.
+
+## B. Measuring the spool height
+
+Intake at the top, tube not in the water.
+1. `spool_status`: origin switch `PRESSED`.
+2. Unroll in steps (`spool_goto length=0.5`, `1`, `1.5`, ...) until the intake **touches the water surface**.
+3. `spool_status` prints `tube out = X cm`. Type `spool_height X` (whole cm).
+4. Check: `spool_goto 0` prints the same X. Then `spool_home drain=n`.
+
+About ±2 cm. RAM only: repeat after every reset. Check: `spool_goto length=1` reads 0.98 m ± 5 cm on a tape. Depths are estimates: current pulls the tube sideways.
+
+## C. Restarting a schedule after a failure
+
+1. Fix the cause. Check the tube: `spool_status`, origin `PRESSED` when rolled up.
+2. `schedule`: rows are numbered. Note the row to run again (say `3`).
+3. `schedule start 3`: waiting rows before 3 are **skipped**; row 3 and later rows that did not pass run. Rows that passed never rerun. Answer `y`.
+- A `[FAIL]` row is not "waiting": plain `schedule start` skips it. Use the row number.
+- A run stopped before its filter was loaded frees its slot; one stopped during or after sampling keeps it used.
+- The re-run takes the next available filter. The schedule file is never changed; the run's list is `schedule.csv` in the run folder.
+- Times and depths of a saved list cannot be changed in the tool. Closing the tool and starting a new file is a stopgap that has caused errors: avoid it, and never reuse an old file with passed rows.
+- After an `x` the spool is rolled up but not emptied (`spool_emptied=NO`): run `spool_home`.

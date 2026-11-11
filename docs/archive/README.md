@@ -16,6 +16,16 @@ Superseded documents and removed code, kept for the record. Nothing here is curr
 | [renames-2026-10-21.md](renames-2026-10-21.md) | The current file names | Following an old link or a memory |
 | [sensor-notes-2026-09.md](sensor-notes-2026-09.md) | The order list in [stage 2 §11.1](../roadmap/stage2-pilots.md) | Condensed purchase notes: pressure sensors, flowmeters |
 
+## Field plans (`field-plans/`)
+
+The plans written before the 2026 field work, kept verbatim as the user supplied them. They are context only: the field logs are the record of what happened on site.
+
+| File | Superseded by | Why kept |
+|---|---|---|
+| [bois-chamblard-field-protocol-2026-10.md](field-plans/bois-chamblard-field-protocol-2026-10.md) | [Bois Chamblard field log](../logs/field-bois-chamblard-2026-10.md) §5 (plan versus site) | The October plan for the Bois Chamblard campaign (air and water). The air sampling is out of scope for the CoWaS work |
+| [lexplore-first-step-project-description.md](field-plans/lexplore-first-step-project-description.md) | [Lexplore field log](../logs/field-lexplore-geneva-2026-11-03.md) §32 and the [field report](../field/field-report-draft-2026-11.md) | The initial project description of the L'eXPLORE study. Its design changed a lot on site (depths, time points, sample count) |
+| [lexplore-field-protocol-2026-11.md](field-plans/lexplore-field-protocol-2026-11.md) | [Lexplore field log](../logs/field-lexplore-geneva-2026-11-03.md) §32 | The field protocol for the 2 to 6 November L'eXPLORE expeditions. Its own caveat: "not exactly accurate but still useful" |
+
 ## Old step IDs (roadmap v1 → stage 2 and 3)
 
 Used when an old note cites a step ID from roadmap v1.

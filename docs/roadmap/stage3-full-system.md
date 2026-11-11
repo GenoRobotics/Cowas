@@ -149,7 +149,8 @@ Sensor pre-selection and checks before ordering: [archive/roadmap-v1.md](../arch
 
 ## Notes for the next machine version
 
-Not for the current machine. What the prototype taught us, for a redesign (bench, 2026-10-15, slot 11, new Sterivex):
+Not for the current machine. Also for the next version (from the field, 2026-11-06, user): reservoirs of bleach and ethanol and waste containers that plug on and off easily, to refill or replace them without reconnecting the tubing by hand.
+ What the prototype taught us, for a redesign (bench, 2026-10-15, slot 11, new Sterivex):
 
 - At 10 % of the DAC, nothing moves (0.01–0.15 bar). At 11–12 %, the pressure reaches 1.5–2 bar. At 17 %, 1.5–2.4 bar. The useful band is thin: 1 % of control ≈ 0.2 bar (F137).
 - The DAC was 8-bit, whole percent (F142). The reading pulses ±0.25 bar every 2–3 s at constant power (F141). Software added a 12-bit output, a floor, a rate limit and a low-pass (F139, F140).

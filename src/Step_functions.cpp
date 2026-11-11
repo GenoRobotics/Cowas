@@ -34,6 +34,7 @@
 #include "Core/sample_record.h"
 #include "Core/spool_motion.h"
 #include "Core/spool_fill.h"
+#include "Run_steps.h"
 
 // Delay when actuating valves
 #define DELAY_ACTIONS 1000
@@ -426,6 +427,33 @@ void set_sample_record_meta(const char *site, const char *date, const char *cond
     snprintf(sample_meta_condition, sizeof(sample_meta_condition), "%s", condition ? condition : "");
 }
 
+// The timed steps of the run (Run_steps.h, 2026-11-06). Written as one steps line at the end of run_full_cycle.
+static core::StepLog run_steps_log;
+static char last_record_id[64] = "";
+
+core::StepLog &run_steps()
+{
+    return run_steps_log;
+}
+
+void run_steps_begin()
+{
+    run_steps_log.reset();
+    last_record_id[0] = '\0';
+}
+
+const char *last_sample_record_id()
+{
+    return last_record_id;
+}
+
+StepScope::StepScope(const char *name) : index_(run_steps_log.begin(name, millis())) {}
+
+StepScope::~StepScope()
+{
+    run_steps_log.end(index_, millis());
+}
+
 static void print_sample_record(const char *purpose, int slot, uint32_t start_ms, float target_ml, const CtrlPump &run,
                                 const char *lock_before)
 {
@@ -441,6 +469,7 @@ static void print_sample_record(const char *purpose, int slot, uint32_t start_ms
     {
         snprintf(id, sizeof(id), "auto-%d", ++sample_record_seq);
     }
+    snprintf(last_record_id, sizeof(last_record_id), "%s", id);
     const float vol_ml = (float)flow_sensor_small.get_totalFlowMilliL();
 
     core::SampleRecord r;
@@ -622,7 +651,10 @@ bool step_sampling(int slot_manifold, bool stop_pressure, float volume_ml)
     {
         output.println("Step sample: pumping water through sterivex");
     }
-    ctrl_flow.run();
+    {
+        StepScope step("sample_pump");
+        ctrl_flow.run();
+    }
     last_sample_trusted_ml = ctrl_flow.trusted_ml(); // for the TEST line (F150, 2026-10-23)
     last_sample_end = strcmp(ctrl_flow.end_reason(), "cond") == 0 ? "volume" : ctrl_flow.end_reason();
     output.println("Step sample ended: " + String(last_sample_end) + ", pauses " + String(ctrl_flow.pauses()));
@@ -652,7 +684,10 @@ bool step_sampling(int slot_manifold, bool stop_pressure, float volume_ml)
     {
         output.println("Step sample: emptying through purge");
     }
-    ctrl_empty.run();
+    {
+        StepScope step("sample_empty_purge");
+        ctrl_empty.run();
+    }
     if (aborted_stop("step_sampling"))
     {
         return false;
@@ -672,7 +707,10 @@ bool step_sampling(int slot_manifold, bool stop_pressure, float volume_ml)
     ctrl_empty.set_pressure_thresh(EMPTY_WATER_PRESSURE_STX_THRESHOLD);
     ctrl_empty.set_end_cond_time(EMPTY_STX_AIR_HOLD_MS); // the sterivex air drying is longer than the purge one (user, 2026-10-23)
     ctrl_empty.set_max_runtime(EMPTY_MAX_TIME_MS + EMPTY_STX_EXTRA_MAX_MS);
-    ctrl_empty.run(); // emptying sterivex
+    {
+        StepScope step("sample_empty_stx"); // emptying sterivex
+        ctrl_empty.run();
+    }
     valve_1.set_close_way();
     if (aborted_stop("step_sampling"))
     {
@@ -883,7 +921,11 @@ bool spool_roll_up_and_empty(uint32_t *t_rewind_ms, uint32_t *t_empty_ms, bool *
         return true;
     }
     const uint32_t t_mark = millis();
-    const bool rolled = step_rewind();
+    bool rolled;
+    {
+        StepScope step("rewind");
+        rolled = step_rewind();
+    }
     *t_rewind_ms = millis() - t_mark;
     if (!rolled)
     {
@@ -892,7 +934,10 @@ bool spool_roll_up_and_empty(uint32_t *t_rewind_ms, uint32_t *t_empty_ms, bool *
     }
     const uint32_t t_empty_mark = millis();
     last_empty_end = "none"; // step_empty() may return before it pumps: no stale end reason may pass as a result
-    step_empty();
+    {
+        StepScope step("empty");
+        step_empty();
+    }
     *t_empty_ms = millis() - t_empty_mark;
     if (strcmp(last_empty_end, "cond") != 0)
     {
@@ -916,24 +961,50 @@ static const float SPOOL_DEPTH_TOL_CM = 0.5f; // cm. A length this close to a go
 
 // The purge slot is primed with the tube full: the pump runs until the flowmeter counts SPOOL_PRIME_FLOW_ML. The pump is off and
 // the deployment valve shut when it returns: with the pump off and the line open, the water would drain out of the tube.
+// 2026-11-05: a prime at 40 m timed out twice with no flow, then passed on the third try at the same depth (101 mL, after about
+// 2 min). So a try that finds no flow is repeated at the same depth, up to SPOOL_PRIME_TRIES, with a pause (the pump and the
+// deployment valve are off, the tube keeps its water). A cap, a sensor fault, a skip or an abort stops at once (spool_prime_may_retry).
 static bool spool_prime_flow()
 {
+    StepScope prime_step("spool_prime"); // every try is its own step (the retry, 2026-11-05)
     if (!goto_slot_locked(PURGE_SLOT))
     {
         return false;
     }
-    valve_1.set_close_way();
-    valve_manifold.set_open_way();
-    delay(DELAY_ACTIONS);
-    CtrlPumpFlow ctrl;
-    ctrl.begin(&pump, &pump_pid, read_p_in, &flow_sensor_small, SPOOL_PRIME_FLOW_ML, OPERATION_TARGET_BAR, true);
-    ctrl.set_max_runtime(SPOOL_PRIME_MAX_MS);
-    ctrl.run();
-    valve_manifold.set_close_way();
-    const bool flowing = strcmp(ctrl.end_reason(), "cond") == 0;
-    output.println(String("Spool prime: flow check ") + (flowing ? "PASS" : "FAIL") + ", end=" + ctrl.end_reason() + ", " +
-                   String(flow_sensor_small.get_totalFlowMilliL()) + " mL counted, peak " + String(ctrl.pressure_max(), 2) + " bar");
-    return flowing;
+    for (int attempt = 1;; attempt++)
+    {
+        if (attempt > 1)
+        {
+            if (aborted_stop("spool fill"))
+            {
+                return false;
+            }
+            output.println(String("Spool prime: no flow on try ") + String(attempt - 1) + " of " + String(SPOOL_PRIME_TRIES) +
+                           ", pause and try again at the same depth");
+            delay(SPOOL_PRIME_RETRY_PAUSE_MS);
+        }
+        valve_1.set_close_way();
+        valve_manifold.set_open_way();
+        delay(DELAY_ACTIONS);
+        CtrlPumpFlow ctrl;
+        ctrl.begin(&pump, &pump_pid, read_p_in, &flow_sensor_small, SPOOL_PRIME_FLOW_ML, OPERATION_TARGET_BAR, true);
+        ctrl.set_full_power(true); // 2026-11-05 (user): the prime may go to 100 %, the purge exception (PUMP_PURGE_MAX_POWER_PERCENT). Target and cap stay
+        ctrl.set_max_runtime(SPOOL_PRIME_MAX_MS);
+        ctrl.run();
+        valve_manifold.set_close_way();
+        const bool flowing = strcmp(ctrl.end_reason(), "cond") == 0;
+        output.println(String("Spool prime (try ") + String(attempt) + " of " + String(SPOOL_PRIME_TRIES) + "): flow check " +
+                       (flowing ? "PASS" : "FAIL") + ", end=" + ctrl.end_reason() + ", " +
+                       String(flow_sensor_small.get_totalFlowMilliL()) + " mL counted, peak " + String(ctrl.pressure_max(), 2) + " bar");
+        if (flowing)
+        {
+            return true;
+        }
+        if (!core::spool_prime_may_retry(ctrl.end_reason(), attempt, SPOOL_PRIME_TRIES))
+        {
+            return false;
+        }
+    }
 }
 
 /**
@@ -1312,7 +1383,10 @@ bool step_DNA_shield(int slot_manifold)
     // F156 (2026-10-19): the micro pump is time-based (no flow sensor), so the log shows the time it really ran. The volume is
     // not measured here: weigh the bottle, or use shield_calibrate (LA3). A skip (s) ends this pump run only; the air push below still runs.
     const uint32_t t_shield = millis();
-    micro_pump.start(FILL_STERIVEX_TIME); // ! remove /100, only to be faster for testing
+    {
+        StepScope step("shield_micro");
+        micro_pump.start(FILL_STERIVEX_TIME); // ! remove /100, only to be faster for testing
+    }
     output.println("Step DNA-shield: micro pump ran " + String(millis() - t_shield) + " ms (time-based, volume not measured)");
     if (aborted_stop("step_DNA_shield"))
     {
@@ -1329,7 +1403,10 @@ bool step_DNA_shield(int slot_manifold)
 
     delay(500);
     const uint32_t t_push = millis();
-    pump.start(PUMP_SHIELD_TIME);
+    {
+        StepScope step("shield_air");
+        pump.start(PUMP_SHIELD_TIME);
+    }
     // there is a 500ms delay to close the 24V valve of the pump before reaching the print
     output.println("Step DNA-shield: air push ran " + String(millis() - t_push - 500) + " ms at " + String(PUMP_SHIELD_POWER) + " %");
     delay(500);

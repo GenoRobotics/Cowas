@@ -52,4 +52,13 @@ int spool_session_depth_parse(const char *text, float lo_m, float hi_m, float *m
     return 1;
 }
 
+bool spool_prime_may_retry(const char *end_reason, int attempt, int max_attempts)
+{
+    if (end_reason == nullptr || attempt < 1 || attempt >= max_attempts)
+    {
+        return false;
+    }
+    return strcmp(end_reason, "timeout") == 0;
+}
+
 } // namespace core

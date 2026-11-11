@@ -35,6 +35,7 @@ Removed code and how to restore it: [archive/code/README.md](../archive/code/REA
 - **Trusted volume** (`src/Core/trusted_volume.*`): the part of the flowmeter volume measured at 50 mL/min or more. Logged as `trusted_ml`. The plain total is `sampled_ml`.
 - **Purge and sample times**: `run_sample` times each step and prints `STEP TIMES`.
 - **Sample record** (`src/Core/sample_record.*`): one JSON line per purge or sample. `tools/session_log.py` saves it as a file when the run ends.
+- **Steps of a run** (`src/Core/step_log.*`, `include/Run_steps.h`, 2026-11-06): every timed step (purge, sample, shield, spool moves and primes, rewind, emptying, unlock) is recorded in a fixed log while the run goes on, and `run_full_cycle` prints it as one `{"t":"steps",...}` line at the end. Open a step with `StepScope` (it closes on every return path). `tools/session_log.py` adds the steps to the sample file of the same id.
 
 ## 4. A field sample, step by step
 

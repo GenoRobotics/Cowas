@@ -63,7 +63,7 @@ What the firmware does when you type a command. Version: stage 1, 2026-10-23. Hi
 | `manifold_direction` | Checks the turning direction. | |
 | `spool_status` | Position, height (also sent to the PC as `META|spool;height_cm=`), drum diameter, switches, encoder pulses. | |
 | `spool_height [cm]` | Distance from the top switch to the water surface. | RAM only: again after a reset. |
-| `spool_home [drain=n]` | Rolls up to the top switch. `drain=y` (default) goes to the purge slot and opens V1 and Vman so the tube empties, then unlocks. | Needs the O-ring state known unless `drain=n`. Stops on stall, wrong way, a time limit of 1 min + distance at 1 cm/s (`SPOOL_MIN_CM_PER_S`), `x`. Each move logs its speed. |
+| `spool_home [drain=n]` | Rolls up to the top switch. Every roll up to the origin runs two passes (2026-11-06, D95): the second is short when the spool is already at the switch. `drain=y` (default) goes to the purge slot and opens V1 and Vman so the tube empties, then unlocks. | Needs the O-ring state known unless `drain=n`. Stops on stall, wrong way, a time limit of 1 min + distance at 1 cm/s (`SPOOL_MIN_CM_PER_S`), `x`. Each move logs its speed. |
 | `spool_goto <m>`, `spool_goto length=<m>` | Intake depth (adds the height), or tube length from the top. | Same limits. 40 m maximum (`SPOOL_MAX_LENGTH_CM`); only 0 to 15 m is calibrated. |
 | `spool_calibrate` | Dry: tube out to 2, 5, 10, 15 m, you type the tape reading, prints the drum diameter. | `y` applies it until the next reset. |
 | `motor_spool`, `spool`, `40m`, `encoder_spool` | Old spool tests (`spool` and `40m` now go through the safe move, limited to 40 m). | Bench only. |

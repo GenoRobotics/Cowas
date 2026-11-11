@@ -3364,3 +3364,577 @@ Continues [the record of 2026-11-02 and 2026-11-03](#session-2026-11-02-and-2026
 **Open:** F245 (the 0 cm `spool_goto`), F241 (origin warnings), F240 (tube sideways), the D91 bench checks, and the blank's tube position at 16.4 cm.
 
 **Not changed:** `docs/roadmap/stage1-FINISHED-prototype.md`. Its status line is from 2026-10-23 and its "Left to do" list has no item for these runs. Say if you want a status update there.
+
+### Session 2026-11-05: up-switch board swelled and jammed the switch (F246)
+
+**What happened (user, 2026-11-05, during the E2 field run):** the wooden board that holds the spool's up switch had taken up the lake water, swelled, and got stuck. This caused a problem with the switch (the user's description; the exact effect on the moves is not in the log).
+
+**Fix (on site, user):** the part was taken apart, the extra wood was cut away, and it was put back together. Nothing else was changed in the code or the set-up.
+
+**Why it matters:** wood in this place takes up water again, so the same jam can come back. The fix is a repair, not a material change.
+
+**Recorded:**
+- **F246** (`docs/logs/findings.md`), mechanical, status fixed on site, the board is still wood.
+- **Stage 2 §7b** (`docs/roadmap/stage2-pilots.md`): replace the board with a material that does not take up water in the V2 spool, and check the switch travel after each reassembly.
+
+**Not checked:** the switch travel after the repair, and the E2 run's spool moves on that day. Check the switch with `spool_status` and an idle tube (tap the switch, the position must not change) before the next spool run.
+
+### Session 2026-11-05: spool prime retried at the same depth (F247)
+
+**What happened (2026-11-05, E2 run, the first sample of the schedule, 20 m row):** the 40 m prime (`spool fill`, the flow check at the purge slot) found no flow twice: try 1 at 16:25 and try 2 at 16:44, both timed out at 240 s with 0 mL. The pump started at power 0 as on every prime. After the operator restarted the schedule at 16:47, try 3 at 16:49 counted 101 mL in about 2 min (peak 0.11 bar), with the same valves (V1 closed, V_manifold open, O-ring locked) and the same depth (4001 cm). The sample then ran.
+
+**Checked before changing the code:**
+- The air valve is not the cause: V1 is closed for the prime, as on the good primes (2026-11-04 13:08 onward, 101 mL, peak 0.36–0.53 bar).
+- The firmware is not the cause: no source file changed after the last build (2026-11-04 12:54). Yesterday's primes ran on that build.
+- Suspects, not decided: the spool (the homing before the sample stalled at 16:26, "encoder not counting", after the up-switch repair of F246), a kink or catch in the tube at the top, an air leak at the top connection, air trapped at 40 m, or a partial block at the intake. Logged as F247.
+
+**Change (not flashed):**
+- `src/Core/spool_fill.h`, `src/Core/spool_fill.cpp`: `spool_prime_may_retry(end_reason, attempt, max)`: true only for `timeout` and while attempts are left. Native tests in `test/test_spool_fill/test_main.cpp` (2 new tests).
+- `include/Settings.h`: `SPOOL_PRIME_TRIES = 3` and `SPOOL_PRIME_RETRY_PAUSE_MS = 10 s` (PLACEHOLDER, not measured).
+- `src/Step_functions.cpp` `spool_prime_flow`: the loop. Each try is one flow check at the purge slot (the first try does the slot move; the retries do not move the manifold). A pause between tries with the pump and the deployment valve off. Each try prints `Spool prime (try n of 3): flow check PASS/FAIL, end=...`. An `x` between tries stops at once.
+- Not changed: the roll up, the depth, the dive. A retry does not roll the tube up; the good prime at 16:49 was a plain re-prime at 40 m.
+- Documentation: operator tutorial section 2c (what the machine does on no flow), decisions D93, findings F247.
+
+**Checks:** `pio run -e due` SUCCESS; `pio test -e native` 203 of 203 (the 2 new tests pass).
+
+**Bench check (to do):**
+- With the tube at 40 m, a try that gets no flow is followed by a second try, with the log line `try 2 of 3`, and the total time for three timeouts is about 12.7 min (3 × 240 s + 2 × 10 s), which stays inside the step's timeouts.
+- A pump cap or an `x` during a try is not retried.
+- Record how many tries the next 40 m primes need (F247 gives the first data: 3 tries on 2026-11-05).
+
+**Not done:** the cause (F247). Check the tube by hand at the top, the top connection, and the intake before the next 40 m sample. The `SPOOL_PRIME_RETRY_PAUSE_MS` value is not measured.
+
+### Session 2026-11-05: prime at 100 % (and the DAC check)
+
+**Asked (user):** the prime may go to 100 %; implement the exception. Make the relevant changes. Then: where is the DAC?
+
+**Why:** the prime ran at the 60 % water limit (F221), while the purge runs at 100 %. Today's slow flow (about 100 mL/min against about 460 mL/min yesterday, see the previous entry) is not explained by the 60 % cap, because yesterday's primes ran at 60 % and passed. The user decided the prime can use the full power anyway, so that the prime and the purge run at the same limit.
+
+**Change (not flashed):**
+- `src/Step_functions.cpp` `spool_prime_flow`: `ctrl.set_full_power(true)` on each try. Target `OPERATION_TARGET_BAR` and the cap are unchanged. The PID output is limited only by the full-power limit (100 %), as in the purge.
+- `include/Settings.h`: the comment on `PUMP_PURGE_MAX_POWER_PERCENT` now lists the spool prime as an exception.
+- Decision D94; F221 updated (the prime is decided; the applied-power print is still open); stage 2 §7b row updated.
+
+**Checks:** `pio run -e due` SUCCESS; `pio test -e native` 203 of 203.
+
+**Bench check (to do):**
+- A 40 m prime at 100 %: the flow check passes in fewer tries than 16:25 and 16:44 today, and the pressure stays below the cap (3.6 bar, STX_MAX_PRESSURE).
+- The applied power is still not printed. Print it (F221) before judging the flow. Today's purge shows the flow is low even at the 100 % limit, so the pump side is the first suspect (F247).
+
+**DAC:** the pump speed is driven by DAC1 (`PUMP_PIN`, Due pin DAC1, listed as D67 in `docs/hardware/pinout.md` line 94). The output is about 0.55–2.75 V, not 0–3.3 V (F25): the code writes 0–4095 (12-bit), so 100 % is about 3.3 V in the code, above the range measured earlier. The relay on D42 is the real stop. To check on the bench: measure DAC1 with a multimeter (0 % / 60 % / 100 % command, pump off and on).
+
+### Session 2026-11-05: human error, plastic instead of the 20 um prefilter (F247 closed)
+
+**What happened (user, 2026-11-05):** the 20 um prefilter was not in the line. A plastic piece was installed between the two filters instead, and that clogged the prefilter. This explains the slow flow and the failed primes of the day.
+
+**Effect on today's runs:**
+- The 40 m primes at 16:25 and 16:44 found no flow (0 mL and 14 mL), and the retry at 16:49 passed (see the entries above).
+- The first purge (16:52 onward) ran at about 100 mL/min, against about 460 mL/min the day before, with the pressure near 0.02 bar.
+- E2_T1_20M_R1 failed five times, and no filter was used in any try: 16:06 (dive, ended by the operator with `x`), 16:26 and 16:27 (the 40 m prime timed out, then the homing stalled), 16:47 (the prime did not run, the rewind did not finish), and 16:59 (purge, ended by the operator with `x` because the flow was too slow).
+- The purge record `auto-1` at 17:20 reached 3001 mL at volume end, which fits the prefilter being in place again by then. The fix time is not in the log: the user to confirm.
+
+**What this changes in the earlier entries:**
+- F247 (the prime with no flow) is **closed**: the cause was the prefilter. The retry (D93) and the 100 % prime (D94) were made while the cause was unknown. Both stay: the retry is harmless when a prime really is blocked, and the full-power prime matches the purge. Neither was needed for this fault.
+- The homing stall of 16:26 ("encoder not counting", F246 area) is **not** explained by the prefilter. It is still open; check the spool by hand before the next spool run.
+- F221 (print the applied power) stays open: the power is still not logged.
+
+**Recorded:**
+- **F248** (`docs/logs/findings.md`): the human error, and the gap (nothing in the set-up asks for the prefilter).
+- **Tutorial** (`docs/field/operator-tutorial.md`, section 1): a warning box on the prefilter, with the check of the flow at the first purge (about 450 mL/min).
+
+**Open:** add the prefilter check to the paper sheet and to the start-of-day routine; decide whether the software can ask for it at `session`.
+
+### Session 2026-11-05: pause messages (F249)
+
+**Asked (user):** "why does it print this line? it sounds like there was an issue. improve it". The line in question was the cap-margin pause in `E2_T1_20M_R2` (the `PAUSE at 3.37 bar (113)` and `RESUME at 1.70 bar` lines).
+
+**What the lines meant, and what was wrong with them:**
+- `PAUSE at 3.37 bar (113)`: the normal cap-margin pause (`FILL_PAUSE_BAR` 3.35 bar, the pump off until `FILL_RESUME_BAR` 3.15 bar). The count of 113 is for the whole sample. The line did not say that it is normal.
+- `RESUME at 1.70 bar`: the number is the reading at the restart, not the level that ends the pause. The pause had lasted 0.2 s, because the reading was already below 3.15 bar. That looked like a fault, and it is the real problem (below).
+
+**The real problem:** after the pump stopped at 3.37 bar, the reading fell to 1.70 bar in 0.2 s, then swung between 0.67 and 1.88 bar, while the flow stayed at about 995 mL/min. A drop of 1.7 bar in 0.2 s is unlikely from the line alone, so the reading is suspect (sensor or wiring), or the line is noisy. The control logic is not changed: this is a diagnosis item (F249).
+
+**Change (log only, built, not flashed):** `src/Hardware/Pump.cpp`:
+- `PAUSE n in this run (cap margin, normal): pressure X bar, pump off until Y bar`.
+- `RESUME after T ms: reading Z bar is at or below Y bar, pump restarts from 0 % (ramp 5.0 %/s)`.
+- `WARNING | pause of only T ms: the pressure was already Z bar when the pump restarted. Check the pressure reading (F249)` for a pause under 1 s.
+
+**Checks:** `pio run -e due` SUCCESS. No native test covers this (it is the pump driver).
+
+**Still to do:**
+- Check the pressure reading with the pump stopped: `abp_raw` steady at rest and the manometer (F126, F234).
+- Consider changing `Pump started at once with power 0` (it sounds like a problem and is the normal start from 0 %).
+- The control behaviour (pause at 3.35 bar on every surge) is unchanged. It is safe, but it cuts the flow each time the pressure reaches the margin.
+
+### Session 2026-11-05: pause check, spool or not (F249)
+
+**Asked (user):** is the pressure drop after a pump stop a consistent effect of the spool module (a water column pulling back when the purge stops), so that the pauses are too long only with the spool? Verify.
+
+**Method:** every `PAUSE` and `RESUME` line in the 10 run folders (`docs/logs/test-logs/*/*/session.log`), with the time between the two lines, the pressure at the pause, and the reading at the resume. Sessions split by the `META|session ... spool=` answer; the 2026-10-23 sessions have no spool answer and are treated as "no spool". The sample depth was taken from the last `META|sample` line before each pause.
+
+**Results:**
+- **Pause length:** 0.2 s in every case, with or without the spool (1525 spool pauses, 65 without). The pauses are not longer with the spool. The pause is one control step: the pump is stopped and restarted before the pressure falls to the resume level.
+- **Drop after the stop:** median about 2.3 bar in every spool session (1525 pauses), and 0.8 bar in the 2026-10-23 sessions (65 pauses). The 2026-10-23 sessions do not match each other (one median 0.75 bar, the other 1.5 bar, p90 2.2 bar), so the no-spool comparison is not clean.
+- **Depth:** the drop does not depend on the depth: 0.3 m: 1.75 bar, 1 m: 2.33, 5 m: 2.27, 20 m: 2.25 bar (medians). A water column draining back would give about 2 bar at 20 m and about 0.1 bar at 1 m. It does not.
+
+**Conclusion:** the water-column explanation is **not supported**. The spool is not shown to change the drop either: the 2026-10-23 sessions differ in too many ways to tell. What the data do show is that the pause never waits: the reading is already below 3.15 bar at the first check after the stop, so every pause is 0.2 s.
+
+**Next check (bench, pump off, line shut):** read the pressure every 100 ms for 10 s after the pump stops, with the tube empty and then full (spool), and with `abp_raw` at the same time. A real line drop would decay smoothly; a sensor or wiring fault would jump.
+
+**No code change.** The control logic is unchanged; the messages from the earlier entry stay.
+
+**Follow-up (2026-11-05, user: "if there are improvements to do you can"):**
+- `src/Hardware/Pump.cpp`: `Pump P1 started at once with power 0` now reads `Pump P1 started, output 0 % (the controller ramps it from here)`. The old text sounded like a fault; the output is the start level, and the controller ramps it up (log only, built, not flashed).
+- **Not changed:** the pause logic. It already holds the pump off until the reading is at or below the resume level; it resumes at once only because the reading is already below that level after the stop. Changing that without the bench check above would change the control of every purge and sample.
+
+### Session 2026-11-05: improvements from the field log (without touching the Lexplore run)
+
+**Asked (user):** look at the field work log; improve what can be improved without affecting the current Lexplore experiment; prepare the rest for later.
+
+**Done (no effect on the running experiment):**
+- `docs/field/operator-tutorial.md`: section 3 explains the normal messages (cap-margin pauses, the 10-minute reminder, depth in doubt, prime tries, the stalled spool move, the blank's `NOT moved`, `Sample N erased`); section 2b says that a `[FAIL]` row needs `schedule start <row>`; a warning against pasting into the console; section 4 gives the run report.
+- `tools/run_report.py` (new, read-only, stdlib): summarises a run folder from its `session.log` (pauses with their length and drop, purge flow at each minute, prime tries, spool warnings, errors, x aborts, refusals). It does not import or touch the session tool. Tests: `tools/tests/test_run_report.py`. `pytest tools/`: 228 passed. Run on today's folder: purge flow 49 to 501 mL in 5 min, which matches the hand check.
+- `docs/logs/field-lexplore-geneva-2026-11-03.md` §23: the review, the list of what was done, and what is prepared (with the reason it was not done now).
+
+**Prepared, not done:** the end-of-sampling notes question (F222), the schedule time command (F239), the applied-power print (F221), the flash of the built firmware (prime at 100 %, pause messages, pump start wording; the prime retry is already on the board), the pressure-reading check with the pump off (F249), the prefilter check at `session` (F248), the sensor mount (§21), the spool friction (F240), the up-switch board (F246), the 16:26 homing stall, and the D91 bench checks. All are in field log §23.2.
+
+**Not changed:** the board (the message changes are not on it yet; today's log shows the prime retry is), the pause control logic, the running session tool.
+
+### Session 2026-11-05: documentation brought up to date
+
+**Asked (user):** make sure all documentation is up to date.
+
+**Changed:**
+- `CLAUDE.md`: the spool is no longer "never run" (in field use since 2026-11-03, open items listed); the spool table row and the spool hazard bullet updated (the unmeasured items are the drum diameter and the drain path only).
+- `docs/roadmap/stage1-FINISHED-prototype.md`: status line updated to 2026-11-05 (field use continues).
+- `docs/logs/field-lexplore-geneva-2026-11-03.md`: the two "spool prime at 60 %" open-item rows marked as superseded (D94).
+- `docs/software/session-log.md` §9: the run report tool.
+- `docs/field/operator-tutorial.md`: the report command line checked (it reads `tools\run_report.py`).
+
+**Checked, not changed:** `docs/README.md` (the index is still right), the historical LOG entries that say "60 %" for the prime (they describe the day they were written).
+
+**Open:** the firmware on the board versus the working tree. The prime retry is on the board; the 100 % prime and the pause and pump-start message changes are not confirmed (see the field log §23.2).
+
+### Session 2026-11-05: spool mechanical failures (F250)
+
+**What happened:** after the stall at 19:53 (E2_T1_01M_R2), three mechanical faults were found on the spool module, in this order: the wooden frame screw holding the level-wind guide loosened (probably moisture in the wood); the drive belt lost its tension and could not turn the drum; the 3D-printed level-wind guide cracked, so it no longer turned on its shaft.
+
+**Fixed on site:** screw re-tightened, belt secured with zip ties, guide glued to its shaft and drive wheel with super glue (trial, not verified under load).
+
+**Recorded:** F250 (`docs/logs/findings.md`), field log §24, and the field report (issue 4, and next steps).
+
+**Open:** check the move log against these faults; replace the wooden parts and the printed guide in the next version; check the glue under load. Keep the spool out of service until the guide turns freely over the full length.
+
+**Roadmap (2026-11-05, user):** the spool parts are a short-term change, not a long-term fix. Added **HW10** to `docs/roadmap/stage2-pilots.md` §7.4, before the next spool run: replace the wooden parts with water-resistant material, print the level-wind guide in a tougher material with metal fixings, check the belt tension, and test 5 roll-ups and 5 dives over 40 m with no stall. Until HW10 is done, the spool runs only with a hand check before each sample.
+
+### Session 2026-11-03/04: ethanol purge after the Tuesday night restart not in the log (doubt recorded)
+
+The team is almost sure that the ethanol cleaning was done after the restart on Tuesday night (3 November 19:50), but no session log shows it. The first cleaning in the logs is 4 November 18:38. The samples taken in between, with the restarts at 4 November 06:27 and 13:01, are listed in field log §25, with the samples before and after that could be affected. If the bioinformatics shows cross-contamination in the listed samples and not in the later ones, the purge was probably not done.
+
+**Update (user, 2026-11-05):** all other ethanol purges were done, including those before the 4 November restarts (06:27 and 13:01). They are confirmed by the team, not by the logs. The only doubt is the Tuesday-night purge (3 November, after the restart at 19:50). Field log §25 is updated.
+
+### Session 2026-11-05: end-of-series handover
+
+**Status at 23:10:** E2 schedule complete (nine rows PASS; row 6 restarted at 20:02 after the spool fault and passed). Ethanol cleaning at the end of the day: the first attempt was stopped by the operator with `x` after 9 s; the second, from 22:17, completed at 22:41 (14 slots, 0 warnings). Session closed.
+
+**Records:** 19 sample files, 18 rows in the table. The extra file `165901327_auto-1.json` is the 16:59 purge stopped by `x`; kept as a record, not a sample.
+
+**Firmware:** the prime retry is on the board. The 100 % prime and the pause and pump-start messages are not yet confirmed on the board; flash after the next run.
+
+**Before the next run:** spool checked by hand and `spool_home` only when safe (HW10 not done); prefilter in place; ethanol cleaning before a new filter set; session answers and `schedule` checked; planned times and filter IDs on the paper sheet.
+
+**Repository:** changes since `591c0ea` are not committed (listed in field log §26). New: `tools/run_report.py` (with tests) and the field report draft.
+
+**Handover details:** field log §26.
+
+### Session 2026-11-06: two-pass roll up, false zero (F251), roadmap notes
+
+**Asked (user):** always home twice, so that an already-up spool takes no time and a spool that was not up is finished; add the cartridge idea to roadmap 2 and the reservoir idea to roadmap 3; document everything.
+
+**Changed (built, not flashed):**
+- `src/Hardware/Motor.cpp` `go_home`: two passes of the roll up to the origin (`SPOOL_HOME_PASSES` = 2 in `include/Settings.h`). Decision D95. Native tests 203 of 203; `pio run -e due` SUCCESS.
+- `docs/software/commands.md`: `spool_home` notes the two passes.
+- `docs/roadmap/stage2-pilots.md` §7b: the three-cartridge system (one hollow-tube cartridge for the cleaning, two for the filters).
+- `docs/roadmap/stage3-full-system.md` notes: the pluggable reservoirs of bleach, ethanol and waste.
+
+**Found (F251, open):** on 6 November the drum stopped at the top-switch holder at about 188 cm and 590 cm out; the hold rule set the encoder to 0 while the tube was still out. The two-pass roll up does not fix this, because the switch is still held when the second pass starts. Samples from 08:00 onwards may have been deeper than recorded (field log §27). Open decision: a hold stop far from the zero is not an origin.
+
+**Not done:** the false-zero rule (needs the decision above), the mechanical fixes (HW10, F246, F250), the flash.
+
+**Details:** field log §27.
+
+### Session 2026-11-06: blank procedure in the operator tutorial
+
+**Asked (user):** update the tutorial on how to run a blank sample.
+
+**Changed:** `docs/field/operator-tutorial.md` §2d rewritten. Key points: never `depth=0` (it still dives, primes and rises to 0); no `depth=` at all for a blank; set `spool_height` after a reset; `session` with spool `y` for the 3 L purge; start the schedule only after the blank, since it takes the next free slot when each row starts; the first scheduled sample moves the tube.
+
+**Checked in the code:** `run_sample` with `depth=0` enters the spool path (`run_full_cycle` with `use_depth` true), so it moves the spool. A run with no `depth=` does not.
+
+**Follow-up (user):** the blank can run during a schedule, but the schedule must be stopped while it runs (the tool asks). Tutorial §2d updated: before the schedule, or stop, blank, restart; the slot rule (the schedule takes the next free slot; a blank before the schedule takes slot 1 for the list 1-3,14, leaving 2, 3, 14 for the rows); give the slot explicitly if the blank runs later; the tip is placed in milliQ by hand and the spool does not move.
+
+**Follow-up (user):** the blank needs at least 4 L of milliQ, preferably 5 L (purge 3 L plus the prime). The blank primes more slowly than a sample. Both are now in tutorial §2d.
+
+### Session 2026-11-06: milliQ blank keeps reaching the cap margin (F252)
+
+**Observed (user):** the milliQ blank kept stopping at the cap margin while filling the filter, which is surprising as milliQ is pure.
+
+**Record so far:** E2-Blank (folder `01_E2-DIEL3-session6-2026-11-06`), started 14:27, still running at 14:42: 57 pauses in 15 min, pressure 3.36 to 3.40 bar at each stop, about 440 mL passed (about 30 mL/min). E1-B1 (4 November) had 29 pauses. Each stop drops the reading by about 2.5 bar in 0.2 s (F249).
+
+**Recorded:** F252 (`findings.md`), field log §28, stage 2 §7b (roadmap 2). The final numbers go in when the blank ends.
+
+**Not changed:** the code and the tutorial. A blank is not a clean control until the cause is found.
+
+**Follow-up (user, 2026-11-06):** the same pauses were seen on the last blank. Pump and PID tuning is a future item in stage 2 §7b: fewer pauses, a steadier flow reading, and a faster fill. First clue: the pauses start at 3.35 bar against a 3.0 bar target, so the pressure overshoots by about 0.35 bar before the margin stops the pump.
+
+**Lead (code, 2026-11-06):** `CtrlPump::run` pauses and resumes on the raw pressure reading, while `Settings.h` says the resume uses the filtered reading. A single low raw reading restarts the pump at once (0.2 s pauses). Recorded in F252 and field log §28; not changed.
+
+**Correction 2 (user, 2026-11-06):** E2-Blank is valid: about 800 mL of milliQ passed. The tip left the water only when the flow stopped changing and the pressure was low, which is the end of the run, so the `clogged` end reason is the end of the water, not a filter clog. F252 is closed as a clog; the pressure pauses stay under F249 and the tuning item. The tutorial §2d now asks to check the tip stays in the milliQ and to note any time it leaves the water. The record's notes field holds `slot1` (the operator's note for the slot, entered at the start of the run). The record itself cannot be edited, so the correction is kept here and in field log §28.
+
+### Session 2026-11-06: end of chat, summary
+
+The chat covered the E2 schedules of 5–6 November, the spool false zero (F251, two-pass roll up, D95), the spool mechanics (F250, HW10), the blank procedure (tutorial §2d: no `depth=`, milliQ 4 to 5 L, the slower prime, stop and restart of the schedule, slot order), the milliQ blank read first as a clog and then corrected (F252; the intake was out of the water), the pump and PID tuning and the raw versus filtered pressure lead, the sample notes question (end of sampling, but not for a schedule), the three-cartridge and reservoir ideas, and the ethanol doubt for the Tuesday night (§25).
+
+Where each item is written up, and the open items: field log §29.
+
+**Update (user, 2026-11-06):** E2-Blank is valid (about 800 mL of milliQ passed; the tip left the water only when the flow stopped changing, at the end). The false zero is mitigated by the two-pass roll up (accepted); the drum stopping at the holder and the stricter origin rule go to roadmap 2. The spool repair is temporary and goes to roadmap 2. The depths after 08:00 are not treated as uncertain: the zero seemed to work and the later dive and rise distances were normal. The firmware flash waits for the end of the current schedule; the user will commit later.
+
+### Session 2026-11-06: remaining work at the end of the chat
+
+The full list of what remains is in field log §30, by owner: firmware (flash at the end of the current schedule, then check the new messages and the two passes), spool (hand check before each spool run, the -186 cm reading, F245), roadmap 2 (HW10 permanent version, F251 residual, F246, pump and PID tuning, the raw versus filtered pressure, F249 bench check, F234 sensor glue, F216 frame, F248 prefilter check, F222 notes question, F239 schedule times, cartridges), and records (the field report after the 24 h repeat, nothing committed yet). HW9 is not recorded as done in the logs; check it.
+
+### Session 2026-11-06: expired filter in the 16:00 sample (F253)
+
+E2_T7_20M_R1 (the first row of schedule 3, 16:00) uses the last filter available. It is from a different batch and expired in March 2025; it is the only expired filter in the campaign. There was no choice. Recorded as F253 and field log §31: the filter ID, batch, expiry and the reason on the paper sheet; compare its pressure and flow with the other 20 m samples; flag the sample for the analysis.
+
+### Session 2026-11-06: operator tutorial rewritten, Bois Chamblard log, report update
+
+**Asked (user):** shorten and restructure the operator tutorial (operation first, appendices for problems), use the field experience, add a field log for the Bois Chamblard runs (Felix, 26–29 October, no spool) and update the field report with both campaigns.
+
+**Changed (documents only):**
+- `docs/field/operator-tutorial.md` rewritten: sections 0 Before you leave, 1 Start, 2 Samples (by hand, schedule, spool, blank), 3 End of the day, 4 Ethanol cleaning, command table; Appendix A problems, B spool height, C restarting a schedule. Corrected: the time per sample without the spool is about 20 min (was "5–8 min"; Felix's runs took 18–22 min), about 30 min with it; the run report command path (`tools\run_report.py`, was mistyped); the AVAILABLE question moved to the start of the day. New: `actuator_home` before `schedule start`, `s` versus `x`, full dates in schedule files past midnight.
+- New `docs/logs/field-bois-chamblard-2026-10.md` (samples, events, lessons, open points).
+- `docs/field/field-report-draft-2026-11.md` now covers both campaigns.
+
+**Not changed:** code, firmware, tests. Nothing committed.
+
+### Session 2026-11-06: protocols added as context, ethanol doubt closed
+
+**Asked (user):** use the Bois Chamblard and Lexplore protocols and the project description only as context (the logs are the record), leave the air sampling out, and document what is relevant. The team's notes prove that the ethanol purge after the Tuesday-night restart was done.
+
+**Changed (documents only):**
+- Field log Lexplore §25: the Tuesday-night doubt is resolved (done, proven by the team's notes); §26 to §30 pointers updated. New §32: plan versus site (expeditions, depths, time points, time per sample, IDs, blanks).
+- `docs/logs/field-bois-chamblard-2026-10.md`: air work marked out of scope; new §5 plan versus site (cadence, 500 mL purge instead of 2 to 3 L, blank, lake sequence, manual cleaning steps).
+- Field report: the ethanol item reads as closed; new "Plan versus site" paragraph.
+- Operator tutorial §3: check the Sterivex are nearly full of DNA Shield (about 2.2 mL) when the filters come out.
+
+**Not changed:** code, firmware, tests. Manual (Niskin) sampling is left for the user's later input.
+
+### Session 2026-11-06: prefilter at each ethanol purge, plans archived
+
+**Asked (user):** on Lexplore the 20 µm prefilter was used for the bacterial work and changed at every ethanol purge; keep the original pasted documents in the archive, organised.
+
+**Changed (documents only):**
+- Operator tutorial: section 0 says the Lexplore prefilter is changed at every ethanol cleaning; section 4 step 1 takes it out and replaces it after the cleaning.
+- Lexplore field log §32 and the field report: the prefilter row and item 5 carry the same rule. Bois Chamblard log §5: the protocol's 100 µm prefilter is noted as not recorded, with the Lexplore 20 µm fact.
+- Archive: new `docs/archive/field-plans/` with the three original documents, verbatim with a one-line header each: `bois-chamblard-field-protocol-2026-10.md`, `lexplore-first-step-project-description.md`, `lexplore-field-protocol-2026-11.md`. Listed in `docs/archive/README.md` and linked from the field logs.
+
+**Not changed:** code, firmware, tests. Findings F248 unchanged (the prefilter rule is procedure, recorded in the tutorial).
+
+### Session 2026-11-06: every timed step in the sample file (D96, built, not flashed)
+
+**Asked (user):** the sample JSON does not hold the start, end and duration of every step. Change the code so it does, there is no cost to an extensive metadata file.
+
+**Changed (firmware, built, not flashed):**
+- `src/Core/step_log.{h,cpp}` (new, pure): `core::StepLog` (48 steps, fixed size, counts the dropped ones) and `format_steps_record`, one JSON line `{"t":"steps","id","slot","steps":[{name,start_ms,end_ms,dur_ms}...],"steps_dropped"}`. Integers only.
+- `include/Run_steps.h` (new) and `src/Step_functions.cpp`: the run's log, `run_steps_begin()`, `StepScope` (closes the step on every return path), `last_sample_record_id()`. Steps: `spool_fill`, `spool_prime` (each try), `purge`, `sample`, `sample_pump`, `sample_empty_purge`, `sample_empty_stx`, `shield`, `shield_micro`, `shield_air`, `rewind`, `empty`, `unlock`.
+- `src/Hardware/Motor.cpp`: every spool move (`spool_up`, `spool_down`) is a step, from its existing scope object.
+- `src/Tests_mech.cpp` `run_full_cycle`: resets the log at the start, scopes the run steps, prints the steps line after `STEP TIMES`.
+- `tools/session_log.py`: parses `{"t":"steps"` lines, adds `steps` and `steps_dropped` to the sample file of the same id (live and in `rebuild_samples`). A steps line with no record is reported in the log, not dropped. Found and fixed on the way: the live lock is not re-entrant, so the message is written outside it.
+
+**Behavior change:** none on the machine. One more console line per run, and the sample JSON has two new keys. The sample record line itself is unchanged.
+
+**Not covered yet:** the O-ring lock and unlock inside the steps (they are in the console log), the vents, and the pump runs of the purge-only and calibration paths (no steps line, because they do not go through `run_full_cycle`). Old sample files have no steps. Their `STEP TIMES` is in their `session.log`.
+
+**Tests:** `pio test -e native` 213 passed (10 new in `test/test_step_log/`). `pytest tools/` 235 passed (7 new in `tools/tests/test_session_log.py`). `pio run -e due` SUCCESS: RAM 13.8 %, flash 36.9 %.
+
+**Not done:** flash (the next run after the schedule), commit. After the flash: check one `{"t":"steps"` line in the log and the `steps` in the new sample file.
+
+### Session 2026-11-06: field report rewritten around validation and failure causes
+
+**Asked (user):** the schedule row and the "32 of 47" count were unclear; separate faults of the autonomy software from faults of broken parts; "main finding" is not a finding; drop the plan-versus-site and steps sections; describe the two field works shortly, with the depths.
+
+**Checked against the run folders** (`tests.csv`, `session.log`): LéXPLORE 3–6 Nov has 68 run_sample attempts: 58 started by the schedule (43 PASS, 15 FAIL), 10 by hand (8 PASS, 2 FAIL). 45 different automatic samples (E1 24, E2 21), 44 ended PASS. All 51 PASS runs completed the shield step. The 32 of 47 in the earlier draft was not reproduced from the logs; it is replaced. Failed runs by cause: autonomy and procedure 8, set-up 4, broken parts 4, test stopped by hand 1.
+
+**Changed (documents only):** `docs/field/field-report-draft-2026-11.md` rewritten: summary, the two field works, results, validation criteria, failures by source, next steps. The Bois Chamblard log keeps its CoWaS-only content.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-06: air/water runs moved, manual sampling compared with the autosampler
+
+**Asked (user):** the air/water runs at LéXPLORE belong to the Bois Chamblard project, not to the DIEL study; revise the counts and the report. Manual sampling timings for E1 and E2 supplied: compare with the autosampler.
+
+**Changed (documents only):**
+- The air/water runs of 3 November (folder `03`: 3 samples, 1 blank, 1 stopped by `x`) are in the Bois Chamblard log, new section 6. The LéXPLORE log §13 points there.
+- `docs/logs/manual-sampling-lexplore-2026-11.csv`: the manual sheet, as supplied.
+- LéXPLORE log §33: pairing of the 21 manual samples with the automatic filtration windows (offsets in minutes). From E1 T6 on, all 18 pairs are within 15 min (mean absolute 4.9 min); the three E1 T5 pairs are 43 to 75 min later.
+- The field report: counts revised (LéXPLORE: 62 CoWaS runs, 46 PASS, 16 FAIL; 45 different automatic samples, 44 PASS; excluding the air/water runs and the 3 Nov test); "46 of 46" PASS runs with the shield; a new section on the manual comparison.
+
+**Checked:** the user's "one automatic sample lost to a loading error" is most likely `E2_T1_20M_R1`: five failed runs from the prefilter error, but the sample passed on its sixth run (1001 mL), paired with the manual sample at 17:21. The only automatic name with no PASS is `E1_T1_05M_R1`. Both are written in the report and LOG §33.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-06: field report counted per sample, split at the spool fixes
+
+**Asked (user):** count samples, not runs; debugging runs before the spool fixes count as one fail per sample; say that the spool can lose its position and is re-zeroed when in doubt; note the retry and filter reuse; DNA Shield varies with clogging and is not measured; the human-error sample.
+
+**Checked in the logs:** the cut is 3 Nov 22:49 (first sample whose first run came after the spool-zero reflash). Before it: 6 samples, 6 failed runs, 4 needed more than one run, 2 finished by hand (E1_T1_05M, E1_T1_01M). After it: 39 samples, all through the schedule; 6 needed more than one run; 10 failed runs, all before the filter was loaded (filter reused). Two spool-zero events after the fix were retried by the schedule within 2 to 5 min (E1_T5_01M, E2_T1_01M_R1). The sample of the prefilter error (E2_T1_20M_R1) passed on its 6th run. The DNA Shield micro pump runs 190 s in 50 of 51 runs (one stopped early); no shield volume is recorded.
+
+**Changed (documents only):** `docs/field/field-report-draft-2026-11.md` rewritten: per-sample and per-run tables, before and after the spool fixes, validation wording ("Almost", "Criterion"), causes after the fixes with their recovery, a DNA Shield section (dose measured and adapted to clogging, roadmap 2 or 3).
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-06: manual sampling protocol, sheet and volume note
+
+**Asked (user):** record the manual sampling information (times, labels, the protocol), and report that E1_T1_20M_R1 passed about 1250 mL instead of 1000 mL.
+
+**Changed (documents only):**
+- `docs/field/manual-sampling-protocol.md` (new): the 11 steps of the manual protocol as supplied, the labels (E1/E2, T1 to T7, depths, R1/R2), and the differences from the CoWaS (2 L against 1 L through the filter; 1 mL shield by hand against the fixed-time pump; timing).
+- `docs/logs/manual-sampling-lexplore-2026-11.csv`: already filed; the labels and the time points are now written down in the protocol and in LéXPLORE log §33 (the time points: 4 pm, 8 pm, midnight, 4 am, 8 am, noon, 4 pm, as the user listed them).
+- LéXPLORE log §34 (new): E1_T1_20M_R1, record 1001 mL (944 trusted) against about 1250 mL measured by the user.
+- `docs/logs/findings.md`: F254 (flowmeter gap on E1_T1_20M_R1, to check against a measured volume).
+- Field report: the manual protocol and the volume difference (2 L against 1 L) in the manual section; the volume gap in the validation table.
+
+**Not changed:** code, firmware, tests. The operator tutorial is not changed (the manual protocol is a separate document). Not committed.
+
+### Session 2026-11-06: manual sheet corrected, manual protocol corrected, Lexplore protocol rewritten
+
+**Asked (user):** discard E1-T5-20M-R1, E1-T5-05M-R1 and E1-T5-01M-R1 as manual samples (never taken); 12 is noon, and there was no manual 08:00; a manual filter gets 1 L, not 2 (the first litre is a purge with no filter); E1_T1_20M_R1's 1250 mL is an automatic sample, measured with a bucket to check the flowmeter, which under-reads; rewrite the Lexplore protocols from what was done, with materials and methods.
+
+**Changed (documents):**
+- `docs/logs/manual-sampling-lexplore-2026-11.csv`: the three E1-T5 rows removed.
+- LéXPLORE log §33: the three E1-T5 pairs removed; 18 manual pairs; time-point labels (T3 midnight, T6 noon); manual samples at E1 T6 and T7, E2 T1 and T2 only.
+- LéXPLORE log §34 and F254: the bucket check is the real volume (1250 mL), the flowmeter counted 1001 mL: it underestimates at this flow.
+- `docs/field/manual-sampling-protocol.md`: 1 L through the filter after a 1 L purge with no filter; the labels; the time points; the materials; what differs from the CoWaS.
+- `docs/field/lexplore-field-protocol.md` (new): rewrites the planned protocol in `archive/field-plans/` as it was run: aim and design, materials to prepare before the trip, before-run checks, automatic and manual sampling, blanks, filters and labels, end of day, known limits. The archived plan is kept.
+- Field report: E1 T5 removed from the manual table; the manual volume (1 L); the bucket check in the validation table; the protocol linked.
+
+**Not changed:** code, firmware, tests. The operator tutorial is unchanged. Not committed.
+
+### Session 2026-11-06: manual blank and pump, fails counted as problems
+
+**Asked (user):** the manual blank is kept with the manual samples (18 manual samples plus 1 manual blank); the manual pump is a Vampire Sampler (Bürkle, Huber lab); the Summary wording for "after the spool fixes"; recount the fails so that a run of failures on the same problem, until it is resolved, counts as one fail.
+
+**Recount (DIEL study, 3–6 Nov, CoWaS, excluding the air/water runs and the test):** 16 failed runs, grouped into 8 problems, each resolved. Before the spool fixes (first run to 3 Nov 22:49): 3 problems (spool position 16:45–17:35 with 3 runs, prime no flow 20:15, spool position 21:22–22:10 with 2 runs). After: 5 problems (sensor 04:19–04:34, 2 runs; spool zero 08:52, 1 run, retried automatically; prefilter 16:06–16:59, 5 runs; spool zero 19:20, 1 run, retried automatically; spool stall 19:53, 1 run). The earlier counts (per run, per sample) are replaced.
+
+**Changed (documents only):**
+- Field report: results by problem; the "What fails" table by problem; the Summary wording for the spool fixes and the retry, as supplied by the user; the manual pump and the manual blank.
+- Manual protocol: the manual pump, and the 18 + 1 blank.
+- LéXPLORE protocol: the manual pump, the blank, the manual sample count.
+- LéXPLORE log §33: the manual blank kept with the manual samples.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-06: runs named by project, not by person
+
+**Asked (user):** no need to explain the excluded runs in the report; name the runs by project (air/water at Bois Chamblard, DIEL study on LéXPLORE), never by person.
+
+**Changed (documents only):** the report title and sections use "air/water at Bois Chamblard" and "DIEL study on LéXPLORE"; the sentence listing the excluded runs is removed. The Bois Chamblard log section 6 is "Air/water runs at LéXPLORE (3 November)". The LéXPLORE log §13 heading and its move note use the project names; F231 uses "air/water run". Folder paths keep their real names.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-06: documentation pass (end of the chat)
+
+**Asked (user):** document everything relevant from the chat in the logs at the right places; the expired filter is E1_T7_20M_R1, not E2_T7_20M_R1.
+
+**Corrected:** F253 and field log §31 name E1_T7_20M_R1 (4 Nov, slot 11, PASS, 1001 mL). E2_T7_20M_R1 (6 Nov, slot 2) is not recorded as expired; its filter to be checked on the paper sheet.
+
+**Status found while checking (16:47, 6 Nov):** schedule 3 is in progress. E2_T7_20M_R1 PASS (16:00 to 16:30, 806 mL, `clogged`, slot 2), E2_T7_05M_R1 running (slot 3), E2_T7_01M_R1 waiting (slot 14). The two slots were predicted before the start and were as predicted. Recorded in field log §35; not counted in the report until it ends.
+
+**Where the chat's content is recorded:**
+- Schedule and slot questions, and the tutorial: operator tutorial (filters in date; §0 and §4 already had the prefilter rule); LéXPLORE protocol §3.
+- Tutorial rewrite, archive, Bois Chamblard log: LOG 2026-11-06 entries; `docs/logs/field-bois-chamblard-2026-10.md`; `docs/archive/field-plans/`.
+- Step timings (code): LOG D96 entry; `docs/software/session-log.md` §5, `docs/software/code-guide.md`; decisions D96.
+- Field report: `docs/field/field-report-draft-2026-11.md` (results by problem, manual comparison, DNA Shield, validation).
+- Manual sampling: `docs/field/manual-sampling-protocol.md` (1 L through the filter after a 1 L purge; pump Vampire Sampler, Bürkle, Huber lab; labels; time points); `docs/logs/manual-sampling-lexplore-2026-11.csv` (E1-T5 removed; E2 manual blank kept as a blank).
+- Manual pairs and the timing table: field log §33 (18 manual samples, one manual blank).
+- Flowmeter and 1250 mL: field log §34; F254; roadmap stage 2 §7b (bucket checks at several flows).
+- DNA Shield dose: F255; roadmap stage 2 §7b (measure the volume, dose from the filter state; most relevant follow-on); the field report's DNA section.
+- Fail counting: decisions D97; field log §36 (8 problems, 16 failed runs).
+- Protocol for the DIEL study: `docs/field/lexplore-field-protocol.md` (replaces the plan in the archive; materials, methods, known limits); decisions D98.
+- Naming by project (air/water, DIEL study): LOG 2026-11-06 entry "runs named by project"; no person's name for those runs in the documentation.
+
+**Not changed:** code, firmware, tests. The schedule on the board is not touched. Not committed.
+
+### Session 2026-11-06: second flowmeter bucket check
+
+**Asked (user):** sample E2-T7-05M-R1: flowmeter 549 mL, real volume 800 mL; update the logs.
+
+**Recorded:** field log §37; F254 (second data point, about 31 % low, error grows at lower flow); the field report volume line; roadmap stage 2 §7b flowmeter row. The end reason, trusted volume and flow of the run are not entered (not given); read them from the record.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+
+### Session 2026-11-06: manifold over-travel and lost link at LéXPLORE (hypotheses only)
+
+**Asked (user):** record what was observed after E2_T7_05M_R1, and all hypotheses, because the cause is not known; add more hypotheses if there are any.
+
+**Recorded:** F257 (Blocking, open) and [field log §38](field-lexplore-geneva-2026-11-03.md#38-manifold-over-travel-and-lost-link-after-e2_t7_05m_r1-2026-11-06).
+- The manifold kept turning until it tangled in the tubing and cables. The computer lost the CoWaS (COM6 not detected). A burnt smell, not sure. The platform generator started at the same time.
+- Samples: E2_T7_20M_R1 and E2_T7_05M_R1 collected (shield of the 5 m added by hand); **E2_T7_01M_R1 never taken**; the ethanol purge of the three used slots is not done.
+- Hypotheses H1 to H10 (rain added by the user; power dip, frozen Due with the driver on, reset and repeated command, stalled motor, surge or short on the USB bridge, encoder noise, laptop side, software state, O-ring left unlocked), the evidence to collect, and a bench plan.
+- Main point: the 15 s timeout and the guards run in the Due and cannot stop a frozen or dead Due. A stop independent of the Due is proposed for the bench work.
+
+**Found while checking:** the motion guard (`manifold_guard`, `MANIFOLD_STALL_MS` and others, referring to F256) is in the working tree and not committed. F256 is not in the register yet and no log entry says the guard was flashed. Not changed here. F257 was used for this event so that F256 stays free for the guard.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+**Update (user, end of the day):** rain added as H10 (some drops fell; the CoWaS is somewhat resistant to rain). The debugging is left for another time.
+
+### Session 2026-11-09: power-dropout robustness proposed (PW1), driver question, report
+
+**Asked (user):** the CoWaS should be robust to a power dropout at any time, with everything checked at restart; suggest what to implement and document it in roadmap 2 (early) and in the logs. The platform power shutdown is the most likely source (so not a CoWaS fault, but the CoWaS must still cope). Could a part of the manifold driver overheat or burn so that COM6 stops working? Document the observations in the field logs and the report, without a firm conclusion in the report.
+
+**Recorded**
+- Stage 2 §7.0 (new, early): PW1, power-dropout robustness. Hardware: safe pin defaults (pull-downs and the A4988 pull-up), a stop that works with a frozen Due (heartbeat-fed relay on the 24 V actuator rail through an external watchdog), logic and motors on separate rails with hold-up, an optional DC-UPS or battery, fuses and an isolated USB link, brown-out reset. Firmware: safe levels in the first lines of `setup()`, reset cause logged, a motion journal in non-volatile memory, a boot checklist that checks everything is off and flags the interrupted slot `SUSPECT`, an absolute turn limit on the manifold, a supply log, no automatic resume of a half-done sample. Bench test of dropouts in every phase. Also a row in the §7 table and a bullet in §3.2. **Proposed only; awaiting the user's go.**
+- F258 (High, open): no defined behaviour for a power dropout. F257 updated with the user's assessment.
+- Field log §38, update 2026-11-09: the user's assessment, the fact kept apart from the hypotheses, and the analysis of the driver and COM6 question. Short answer: heat alone is unlikely (thermal shutdown, and the driver is not on the USB path); a short or a burnt connector putting motor voltage on the Due's pins, or a supply collapse from a stalled motor, are possible. On a standard Due the 16U2 bridge shows a COM port even when the SAM3X is dead, so "no COM6 at all" points more to the USB path, the 5 V at the bridge or the laptop. Six cheap tests are listed.
+- Field report draft: summary bullet, "Incident at the end of the campaign (6 Nov, under investigation)" in section 4 (observations, hypotheses, next steps, no conclusion), and remaining task 9. The counts of the report are not updated for schedule 3.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-10: incident reviewed against the final log, field report rewritten, sample list
+
+**Asked (user):** weigh the hypotheses (platform power shutdown, no stop order after power returned, driver overpower or burn, and the effect on COM6); keep only the main hypothesis in the report; check the logs of the final samples; rewrite the report to show that the CoWaS worked and to give field feedback by cause; list the automatic samples (blanks first) and the manual samples in an Excel file.
+
+**Recorded**
+- [Field log §39](field-lexplore-geneva-2026-11-03.md#39-the-incident-reviewed-against-the-final-log-and-the-hypotheses-weighed-2026-11-10): the final log lines (`O-ring unlocked` 16:54:41, no `O-ring locked`, no error line, USB lost 16:55:45), the flash attempt of 10 Nov (COM6 is seen; `No device found`: the USB bridge answers, the SAM3X does not), a table of nine hypotheses with weights, the answers to the user's questions, and the tests that separate them. **Correction:** §38 and the first draft of the report said "no COM6"; that was true in the field, but on 10 Nov the port is seen.
+- F257 updated.
+- Field report rewritten (`docs/field/field-report-draft-2026-11.md`): 68 of 70 samples for the whole experiment (49 CoWaS filters = 47 samples + 2 blanks, plus 19 manual = 18 + 1 blank); Felix's 19 runs; what the field work fixed in the spool; feedback grouped by cause (prototype hardware, spool software, set-up and handling, measurement limits, design limits); the linear actuator holding the seal; the incident with the main hypothesis only, marked in progress.
+- `docs/field/cowas-lexplore-sample-list-2026-11.xlsx`: sheet "Automatic (CoWaS)" (49 rows, the two blanks first) built from the sample JSON files; sheet "Manual" (19 rows: the blank first, then 18 samples with the paired CoWaS sample and the offset).
+
+**To confirm with the user**
+- The figure "68 of 70": the 68 is verified from the records (49 + 19). Counting the plan gives 69 (48 automatic + 2 CoWaS blanks + 18 manual + 1 manual blank), so the second missing sample is not identified in the logs.
+- Which sample was lost to the operator entry error (the user's memory: slots 5-6 given instead of 4-5). No record found.
+- The sheet label `E2_T3_01M_R1` was recorded as `E1_T3_01M_R1` in the E2 folder; the sheet uses the corrected name and says so.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-10 (second part): report revised
+
+**Asked (user):** say "autonomous sampler", not CoWaS; "manual sampling" with Niskin bottles and the portable peristaltic pump (Vampire Sampler), not "hand sampling"; the project is Bois Chamblard, and its samples come first, next to LéXPLORE, to show the sampler working on two sites; the Bois Chamblard river work is not a 24 h series; keep the linear actuator (seal) and the manifold incident apart; the missing sample is lost "to an incident involving a power surge on the LéXPLORE platform"; short, bullet points, clear.
+
+**Changed (documents only):** the report was rewritten on these lines (two-site summary, 14 Bois Chamblard samples with 13 completed, the 6 scheduled river samples from 27 Oct 20:45 to 28 Oct 16:10 that ran unattended overnight, 68 of 70 at LéXPLORE). The Excel sheets use "autonomous sampler".
+
+**Label of the E2 T3 1 m sample:** `E1_T3_01M_R1` was typed in the E2 schedule file (`tools/DIEL-E2-schedule2.csv`) and so in the record. It is the E2 sample: the run is in the E2 session (experiment DIEL6, date 2026-11-05), slot 3, 01:04 to 01:36 on 6 Nov, between E2_T3_05M_R1 and E2_T4_20M_R1, and the real E1_T3_01M_R1 already exists (4 Nov, slot 12). To confirm: the label written on the filter tube.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-11: report states the purpose
+
+**Asked (user):** say in the report that the field work tested the robustness of the revised code, an extensive upgrade; focus on the robustness, sampling and leak-sealing improvements.
+
+**Changed (documents only):** the field report has a "Purpose of the field work" line under the summary intro and a short "revised firmware under test" list (robustness, sampling, leak sealed) at the end of section 2. Not committed.
+
+### Session 2026-11-11 (second part): size of the revision, with numbers
+
+**Asked (user):** make it obvious in the report, with numbers, that the code revision is massive.
+
+**Measured (`git diff --numstat baseline-v0 HEAD`, committed work only; baseline-v0 is 2026-09-24, 70 commits since):** `src` and `include`: 85 files, +9,385 / −1,582 lines (50 new files, 29 modified, 6 deleted); the firmware went from about 8,284 lines in 58 files to about 16,300 in 102 (working tree, uncommitted work included). `src/Core` (pure logic): 42 files, +3,325. `test/`: 20 files, +2,888, none removed (the baseline had one test, the manifold geometry). `host/`: 35 files, +6,732. About 60 % of the original firmware files were modified or removed, and about 80 % of the original lines are unchanged: the drivers were kept.
+
+**Changed (documents only):** the report's section 2 has a "Size of the revision" list, and the purpose line says "major revision". Not committed.
+
+### Session 2026-11-11 (third part): size of the revision, corrected baseline
+
+**Asked (user):** the project started on 4 August, so everything since is the user's revision; the numbers are higher.
+
+**Baseline corrected:** the git history before the user's first commit (2026-09-23, parent `c75c79b`, merge of 2024-07-09, work by earlier authors) is the code the project started from. The user's August to September work is inside the first commit, so `baseline-v0` (2026-09-24) was too late as a baseline. Measured against `c75c79b`, working tree: `src` and `include` 48 files, about 5,600 lines at the start, about 16,600 now (107 files); about +13,200 / −2,200 lines; 58 new files, 26 modified, 4 deleted of the original 48; `src/Core` +3,484 lines; `test/` about 4,900 lines (the start had none: one README only); `host/` 35 files, +6,732. Committed work alone: +12,691 / −2,183, 72 commits.
+
+**Changed (documents only):** the "Size of the revision" list in the field report. Not committed.
+
+### Session 2026-11-11 (fourth part): what changed, not lines of code
+
+**Asked (user):** lines of code are not a good measure; explain what was actually changed, and keep only a few impressive numbers.
+
+**Changed (documents only):** the field report's section 2 now lists what changed (seal, pressure, safety, sampling, spool, operation, verification), with the numbers kept as secondary: 221 firmware unit tests in 22 suites (`RUN_TEST` count), 316 further tests for the host and the tools (111 + 205 test functions), 51 documented console commands, 187 findings and 109 decisions logged; the firmware about 5,600 to 16,600 lines. Checked against the 2024 start: it had an ABP driver and a `stop_pressure` option but no linear actuator or O-ring lock, so the report does not say that nothing stopped the pump before. Not committed.
+
+### Session 2026-11-11 (fifth part): full extent of the work in the report
+
+**Asked (user):** the report must show the full extent of the work: calibration functions, test loops and functions, run functions, scheduling, logging, the computer interface, everything around the pressure sensor, the spool robustness, the many robustness improvements, the seal, the new manufactured (3D-printed) parts.
+
+**Changed (documents only):** the "What changed" list in section 2 of the field report is now organised by area (seal and parts, pressure sensor, calibration functions, test functions, run functions, scheduling, logging, computer interface, firmware robustness, spool, verification). Parts named from the LOG (O-ring seal for the PTFE, PLA inserts, concentric double O-ring, sensor adapter, reprinted outlet). Not committed.
+
+### Session 2026-11-11 (sixth part): the original pressure sensor handling was not usable
+
+**Asked (user):** the original pressure-sensor driver and `stop_pressure` option existed but were flawed and not functional in practice; say so.
+
+**Checked in the 2024 code (`c75c79b`):** the sensor reading was used in `step_purge` and `step_sampling` only to detect an empty line (low-pressure threshold, `stop_pressure`); the SPI clock was 800 kHz (F124: garbage frames with a valid status, fixed 2026-10-09 with 100 kHz); the conversion was a fixed formula with no calibration (`BAR_FACTORa/b`; F126, the scale still disagrees with the manometer); no pump code limited the pressure. **Changed (documents only):** the "Pressure sensor" bullet in the field report's section 2. Not committed.
+
+### Session 2026-11-11 (seventh part): review of the main log, work missing from the report, counts corrected
+
+**Asked (user):** go through the main log and see which relevant improvements the report forgot.
+
+**Added to the report (from the log):** the per-sample spool routine (fill with lake water, prime, rise, roll up and empty also after a failed sample, 40 m total, move log); the purge volume (3 L with the spool), the vent and the confident-volume rule; the ethanol cleaning procedure; the sample book and the run report tool; calibration of the manifold reference; the operator tutorial, the field and manual protocols, the lab protocols, the pin map, the command list, and the findings and decisions registers.
+
+**Found in the log, and a correction:** the entry "wrong start answer (slots 4-5 typed as 5-6), the 1 m sample lost (F244)" identifies the operator-entry error: **E1_T5_01M_R1** (4 Nov). Its run went to slot 6, which holds no filter, so it is not a valid sample, though its record says PASS 1001 mL. So the auto sampler has **46 valid samples and 2 blanks** at LéXPLORE (48 filters), not 47 and 49, and with the 19 manual ones **67** samples are collected, out of 69 planned by the records (48 + 2 + 18 + 1). The user's figure was 68 of 70; the 70 and the 68 do not follow from the records, so the report now uses 67 of 69. The sheet lost the E1_T5_01M_R1 row (48 rows). The field log §33 had guessed the wrong sample for the human error; a correction is added there. The field log §36 problem 5 (E1_T5_01M, retried, PASS 09:14) still says PASS: the run passed but had no filter.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-11 (eighth part): the report split in two
+
+**Asked (user):** split the report in two independent reports: a field report (successes and feedback, short bullets) and a report on what was done since August and why (structured; the field validation; what was revised, such as the spool diving to the deepest point at every sample; the strategies to shorten a sample). Check against the log, the decisions and the findings. Use "auto sampler" sparingly.
+
+**Written (documents only):**
+- `docs/field/field-report-draft-2026-11.md`, rewritten: summary, the two field works, results, what worked, field feedback (spool, hardware, set-up, power incident, measurement limits, design limits), next steps.
+- `docs/revision-report-2026-11.md` (new): summary, starting point (August 2026), how the code was rebuilt and why (testable logic, one place per safety rule, logged changes), changes by area with the reason for each, sampling time, what the field work validated and revised, next. Linked from `docs/README.md`.
+
+**Facts checked for the reports:** highest recorded pressure 3.44 bar in 155 records (cap 3.6 bar); vents: about 240 `released`, one `NOT released` (3 Nov 17:33); DNA Shield micro pump ran 190 s in every field run (250 s in the 2024 code); field step medians at LéXPLORE: purge 432 s, dive 263 s, filtration 813 s, shield 238 s, total 1724 s; Bois Chamblard total 1208 s; purge 7 L → 3 L (D50), full-power purge (D51), deployment-line emptying removed (D23), per-sample dive (D90, the group plan D60 withdrawn by D89); the full-power prime (D94), two-pass roll-up (D95) and step log (D96) built, not confirmed on the board. The 2024 code had an SD text log, disabled; no Python interface in that code.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-11 (ninth part): appendices
+
+**Asked (user):** put further details in appendices.
+
+**Added (documents only):** field report appendices A (samples planned and collected per series), B (the 8 problems at LéXPLORE), C (median time per step, from the `t_*_s` fields of the passed runs), D (manual and machine timing at LéXPLORE). Revision report appendices A (timeline), B (main settings before and now, with the reason: from decisions D19, D21, D32, D38, D43, D50, D51 and findings F124, F161), C (unit test suites and counts, 221 in all; `manifold_guard` built after the field, not flashed), D (spool changes made in the field, with their decision numbers). Not committed.
+
+### Session 2026-11-11 (tenth part): the sampling logic and the pump history in the revision report
+
+**Asked (user):** detail the logic (clogging criteria, end criteria of a sample, the pump logic) and what was tried and failed on the pump (PID values), the tries in an appendix.
+
+**Added (documents only):** revision report section 4 "The sampling logic": pump control (PID to 3.0 bar, 10–60 % with water, 100 % for air and open lines, start from 0 % at 5 %/s, pause at 3.35 bar, resume under 3.15 bar, cap 3.6 bar, implausible-sensor stop); the end rules of a sample with their criteria and record names (volume 1000 mL; clogged: < 30 mL per 60 s pumping window, or the mean of the last two windows < 30 % of the first from the third window; stalled: < 3 mL per window; pressure held 20 s above 3.15 bar while paused; 30 min timeout; cap, sensor; `x`, `s`); the confident volume; the other steps (purge, spool prime, vent, DNA Shield, emptying, rotation). Appendix E "Pump control: what was tried", from F132, F133, F135, F137–F142, F145–F146, F149, F161, F196, D16–D19, D26, D27. Values checked in `include/Settings.h`, `src/Core/fill_stop`, `src/Hardware/Filter_watch.cpp` and `src/Step_functions.cpp`. Sections renumbered (sampling time 5, field 6, next 7). Not committed.
+
+### Session 2026-11-11 (eleventh part): the field report's problem appendix completed
+
+**Asked (user):** appendix B did not list all the problems.
+
+**Cause:** it listed only the 8 problems that failed a run (field log §36, D97). **Changed (documents only):** appendix B of the field report is now B1 (the 8 failed-try problems), B2 (other problems at LéXPLORE, from F215–F258: manifold shifts and plate not square, USB drop, pump relay at reset, schedule after a failed roll-up, spool tube pulled by current, dead sensor unnoticed for about 3.5 h, console freeze, DNA Shield tube leak, wrong slot list, expired filter, spool move that did not start, swollen wood and mechanical failures, false zeros of 6 Nov, MilliQ blank at the pressure margin, the power incident, pump pauses, flowmeter and DNA Shield dose) and B3 (Bois Chamblard events, from its log §3). Not committed.
+
+### Session 2026-11-11 (twelfth part): clean revision of the revision report
+
+**Asked (user):** the cap was raised step by step "because we could": the Sterivex takes at least 3 bar and lower pressure gives no flow and clogs the filter too fast. Make the amount of work obvious without insisting; no criticism of the previous version; factual and professional; how it works now compared with before, and why; a clean revision.
+
+**Changed (documents only):** `docs/revision-report-2026-11.md` rewritten: a neutral summary and a "scope at a glance" table (original against revised); each area in section 3 as Before / Now / Why; the pressure-limit rationale as given by the user (also in appendix B and E); neutral wording throughout ("original", "approaches tested", no judgments).
+
+**Checked in the 2024 code (`c75c79b`):** the sample was collected in a container for a fixed time (`FILL_CONTAINER_TIME`) and then pushed through the filter until a low-pressure threshold or a time limit (`EMPTY_WATER_PRESSURE_STX_THRESHOLD`, `EMPTY_CONTAINER_TIME_FILTER`); the purge was three container purges (`PURGE_NUMBER`); pump powers 90 % (water) and 80 % (flush); `step_dive` and `step_rewind` existed in the sample sequence; DNA Shield 250 s. The 100 mL sample volume dates from the revision, not from the original. Not committed.
+
+### Session 2026-11-11 (thirteenth part): reports folder, wording
+
+**Asked (user):** say "before August 2026", not "2024 version"; the pressure sensor was calibrated against the manometer and the user trusts the calibration; make a report folder with both reports and the tutorial.
+
+**Changed (documents only):**
+- `docs/reports/` created: `field-report-2026-11.md`, `revision-report-2026-11.md`, `lexplore-sample-list-2026-11.xlsx` (moved from `docs/field/` and `docs/`), and a `README.md` index that links the operator tutorial. The links in the reports, `docs/README.md`, the LéXPLORE log and `findings.md` (F255) were updated. Earlier LOG entries still name the old paths.
+- The operator tutorial stays in `docs/field/operator-tutorial.md`: ten files link to it (including `tools/sample_schedule.py`, which prints its path), so moving it would break them. The folder index links to it. A move with the links fixed can be done on request.
+- Revision report: "before August 2026" replaces "2024" in the text and the table headings; the remark on the sensor scale (factor 2.4) is removed, the sensor is described as calibrated against the manometer.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-11 (fourteenth part): reports made more concise
+
+**Asked (user):** make the reports more concise without losing important information; details can go to appendices.
+
+**Changed (documents only):** `docs/reports/field-report-2026-11.md`: the "What worked" section merged into "Results", the design limits into the hardware feedback, the summary and next steps shortened (main text about 75 lines; appendices A to D unchanged). `docs/reports/revision-report-2026-11.md`: summary cut to three bullets, code organisation to four bullets, calibration, tests, cleaning and handover merged into one block, the field section condensed (main text about 120 lines including the logic tables; appendices A to E unchanged). Nothing removed that is not repeated elsewhere in the same report or in an appendix. Not committed.
+
+### Session 2026-11-11 (fifteenth part): checks before the commit
+
+**Run before committing:** `pio run -e due` SUCCESS; `pio test -e native` 221 passed (one failure first: `test_a_stop_after_turning_stalls` in `test/test_manifold_guard`, whose timing assumed the last 3-degree progress step at exactly 1000 ms; it is at about 938 ms, so the stall comes 62 ms earlier. The guard is right; the test now checks OK at 1000 ms + stall time − 100 ms and STALLED at +1 ms); host pytest 364 passed (needs `PYTHONPATH=src` in this venv: the editable install of `cowas` is not active); `pytest tools` 235 passed. **Correction:** the revision report gave "316 more tests" (a count of test functions); the pytest counts are 364 and 235.

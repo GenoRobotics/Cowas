@@ -110,6 +110,9 @@ Each purge and each sample writes one record. Open the JSON file in any editor. 
 | `calib` | The calibration values the run used |
 | `flags` | Placeholders in use (`placeholder:…`). Read them: a value listed here is not final |
 | `pc_received` | When the PC received it (the trusted clock) |
+| `steps`, `steps_dropped` | Every timed step of the run, in order (2026-11-06): `name`, `start_ms`, `end_ms`, `dur_ms`, all in the device's millis() clock (the same clock as `start_ms` and `end_ms` of the record). `steps_dropped` > 0 means the log was full and the last steps are missing. Names: `spool_fill` (dive, prime and rise to the depth), `spool_prime` (each try), `spool_up` / `spool_down` (each spool move), `purge`, `sample`, `sample_pump` (the water through the filter), `sample_empty_purge` and `sample_empty_stx` (the emptying), `shield`, `shield_micro` and `shield_air` (the DNA Shield), `rewind` and `empty` (the spool roll up and the emptying of the tube), `unlock` |
+
+The `steps` come from a separate firmware line, `{"t":"steps",...}`, printed when the whole run ends. The tool adds it to the sample file of the same id. A sample file without `steps` was saved by a firmware before 2026-11-06, or its steps line was lost (the log then says `no sample record to add them to`).
 
 `null` means "not available", never 0. The CSV `samples.csv` has the same main fields, one row per sample, for a table.
 
@@ -139,3 +142,7 @@ tools\session_log.cmd --rebuild docs\logs\test-logs\<date>\<NN>_<tag>
 ```
 
 The records are the same as the live tool writes, with the times of their transcript lines. Nothing is overwritten: if the run folder already has sample files, the transcript is copied into the next numbered folder of the day (`<NN+1>_<tag>`) and the samples are rebuilt there. The command prints the folder it wrote.
+
+## 9. Summary of a run folder (`tools/run_report.py`)
+
+`python tools\run_report.py <run folder>` reads the run's `session.log` and prints, without touching the machine: the pressure-cap pauses (count, pump-off time, pressure drop), the purge flow at each minute (mL counted, pressure), the spool prime tries (PASS and FAIL), the spool warnings and stalled or aborted moves, and the counts of ERROR, WARNING, `x` aborts, REFUSED and vent lines. Use it at the end of the day, or to compare two runs. It reads both the old and the 2026-11-05 text of the pause lines. Tests: `pytest tools/`.

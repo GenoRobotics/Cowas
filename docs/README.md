@@ -12,6 +12,10 @@ CoWaS is an autonomous water sampler for environmental DNA. A pump draws lake wa
 4. [Code guide](software/code-guide.md): how the firmware is organised.
 5. [For Felix](for-felix.md): where things are and what is left for the calibrations.
 
+## Reports (November 2026)
+
+[reports/](reports/README.md): the field report (Bois Chamblard and LéXPLORE), the revision report (what changed since August 2026, and why), the sample list, and a link to the operator tutorial.
+
 ## Folders
 
 | Folder | What it holds | Start with |

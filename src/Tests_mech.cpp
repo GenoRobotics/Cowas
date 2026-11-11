@@ -37,6 +37,7 @@
 #include "Core/fill_stop.h"
 #include "Core/pid_metrics.h"
 #include "Core/spool_motion.h"
+#include "Run_steps.h"
 
 extern Valve_2_2 valve_1;
 extern Valve_2_2 valve_manifold;
@@ -1432,18 +1433,24 @@ static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool e
         return core::TEST_SKIP;
     }
     // step times (user, 2026-10-23): each step is timed and printed, and goes on the TEST line as t_*_s
+    run_steps_begin(); // every step of the run is timed into the steps line (2026-11-06)
     const uint32_t t_begin = millis();
     uint32_t t_dive = 0, t_rewind = 0, t_empty = 0;
     bool failed_empty = false;
     bool ok = true;
     if (use_depth)
     {
+        StepScope step("spool_fill");
         ok = spool_fill_and_rise((int)lroundf(depth_m * 100.0f)); // water fill (2026-11-02): session depth if dry, prime, rise to depth. false = nothing more is pumped
         t_dive = millis() - t_begin;
     }
     const uint32_t t_purge_start = millis();
     const bool dive_failed = !ok;
-    ok = ok && (!purge || step_purge());
+    if (ok && purge)
+    {
+        StepScope step("purge");
+        ok = step_purge();
+    }
     const uint32_t t_purge = millis() - t_purge_start;
     uint32_t t_sample = 0, t_shield = 0, t_unlock = 0;
     const char *failed = dive_failed ? "dive" : (ok ? "" : "purge");
@@ -1455,7 +1462,10 @@ static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool e
     if (ok)
     {
         const uint32_t t_mark = millis();
-        ok = step_sampling(slot, true, volume);
+        {
+            StepScope step("sample");
+            ok = step_sampling(slot, true, volume);
+        }
         t_sample = millis() - t_mark;
         // a clog is one reason with two criteria (2026-10-19): sample_end=clogged, and rule= says which one stopped it
         const bool clog = strcmp(last_sample_end, "stalled") == 0 || strcmp(last_sample_end, "clogged") == 0;
@@ -1474,7 +1484,10 @@ static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool e
     if (ok && shield)
     {
         const uint32_t t_mark = millis();
-        ok = step_DNA_shield(slot);
+        {
+            StepScope step("shield");
+            ok = step_DNA_shield(slot);
+        }
         t_shield = millis() - t_mark;
         failed = ok ? "" : "shield";
     }
@@ -1504,7 +1517,11 @@ static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool e
             run_keys_reset(); // x stopped the pumps; the roll up is a move, not a pump run
             *kv += ";aborted=x"; // the latch is cleared below: the TEST line must still say it
             const uint32_t t_mark = millis();
-            const bool rolled = step_rewind();
+            bool rolled;
+            {
+                StepScope step("rewind");
+                rolled = step_rewind();
+            }
             t_rewind = millis() - t_mark;
             *kv += String(";spool_end=") + (rolled ? "rolled_up_after_x" : "FAILED") + ";spool_emptied=NO;spool_empty_end=aborted";
             if (!rolled)
@@ -1523,7 +1540,10 @@ static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool e
     if (ok)
     {
         const uint32_t t_mark = millis();
-        ok = unlock_oring(); // FW2 tests end unlocked (the locked rest state comes in FW4)
+        {
+            StepScope step("unlock");
+            ok = unlock_oring(); // FW2 tests end unlocked (the locked rest state comes in FW4)
+        }
         t_unlock = millis() - t_mark;
         failed = ok ? "" : "unlock";
     }
@@ -1546,6 +1566,16 @@ static core::TestResult run_full_cycle(int slot, bool purge, bool shield, bool e
                    " s | sample (with its emptying) " + secs(t_sample) + " s | shield " + secs(t_shield) + " s | " +
                    (use_depth ? "rewind " + secs(t_rewind) + " s | " : String("")) + "unlock " + secs(t_unlock) + " s | total " +
                    secs(millis() - t_begin) + " s");
+    // every timed step of the run, as one line (2026-11-06): the session tool adds it to the sample file of the same id
+    static char steps_line[3400]; // 48 steps at most, about 70 characters each
+    if (core::format_steps_record(run_steps(), last_sample_record_id(), slot, steps_line, sizeof(steps_line)) < 0)
+    {
+        Serial.println("LOG ERROR: steps record did not fit, not written");
+    }
+    else
+    {
+        Serial.println(String(steps_line));
+    }
     if (!ok)
     {
         *kv += String(";failed_at=") + failed;

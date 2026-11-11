@@ -73,6 +73,7 @@ SAMPLE_CSV_COLUMNS = [
     "file",
 ]
 SAMPLE_PREFIX = '{"t":"sample"'
+STEPS_PREFIX = '{"t":"steps"'  # printed by the Due after a run: every timed step (start, end, duration), 2026-11-06
 PC_LOG_HELLO = "log_on"  # sent to the Due when this tool starts: run_sample then knows its record is saved (Tests_mech.cpp)
 SAMPLE_META = re.compile(r"META\|sample;slot=(\d+)")  # printed by the Due when run_sample has its name: the sample is used
 RUN_START_LINE = "=== run_sample ===" # printed by the Due when a run_sample pump run begins
@@ -131,6 +132,25 @@ def parse_sample(line):
     if start < 0:
         return None
     return json.loads(line[start:])
+
+
+def parse_steps(line):
+    """The steps document in a console line, or None if the line is not a steps line (same rules as parse_sample)."""
+    start = line.find(STEPS_PREFIX)
+    if start < 0:
+        return None
+    return json.loads(line[start:])
+
+
+def attach_steps(records, doc):
+    """Adds the steps of a run to its sample record: the last record with the same id (an empty id means the last record of
+    the run). Returns that record, or None if there is none. The record is changed in place."""
+    for record in reversed(records):
+        if not doc.get("id") or record.get("id") == doc.get("id"):
+            record["steps"] = doc.get("steps", [])
+            record["steps_dropped"] = doc.get("steps_dropped", 0)
+            return record
+    return None
 
 
 def now_iso(now=None):
@@ -284,6 +304,19 @@ class Session:
             self.samples += 1
             return name
 
+    def steps(self, doc):
+        """The steps line of a run: added to its sample file (and rewritten there). A steps line with no sample record of
+        the same id is reported, not dropped."""
+        with self._lock:
+            record = attach_steps(self.sample_records, doc)
+            if record is not None:
+                try:
+                    self._write_json(record["file"], record)
+                except OSError as error:
+                    self._fail(f"sample {record['file']} steps", error)
+        if record is None:  # outside the lock: line() takes it too
+            self.line("!", f"steps of {doc.get('id')!r}: no sample record to add them to, not saved")
+
     def run_begin(self, start):
         """The run_sample pump run starts (start = PC time). The sample records written from now on get it."""
         with self._lock:
@@ -384,6 +417,10 @@ def rebuild_samples(run_dir):
                     done["run_finish_pc"] = stamp
                 pending, run_start = [], None
             try:
+                steps_doc = parse_steps(text)
+                if steps_doc is not None:
+                    attach_steps(records, steps_doc)  # the steps line comes after its sample: the same rule as the live tool
+                    continue
                 doc = parse_sample(text)
             except ValueError:
                 continue  # a cut line: the live tool reported it as BAD SAMPLE LINE; the transcript keeps it
@@ -623,6 +660,16 @@ def on_device_line(session, text, book=None):
                 print(message, flush=True)
             session.open_slot = None
             session.run_end(now_iso())  # the run_sample is done: PASS or FAIL
+    try:
+        steps_doc = parse_steps(text)
+    except ValueError as error:
+        message = f"BAD STEPS LINE ({error}): not saved"
+        session.line("!", message)
+        print(message, flush=True)
+        return
+    if steps_doc is not None:
+        session.steps(steps_doc)
+        return
     try:
         doc = parse_sample(text)
     except ValueError as error:

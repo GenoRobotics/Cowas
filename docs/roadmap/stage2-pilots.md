@@ -70,6 +70,7 @@
 
 - **Safe state:** pump and micro pump off, valves closed, manifold stopped, **O-ring locked** if it is locked.
 - **Rest state:** the O-ring is locked whenever the machine waits. It is unlocked only to rotate: unlock, rotate, lock. Every procedure ends locked ([protocol §5.1](../software/protocol.md)).
+- **Power dropout (added 2026-11-09, F257, F258):** a loss of power at any moment, for any length, must end with nothing moving and a checked restart. See PW1 in §7.0.
 - **Recovery:** after any fault, STOP or boot, procedures are refused until `RECOVER` passes: cause gone, encoder OK, O-ring state known (home it if unknown), valves idle. The host marks an interrupted slot `SUSPECT`.
 
 ### 3.3 Pressure cap
@@ -234,11 +235,49 @@ Status: ☑ done, ☐ open. Stage 1 already covers parts of FW2–FW4 (see [stag
 | HW6 | Field fluidics and splash-proof box | P0 | HW3 | ☐ |
 | HW7 | O-ring lock endurance; home switch (P1) | P0/P1 | FW2 | ☐ |
 | HW8 | Pilot B enclosure, leak sensor, temperature probe | P1 | HW6 | ☐ |
+| PW1 | **EARLY, before the next field run: robustness to power dropout** (F257, F258). Safe pin defaults, a stop that does not need the Due, motion journal, boot checklist, supply monitoring, dropout bench test (§7.0) | P0 | HW1 | ☐ proposed |
 | HW9 | **EARLY FIX, before the next field run:** manifold encoder coupling, mechanical lock (F187, F191, F203, F216). The manifold shifted twice on 2026-11-03 | P0 | — | ☐ |
 | VA1 | Bench acceptance campaign (go or no-go for Pilot A) | P0 | FW8, HO3, LA3, LA4, HW2–HW6 | ☐ |
 | VA2 | **Pilot A** | P0 | VA1 | ☐ |
 | VA3 | 72 h soak on battery, Pilot B readiness | P1 | all P1 | ☐ |
 | VA4 | **Pilot B** | P1 | VA3 | ☐ |
+
+### 7.0 Early: power-dropout robustness (PW1)
+
+**Why.** On 2026-11-06 (LéXPLORE) the manifold turned further than a slot change needs and tangled itself, and the computer lost the Due, at the moment the platform generator started ([field log §38](../logs/field-lexplore-geneva-2026-11-03.md), F257). The cause is not known and the platform power is the leading suspect. Whatever the cause, the CoWaS runs on supplies it does not control. **It must survive a dropout of any length, at any moment, and never be left moving.** Proposal below; nothing is built or decided (F258).
+
+**Aim.** Two promises. (1) While power is lost, flaky or coming back, no actuator moves unless the Due is alive and commanding it. (2) After any restart the CoWaS checks that everything is off and in a known state before it does anything, and says which sample was hit.
+
+**Hardware (does not rely on the Due)**
+1. **Safe defaults.** Pull-downs on every actuator control line so that a reset, a frozen Due or an unpowered Due means OFF: VNH5019 INA, INB, PWM of both channels; the pump relay D42 and the DAC (F215); valves D44, D46, D40; micro pump D48. Pull-up on the A4988 ENABLE D11 (the motor must be disabled; pinout !4). Check the shield's EN/DIAG pull-ups (pinout !3).
+2. **A stop that works when the Due is frozen.** The 24 V actuator rail (manifold motor, spool, pump, valves, A4988) passes through a relay or contactor whose coil is kept energised only by a heartbeat from the Due, through an external watchdog or retriggerable timer (for example a 100 to 500 ms window). A hung Due stops the pulses and the rail drops. This is layer 1 of §3.2 made to depend on the heartbeat; it also covers E-stop and HW2. The hardware watchdog of the Due (FW5) is enabled as well.
+3. **Separate logic from motors.** The Due and the sensors on their own regulated rail with a hold-up (a capacitor, or a small battery or DC-UPS), so that a dip of the motor rail does not reset the Due, and the Due can see the dip and decide. Never power the Due from raw 24 V (F32).
+4. **Ride through the platform.** Consider a small battery or DC-UPS between the platform outlet and the CoWaS, so a platform cut does not reach it. Decide with HW5 (power budget).
+5. **Protection.** Fuse or current limit on each motor channel (a stalled manifold must not pull a destructive current), a TVS and reverse protection on the input, and an isolated USB link (or a USB isolator) between the laptop and the Due so a ground difference cannot reach the board. Splash-proof box (HW6): rain is hypothesis H10.
+6. **Brown-out.** Make sure the brown-out reset of the SAM3X is enabled; add a voltage supervisor on the logic rail if it is not enough.
+
+**Firmware**
+1. **First lines of `setup()`** drive every actuator pin to its safe level before anything else, including the motor driver inputs, D42 and the DAC to 0 (the F215 fix).
+2. **Reset cause** read and printed at boot and written into the next sample record: power-on, brown-out, watchdog, software, user.
+3. **Motion journal.** A small record in non-volatile memory (Due flash, or an external FRAM or EEPROM), written at every step boundary and before every motion: run, slot, step, "motion in progress" flag, O-ring state, last manifold angle, net turns, spool length. On boot, a "motion in progress" flag means a dropout hit that step.
+4. **Boot checklist after any reset or dropout (the RECOVER of FW6, made specific).** In this order, stopping at the first failure:
+   - confirm that the pump, relay, valves, micro pump and all motors are off (read back what can be read, check the current where measured);
+   - read the pressure: it must be near ambient, and the pump must not be running;
+   - read the encoder twice and check it is steady and plausible, compared with the journal;
+   - the O-ring state is UNKNOWN until `actuator_home` succeeds (F18, F60); no rotation before;
+   - the spool length is unknown (F223): roll up to the top switch first;
+   - flag the interrupted sample `SUSPECT` with the reset cause, the step, and the time; do not resume a motion by itself.
+5. **Manifold anti-tangle that does not depend on time.** Keep the net number of turns (from the journal) and refuse a rotation that would leave an absolute angle window (the tubing allows less than one turn). The stall and over-travel guard (F256, `core::manifold_guard`) stays, and a rotation is also refused if the encoder jumps faster than the motor can turn.
+6. **Every return path stops the motor**, and `service()` (FW5) stops motion on abort.
+7. **Supply log.** Read the 24 V and logic rails on an analog input each second and log a dip below a threshold, with the time, in the session log and the sample record.
+8. **Host and schedule.** After a restart the list does not resume a half-done sample. It waits for RECOVER, marks the sample `SUSPECT`, and goes on with the next one only if RECOVER passes (this is HO3's cold-boot resume, made explicit).
+
+**Bench test (pass criteria to be fixed with the user)**
+- Dropouts of the 24 V alone, the logic alone, and both, for 0.1, 0.5, 1 and 5 s, each in these phases: idle, pump running, manifold rotating, O-ring moving, spool moving, shield step.
+- Pass: no actuator moves after the power returns until RECOVER passes; a frozen Due (a forced hang in `rotateMotor`) stops the motor rail within the watchdog window; the reset cause and the interrupted step are in the log; the sample is `SUSPECT`; the O-ring and the manifold angle are checked, not assumed.
+- Repeat 20 cold boots and 20 dropouts in a row (links to the FW6 test).
+
+**Order.** Safe defaults and the first lines of `setup()` first (cheap, also fixes F215). Then the heartbeat stop, the boot checklist and the journal. The UPS and the isolation depend on what the bench work on F257 finds.
 
 ### 7.1 Firmware
 
@@ -464,6 +503,7 @@ Each step is a short card. These are the sign-off checks; tick them in the log w
 - **HW7** O-ring: check the A4988 current setting is unchanged since the last calibration. `lock_endurance 200` with no encoder drift. Pressurise to 2.5 bar with the outlet clamped for 10 min with the coils off. Keep the O-ring locked for 7 days, then check for leaks.
 - **HW8** Pilot B hardware: IP65 enclosure, cable glands, desiccant, a leak sensor at the lowest point, a water probe on the intake, a mooring plan and a label with a contact.
 - **HW9 (early fix, before the next field run)** Manifold encoder coupling: a mechanical lock, since it slipped three times in two days (F187, F191), and the manifold shifted twice on 2026-11-03 by 3 slots each time (F216, [field log §14](../logs/field-lexplore-geneva-2026-11-03.md#14-manifold-shifts-issue-log-open-early-fix-in-the-roadmap)). Lock the coupling (clamp or set screw, with a witness mark), then `encoder_repeat` and one `cal` on slot 7. The cable and connector were the cause of F203, to be checked first.
+- **HW10 (temporary repair in place since 2026-11-05; permanent version in roadmap 2, user 2026-11-06)** Spool mechanics: replace the wooden parts of the spool (the frame that holds the level-wind guide and the top-switch holder) with a water-resistant material; print the level-wind guide in a tougher material and fix it with metal screws, not glue; check the drive belt tension. Test: the guide turns freely by hand over the full tube length, and 5 roll-ups and 5 dives over 40 m run with no stall and no `stalled` line in the move log. Refs F250, F246, F240. The temporary repair works for now (user); the spool still gets a hand check before each sample until the permanent version is in.
 
 ### 7.5 Validation
 
@@ -531,7 +571,7 @@ Left out of stage 1. Nothing here blocks the field.
 | Field 2026-11-03: the pump turns on flash or reset, because the 24 V enable (D42) is not driven until setup. Hardware pull-down and the first lines of setup | [field log §3](../logs/field-lexplore-geneva-2026-11-03.md) | HW + FW |
 | Spool origin interrupts (F214, 2026-11-03): fixed in code (act only during a move). Flash, then bench check: idle tube, tap the switch, `tube out` must not change | [field log §6](../logs/field-lexplore-geneva-2026-11-03.md) | FW (bench) |
 | Fill dive keeps the deployment valve shut (F219): confirm the tube fills with lake water on the first dry fill | [LOG 2026-11-02](../logs/LOG.md) | HW |
-| Purge at 100 % and the spool prime at 60 % (F221): print the applied power; decide the prime's power | [LOG 2026-11-03 index](../logs/LOG.md) | FW |
+| Purge at 100 % (F221): print the applied power. The spool prime now runs at 100 % too (2026-11-05, D94) | [LOG 2026-11-03 index](../logs/LOG.md) | FW |
 | Pump turns on flash or reset (F215): pull-down on D42, first lines of `setup()` | [field log §3](../logs/field-lexplore-geneva-2026-11-03.md) | HW + FW |
 | Spool origin move time limit is a fixed **20 min** (`SPOOL_HOME_MAX_MS`, F224, kept for stage 1 on 2026-11-03). It is too long: a full 40 m rewind takes about 2 min at the measured 31–37 cm/s. Revise it from the rewind times of the first runs (F220), so a stuck spool is caught sooner | F224, F220 | FW |
 | Spool origin: 30 min limit from an unknown position (D79), the 300 ms hold (D83) need a bench check after the flash. Revise the limits from the first runs | F232, F224 | FW (bench) |
@@ -544,6 +584,13 @@ Left out of stage 1. Nothing here blocks the field.
 | A saved schedule's times cannot be changed in place (F239): add `schedule time <row> <HH:MM>` (and depth) for waiting rows, and `schedule reload` | F239 | host |
 | Spool tube pulled sideways under a current (F240): the depth is inaccurate (the tube is at an angle), and the spool module has friction near the up-button guide. Measure the depth error at a known current; reduce the friction | F240 | mechanical |
 | Home the spool between every sample (D88), so each sample depth is known; log every panel spool move (F243). Not implemented yet | F241, F243, D88 | FW / host |
+| Sample notes question (user, 2026-11-06): ask it at the **end** of the sampling, not at the start of `run_sample`, so the operator knows what happened. This does not fit a schedule: the next row starts straight after, so the question at the end would hold it up. Decide the place for a schedule (for example the notes in the schedule file before the run, or a notes step that does not block the next row) | field log §5, F222 | FW + tool |
+| Cartridge system for the field (2026-11-06, user): three cartridges. One always carries hollow tubes for the ethanol cleaning. Two carry the filters, so that while one runs, the tubing of the next can be cleaned and the next filters loaded. The cleaning then takes no time off the sampling day. Replaces the manual change of the tubing (ethanol purge, 2026-11-04 and 2026-11-05) | field log §27 | HW (field) |
+| Pump and PID tuning (future, 2026-11-06, user): the pressure overshoots the 3 bar target to the 3.35 bar margin and the pump stops (about 57 pauses in 15 min on the milliQ blank, 29 on 2026-11-04), with a drop of about 2.5 bar at each stop. Tune the PID, the start ramp and the cap margin so the pressure settles at target: fewer pauses, a steadier flow for the flowmeter (F150), and a faster fill of the filter. Measure the drop after a stop first (F249) | F252, F249, F150. Correction: the 2026-11-06 blank's intake was out of the water for part of the run, so it was not a clog; keep the tip in the milliQ for the whole run | FW |
+| Spool mechanics: the 2026-11-05 repair (screw re-tightened, belt in zip ties, level-wind guide glued with super glue) is **temporary** and works for now (user, 2026-11-06). Redesign the mounting (no wood in the water path), the drive belt tension and the level-wind guide (printed in a tougher material, metal fixings) for the next version. Remaining question for this item: the drum stopping at the top-switch holder (F251). Test: the guide turns freely over the full length; 5 roll-ups and 5 dives over 40 m with no stall | F250, F251, F246, HW10 | HW (roadmap 2) |
+| Spool up-switch holder is **wood**: it swelled with the water and jammed the switch (2026-11-05, fixed on site by taking it apart and cutting the extra wood). Replace it with a material that does not take up water, and check the switch travel after each reassembly | F246, F240 | HW (V2) |
+| DNA Shield dose from the filter state (F255, user 2026-11-06): the micro pump runs a fixed 190 s, so the volume is not measured and the real amount varies with the clogging of the filter (too much on clean filters, too little on clogged ones). Measure the shield volume (flow sensor or weighing), record it in each sample file, then set the dose from the trusted volume and the end reason. The most relevant follow-on of the field work (user: roadmap 2 or 3) | F255, F156 | FW + HW (stage 3 if it waits for data) |
+| Flowmeter at low flow (F254, F150): the bucket check of 2026-11-06 found the flowmeter about 20 % low at 60 to 80 mL/min (1001 mL counted, about 1250 mL real), and E2_T7_05M_R1 about 31 % low (549 mL counted, 800 mL real). Bucket checks at several flows, then a correction of the stop volume and the trusted volume | F254, F150 | HW3 / FW8 |
 | Relief valve, E-stop and leak at 3 bar (F144): **accepted by the user 2026-10-23, not raised again** | HW2, F144 | — |
 
 ---

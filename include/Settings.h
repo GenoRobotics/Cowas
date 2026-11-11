@@ -20,6 +20,7 @@ const uint32_t SPOOL_HOME_UNKNOWN_MAX_MS = 30UL * 60UL * 1000UL; // ms. Full rol
 const uint32_t SPOOL_HOLD_STOP_MS = 300; // ms. The top switch held (debounced) while the spool has counted nothing for this long: the spool is stopped at the top, so the push against it is at most this long (user, 2026-11-03)
 const float SPOOL_ORIGIN_TOL_CM = 30.0f; // cm. The origin switch counts as the origin only this close to the zero of the encoder (or when homing from an unknown position). 2026-11-03: a press at 300 cm reset the zero during a rise
 const uint32_t SPOOL_HOME_MAX_MS = 20UL * 60UL * 1000UL; // ms. The longest move to the origin switch (spool_home, rewind), whatever the encoder reads (F224, 2026-11-03). A full 40 m rewind takes about 2 min (31 to 37 cm/s measured); a stuck spool is stopped by the stall rule
+const int SPOOL_HOME_PASSES = 2; // passes of every roll up to the origin switch (2026-11-06, user): the second pass is short when the spool is already at the switch
 const uint32_t SPOOL_STALL_MS = 4000;          // ms with no encoder pulse while the motor runs: the move stops
 const float SPOOL_WRONG_WAY_CM = 5.0f;         // cm the length may go the wrong way before the move stops (encoder wired backwards)
 const uint8_t SPOOL_HOME_SPEED = 30;           // % . Speed to the origin switch when the position is unknown, and for the last SPOOL_SLOW_ZONE_CM
@@ -33,6 +34,8 @@ const float SPOOL_SESSION_DEFAULT_MAX_M = 40.0f; // m. The deepest point of the 
 const float SPOOL_SESSION_MIN_MAX_M = 0.5f;      // m. The shallowest session maximum the question accepts
 const float SPOOL_PRIME_FLOW_ML = 100.0f;        // mL. Flow check at the purge slot before the roll up: the flowmeter must count this much. More than the 30 mL intake path (INTAKE_PATH_ML) that the first water must clear (user 2026-11-02: 100 mL is enough)
 const uint32_t SPOOL_PRIME_MAX_MS = 4UL * 60UL * 1000UL; // ms. Timeout of the flow check: 2 x the time to count SPOOL_PRIME_FLOW_ML at FLOW_TRUST_MIN_ML_PER_MIN (100 mL at 50 mL/min = 2 min)
+const int SPOOL_PRIME_TRIES = 3; // tries of the prime at the purge slot (the first and two more), at the same depth, when a try finds no flow (2026-11-05: a 40 m prime timed out twice, then passed at the third try; the retry does not roll up). A cap, a sensor fault or an abort is never retried (spool_prime_may_retry)
+const uint32_t SPOOL_PRIME_RETRY_PAUSE_MS = 10UL * 1000UL; // ms. PLACEHOLDER: pause with the pump and the manifold valve off, before the next try. Not measured
 const float SPOOL_CAL_MAX_DEV_PCT = 6.0f;      // spool_calibrate PASS if no stop is further than this % from the straight-line fit. 6 %: the bench fit of 2026-11-02 had a worst stop of 2.6 %, the layers on the drum make the length per turn fall from 66 to 34 cm, so about 5 % is normal
 const uint8_t DISTANCE_FROM_STOP = 5; // cm. distance from spool endstop at which speed is decreased
 const uint8_t SPEED_UP = 100;         // over 100. Speed when moving up - experimentaly tested
@@ -85,6 +88,13 @@ const bool MANIFOLD_USE = true; // use the manifold in the system
 // error and stop the motor, instead of hanging silently.
 const uint8_t MANIFOLD_ENCODER_MAX_CONSECUTIVE_FAILURES = 50; // ~50ms of bad reads (readEncoder() is polled every ~1ms in the rotation loop)
 const uint32_t MANIFOLD_ROTATE_TIMEOUT_MS = 15000;            // generous - normal rotations are well under this
+// Motion guard (2026-11-06, F256; src/Core/manifold_guard): the manifold got entangled after a sample and the motor may have
+// pushed against the tangle. The rotation now also stops when the encoder does not move, or when the manifold has turned
+// further than any slot change needs, without waiting for the 15 s timeout. PLACEHOLDER: values chosen from the log of
+// 2026-11-06 (7 to 9 s per rotation), not measured on the bench.
+const uint32_t MANIFOLD_STALL_MS = 2000;      // ms. Longest time with less than MANIFOLD_STALL_MIN_DEG of movement
+const float MANIFOLD_STALL_MIN_DEG = 3.0f;    // deg. Movement that counts as turning
+const float MANIFOLD_MAX_TRAVEL_DEG = 400.0f; // deg. Furthest from the start angle (a slot change never needs a full turn)
 
 // Sample fill order (human slot numbers, PURGE_SLOT excluded): visits slots close
 // to purge before slots far from it, so a leak from an already-filled slot can
@@ -382,7 +392,7 @@ const uint16_t FILL_PRESSURE_STUCK_S = 20;            // s - PLACEHOLDER: paused
 const uint8_t PUMP_MINIMUM_POWER_PERCENT = 10;        // % - below this, the pump stalls (deadband, F137); the pressure loops never command less while running
 const uint8_t PUMP_MAX_POWER_PERCENT = 60;           // % - the operation pressure loops (CtrlPump) with WATER: never more, whatever the pressure (user 2026-10-19). PLACEHOLDER: check on the bench
 const uint8_t PUMP_AIR_MAX_POWER_PERCENT = 100;      // % - the same loops once the emptying sees AIR (the pressure fell below the threshold): full power (user 2026-10-19)
-// % - the EXCEPTION (user 2026-10-26, and 2026-11-02 for the ethanol cleaning with NO filter): the purge (step_purge) and ethanol_purge only, at full power. Its pressure target (OPERATION_TARGET_BAR) and the cap stay.
+// % - the EXCEPTION (user 2026-10-26, 2026-11-02 for the ethanol cleaning with NO filter, 2026-11-05 for the spool prime): the purge (step_purge), the spool prime (spool_prime_flow) and ethanol_purge, at full power. Their pressure target (OPERATION_TARGET_BAR) and the cap stay.
 // Every other water run keeps PUMP_MAX_POWER_PERCENT. Pressure spikes and leaks at 100 % were seen in 2026-10-19 (F161, F207).
 const uint8_t PUMP_PURGE_MAX_POWER_PERCENT = 100;
 const float OPERATION_TARGET_BAR = 3.0f;             // bar - the pressure target of every operation pump run; the same as the fill_test target (user 2026-10-19)

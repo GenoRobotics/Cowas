@@ -4,6 +4,7 @@
 #include "C_output.h"
 #include <SPI.h>
 #include "../Core/manifold_geometry.h"
+#include "../Core/manifold_guard.h"
 #include "Oring_lock.h"
 
 extern C_output output;
@@ -150,6 +151,14 @@ bool rotateMotor(int index)
   uint32_t rotation_start = millis();
   uint8_t consecutive_failures = 0;
 
+  // Stall and over-travel rules (F256): stop in 2 s instead of waiting for the 15 s timeout.
+  core::ManifoldGuard guard;
+  core::manifold_guard_init(&guard, current_angle, rotation_start);
+  core::ManifoldGuardParams guard_params;
+  guard_params.stall_ms = MANIFOLD_STALL_MS;
+  guard_params.min_progress_deg = MANIFOLD_STALL_MIN_DEG;
+  guard_params.max_travel_deg = MANIFOLD_MAX_TRAVEL_DEG;
+
   float scaled_goal = scale_angle(angle_to_reach);
   float adapted_goal_angle; // incorporates slip of motor, need to calibrate manually
 
@@ -174,6 +183,14 @@ bool rotateMotor(int index)
     {
       manifold_motor.stop();
       output.println("ERROR | rotateMotor: aborted - lost the encoder (too many consecutive bad reads). Motor stopped, position may be off - re-home/recalibrate before trusting slot positions.");
+      return false;
+    }
+    const core::ManifoldGuardState guard_state = core::manifold_guard_step(&guard, guard_params, current_angle, millis());
+    if (guard_state != core::MANIFOLD_GUARD_OK)
+    {
+      manifold_motor.stop();
+      output.println(String("ERROR | rotateMotor: aborted - ") + core::manifold_guard_name(guard_state) + " (angle " + String(current_angle, 1) +
+                     ", started at " + String(guard.start_deg, 1) + "). Motor stopped: check the manifold and the tubing for a tangle, then re-home.");
       return false;
     }
     if (millis() - rotation_start > MANIFOLD_ROTATE_TIMEOUT_MS)

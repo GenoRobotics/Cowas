@@ -1,0 +1,13 @@
+date,time,name,condition,spool,depth_m
+0,23:59,E2_T3_20M_R1,sample,on,20
+0,23:59,E2_T3_05M_R1,sample,on,5
+0,23:59,E1_T3_01M_R1,sample,on,1
+1,04:00,E2_T4_20M_R1,sample,on,20
+1,04:00,E2_T4_05M_R1,sample,on,5
+1,04:00,E2_T4_01M_R1,sample,on,1
+1,08:00,E2_T5_20M_R1,sample,on,20
+1,08:00,E2_T5_05M_R1,sample,on,5
+1,08:00,E2_T5_01M_R1,sample,on,1
+1,12:00,E2_T6_20M_R1,sample,on,20
+1,12:00,E2_T6_05M_R1,sample,on,5
+1,12:00,E2_T6_01M_R1,sample,on,1

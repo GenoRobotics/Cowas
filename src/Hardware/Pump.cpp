@@ -186,7 +186,8 @@ void Pump::start_at(uint8_t _percent)
     power = map(_percent, 0, 100, 0, 255);
     running = true;
     write_output(_percent);
-    if(VERBOSE_PUMP){output.println("Pump " + ID + " started at once with power " + power_percent);}
+    // 2026-11-05: the output is the start level (0 % after a pause or a start); the controller ramps it up from here
+    if(VERBOSE_PUMP){output.println("Pump " + ID + " started, output " + power_percent + " % (the controller ramps it from here)");}
 }
 
 /**
@@ -421,7 +422,9 @@ void CtrlPump::run(){
                 resume_power_ = (float)PUMP_MINIMUM_POWER_PERCENT;
             }
             pump_->stop(); // F196: the relay is cut, not only the output: at 0 % the pump still pushed and the pressure went on rising (P1)
-            Serial.println("PAUSE at " + String(pressure_read, 2) + " bar (" + String(n_pauses_) + "): waiting for " + String(resume_bar_, 2) + " bar");
+            // 2026-11-05: the pauses are the cap-margin rule (FILL_PAUSE_BAR), not a fault; the count is for this run only
+            Serial.println("PAUSE " + String(n_pauses_) + " in this run (cap margin, normal): pressure " + String(pressure_read, 2) +
+                           " bar, pump off until " + String(resume_bar_, 2) + " bar");
         }
         if (millis() - last_update > 100){
             // control pump // ? maybe do a seperate fonction?
@@ -438,7 +441,15 @@ void CtrlPump::run(){
                     power_cmd = 0.0f; // F196: restart from 0 % and ramp up, as at the start
                     pump_->start_at(0);
                     ramp_t0_ = millis();
-                    Serial.println("RESUME at " + String(pressure_read, 2) + " bar, restart from 0 % (ramp " + String(PUMP_START_RATE_PERCENT_PER_S, 1) + " %/s)");
+                    const uint32_t paused_ms = millis() - pause_start_;
+                    Serial.println("RESUME after " + String(paused_ms) + " ms: reading " + String(pressure_read, 2) + " bar is at or below " +
+                                   String(resume_bar_, 2) + " bar, pump restarts from 0 % (ramp " + String(PUMP_START_RATE_PERCENT_PER_S, 1) + " %/s)");
+                    if (paused_ms < 1000)
+                    {
+                        // a pause this short means the reading was already below the resume level at the stop: the reading or the line is suspect (F249)
+                        Serial.println("WARNING | pause of only " + String(paused_ms) + " ms: the pressure was already " + String(pressure_read, 2) +
+                                       " bar when the pump restarted. Check the pressure reading (F249)");
+                    }
                 }
             }
             else{
