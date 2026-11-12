@@ -6,6 +6,7 @@ Everything about the filters once they leave the water: how they are handled, ho
 |---|---|---|
 | [filter-sop.md](filter-sop.md) | Operators, on site and in the workshop | Printed checklist: cleaning, loading, unloading, blanks, chain of custody |
 | [shield-protocol.md](shield-protocol.md) | Quentin and Felix | How the shield dose is calibrated and checked; the values to set (§8) |
+| [extraction-protocol.md](extraction-protocol.md) | The lab | DNA extraction from Sterivex filters (Zymo Miniprep Plus, adapted for eDNA), Qubit quantification, and the notes for the CoWaS filters (shield volume, controls, traceability). Used for the 2026 field filters |
 
 ## What CoWaS does with a filter
 
@@ -22,7 +23,7 @@ For each filter:
 
 **No filter is discarded silently.** A filter with a fault is delivered, flagged.
 
-**Pilots:** Pilot A (supervised, 1–2 days, a pier or boat on Lake Geneva, fixed intake depth), then Pilot B (unattended, 1–2 weeks, 14 filters). See [stage 2](../roadmap/stage2-pilots.md).
+**Pilots:** Pilot A was the supervised LéXPLORE run on Lake Geneva (3–6 Nov 2026, [stage 1 §4.2](../roadmap/stage1-FINISHED-prototype.md#42-léxplore-lake-geneva--pilot-a-3--6-nov)); its lab results are stage 2 C1. Pilot B is unattended, 1–2 weeks ([stage 2 §8.2](../roadmap/stage2-pilots.md#82-pilot-b-unattended-12-weeks-c7)). After sampling, the filters are extracted with [extraction-protocol.md](extraction-protocol.md).
 
 ## What the data contains
 

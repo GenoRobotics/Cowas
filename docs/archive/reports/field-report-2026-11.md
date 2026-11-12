@@ -68,7 +68,7 @@
 
 ## Appendix A. Samples collected
 
-Every LéXPLORE sample is listed in the [sample list](lexplore-sample-list-2026-11.xlsx).
+Every LéXPLORE sample is listed in the [sample list](../../reports/lexplore-sample-list-2026-11.xlsx).
 
 | Series | Planned | Collected | Missing |
 |---|---|---|---|

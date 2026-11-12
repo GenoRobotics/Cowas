@@ -2,7 +2,7 @@
 
 CoWaS is an autonomous water sampler for environmental DNA. A pump draws lake water through a Sterivex filter on a rotating manifold, then a preservative (DNA/RNA Shield) is added. The software runs on an Arduino Due.
 
-**Where we are:** stage 1, the operator test. One person runs samples from the console, one command per sample.
+**Where we are (2026-11-12):** stage 1 and the field campaigns are done (Bois Chamblard, LéXPLORE = Pilot A). The machine is being repaired after the incident of 6 Nov (F257). Next: [stage 2](roadmap/stage2-pilots.md) §1, the upgrades of the current machine up to an unattended pilot. The V2 machine is [stage 3](roadmap/stage3-full-system.md).
 
 ## Start here
 
@@ -20,7 +20,7 @@ CoWaS is an autonomous water sampler for environmental DNA. A pump draws lake wa
 
 | Folder | What it holds | Start with |
 |---|---|---|
-| [roadmap/](roadmap/) | The plan: stage 1 (now), stage 2 (lake pilots), stage 3 (later) | [stage1-FINISHED-prototype.md](roadmap/stage1-FINISHED-prototype.md) |
+| [roadmap/](roadmap/) | The plan: stage 1 (done), stage 2 (upgrades of the current machine, up to Pilot B), stage 3 (the V2 machine) | [stage1-FINISHED-prototype.md](roadmap/stage1-FINISHED-prototype.md) |
 | [hardware/](hardware/) | Pinout, power, the electrical audit | [pinout.md](hardware/pinout.md) |
 | [software/](software/) | Firmware reference: console commands, the code, the host protocol, the session log tool | [code-guide.md](software/code-guide.md) |
 | [lab/](lab/) | The filters after sampling: the printed SOP and the shield protocol | [README.md](lab/README.md) |

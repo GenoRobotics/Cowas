@@ -1,6 +1,6 @@
 # CoWaS field protocol (as run at LéXPLORE, Nov 2026)
 
-Reusable for a new site: change the values in §1. Day-to-day commands: [operator tutorial](operator-tutorial.md). Manual steps: [manual-sampling-protocol.md](manual-sampling-protocol.md). Results: [field report](field-report-draft-2026-11.md). The pre-trip plan is in [archive/field-plans/](../archive/field-plans/lexplore-field-protocol-2026-11.md).
+Reusable for a new site: change the values in §1. Day-to-day commands: [operator tutorial](operator-tutorial.md). Manual steps: [manual-sampling-protocol.md](manual-sampling-protocol.md). Results: [robustness update report](../reports/robustness-update-report-2026-11.md). The pre-trip plan is in [archive/field-plans/](../archive/field-plans/lexplore-field-protocol-2026-11.md).
 
 ## 1. Design (set before the trip)
 

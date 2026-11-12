@@ -1,6 +1,6 @@
 # L'eXPLORE field protocol (plan, November 2026)
 
-> Archived 2026-11-06. The field protocol written before the L'eXPLORE work, kept verbatim as the user supplied it. The author's own caveat: "not exactly accurate but still useful". It is context only. The planned expedition times, depths and sample count changed on site. What happened: [field-lexplore-geneva-2026-11-03.md](../../logs/field-lexplore-geneva-2026-11-03.md) §32 and [field-report-draft-2026-11.md](../../field/field-report-draft-2026-11.md).
+> Archived 2026-11-06. The field protocol written before the L'eXPLORE work, kept verbatim as the user supplied it. The author's own caveat: "not exactly accurate but still useful". It is context only. The planned expedition times, depths and sample count changed on site. What happened: [field-lexplore-geneva-2026-11-03.md](../../logs/field-lexplore-geneva-2026-11-03.md) §32 and [field-report-draft-2026-11.md](../reports/field-report-2026-11.md).
 
 Field Protocol
 

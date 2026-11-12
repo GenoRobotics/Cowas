@@ -10,9 +10,9 @@ A micro pump (D48) adds DNA/RNA Shield after sampling. A turbine flowmeter (D13)
 An Arduino Due (PlatformIO env `due`) runs everything. A legacy Raspberry Pi script (`computer_interface/`, PyQt5 + ZMQ) sends text commands over the same USB serial port as the console.
 The spool (depth) is enabled for the field since 2026-11-02 (`SPOOL_USE = true`, D56) and has run in the field since 2026-11-03 (the E2 and DIEL runs; open items F214, F241, F245, F246, F247): `run_sample ... depth=<m>` dives, samples, rolls up; it moves only when `session` answered `y`. Range 40 m (calibrated only to 15 m). Without `depth=` the intake stays where it is.
 The roadmap has three stages (2026-10-06):
-**stage 1** = [roadmap/stage1-FINISHED-prototype.md](docs/roadmap/stage1-FINISHED-prototype.md), the operator test (session, one `run_sample` per sample). **Read its status and "Left to do" first. Deferred work is in stage 2 §7b.** Keep what works, no new tools or tuning. Earlier stage 1 plans: docs/archive/roadmap-stage1-2026-10-23.md and docs/archive/roadmap-stage1-2026-10-15.md. Removed code: docs/archive/code/README.md;
-**stage 2** = [roadmap/stage2-pilots.md](docs/roadmap/stage2-pilots.md), the lake pilots: the design decisions, findings, test strategy, rules and the step cards (FW/HO/HW/LA/VA);
-**stage 3** = docs/roadmap/stage3-full-system.md, the P2 work after the first data.
+**stage 1** = [roadmap/stage1-FINISHED-prototype.md](docs/roadmap/stage1-FINISHED-prototype.md), the record of what was done from August to November 2026 (bench prototype, field preparation, the Bois Chamblard and LéXPLORE campaigns, Pilot A). Nothing is planned there. **Open work starts from stage 2 §1; leftovers are mapped in stage 2 §7b.** Earlier stage 1 plans: docs/archive/roadmap-stage1-2026-11-05.md, docs/archive/roadmap-stage1-2026-10-23.md and docs/archive/roadmap-stage1-2026-10-15.md. Removed code: docs/archive/code/README.md;
+**stage 2** = [roadmap/stage2-pilots.md](docs/roadmap/stage2-pilots.md), upgrades of the current machine up to Pilot B (unattended), reorganised 2026-11-12: §1 gives the order (Phase 0 repair, then lane A software and lane B hardware in parallel, gates G0–G2), plus the design decisions, findings, test strategy, rules and the step cards (R = Phase 0, A = software, B = hardware, C = lab and validation; the old FW/HO/HW/LA/VA IDs map in §10). Pilot A = the LéXPLORE run of 3–6 Nov 2026;
+**stage 3** = docs/roadmap/stage3-full-system.md, the V2 machine: what needs a new design (V2-0 … V2-7).
 "ROADMAP §N" means a section of the stage 2 file. Read ROADMAP §3 (design decisions), §4 (findings) and §6 (rules) before any change.
 
 ## Hardware and pins (details: [hardware/pinout.md](docs/hardware/pinout.md))
@@ -29,7 +29,7 @@ The roadmap has three stages (2026-10-06):
 | Flowmeters | `flow_sensor_small` D13 (calibrated, factor 77, wired at 3.3 V: user, 2026-10-23; F6, F26 closed); `flow_sensor_big` D12 | |
 | Panel | START D24, LEFT D25, RIGHT D26; LEDs D22/D23 | |
 | Spool (enabled 2026-11-02, in field use since 2026-11-03) | VNH5019 M1 (D2, D30, D32, D34, A10), encoder D31/33/35, end-stops D28/D29, container switch D27 | still configured at boot |
-| Serial | `Serial` (Programming port, 9600): console **and** legacy Pi link | Native USB unused until FW7 |
+| Serial | `Serial` (Programming port, 9600): console **and** legacy Pi link | Native USB unused until stage 2 A10 (was FW7) |
 
 The Due is 3.3 V only; no pin is 5 V tolerant.
 
@@ -60,7 +60,7 @@ pytest tools/                   # tests of the analysis scripts in tools/ (e.g. 
 - `src/Core/`: **pure logic, no Arduino.h**, unit-tested natively. Today: `manifold_geometry` (slot-angle table, clock labels, `scale_angle`), `shield_calibration` (LA3: micro pump rate fit, fill time), `abp_convert` (S1-1: ABP frames, counts → bar, the dead-sensor rule), `pressure_calibration` (S1-1: gain + offset fit).
 - `test/test_*/`: native Unity tests. `test/stubs/` = a fake Arduino.h/TimeLib.h so tests can read the real `include/Settings.h` constants (never used by the firmware).
 - `include/Settings.h`: all tunables and pins. `include/Manifold.h`: manifold calibration (`purge_angle`, ...).
-- Host protocol v1 (the contract for FW7 and the host track): [software/protocol.md](docs/software/protocol.md) + `protocol/vectors.json` (shared C++/Python test vectors).
+- Host protocol v1 (the contract for stage 2 A10 and the host track): [software/protocol.md](docs/software/protocol.md) + `protocol/vectors.json` (shared C++/Python test vectors).
 - `host/`: the Python host (package `cowas`, HO1): protocol models, serial transport (Native USB by VID/PID, never 1200 baud), client, `FakeController` simulator, the `cowas` CLI (`--sim` everywhere). See host/README.md.
 - Every command, with its hardware, blocking and pressure dependence: [software/commands.md](docs/software/commands.md). Tests waiting for hardware: [stage 2 §7a](docs/roadmap/stage2-pilots.md). Doc index: [docs/README.md](docs/README.md).
 
@@ -75,7 +75,7 @@ pytest tools/                   # tests of the analysis scripts in tools/ (e.g. 
    - Every procedure has a timeout.
    - STOP and E-stop are always accepted.
    - Safe state = pumps off, valves closed, O-ring stays locked.
-   - Recovery is required after every stop and every boot (from FW6).
+   - Recovery is required after every stop and every boot (from stage 2 A7, was FW6).
    - Placeholders stay marked `PLACEHOLDER`.
    - The only exception is FW2's sensorless pump test mode: explicit, test-only, low power, time-limited, confirmed at every run, unreachable from production code.
 5. **Degraded modes are explicit.** When a non-safety sensor fails, keep working, raise a warning, and flag the sample record. Never fail silently.
@@ -83,6 +83,7 @@ pytest tools/                   # tests of the analysis scripts in tools/ (e.g. 
 7. **Every step ends with:** `pio run -e due` and `pio test -e native` (and `pytest` once `host/` exists) passing; a hardware checklist with numeric pass criteria; the pending checks in the roadmaps updated.
 8. **eDNA quality rules (§3.7)** are requirements, not options: purge volume, blanks, and recorded `end_reason`.
 9. Claude does not flash, commit, push or delete files without asking.
+10. **The prototype stays usable after every step.** The console commands, `run_sample`, the session tool and the timed schedule keep working, or the step names their replacement and updates the operator tutorial in the same PR. Hardware that is not installed yet is a setting (`*_INSTALLED false` in `Settings.h`), and the firmware runs without it.
 
 ## Known hazards (as of FW0)
 
@@ -94,8 +95,8 @@ pytest tools/                   # tests of the analysis scripts in tools/ (e.g. 
 - **The spool (D56, F211-F213):** moves go through `Motor::drive()` (stall, wrong way, 15 min, end-stops, `x`); pure checks in `src/Core/spool_motion`. The position is RAM only and unknown after every reset (first move rolls up to the top switch). The origin hold rule (D83) can set the encoder to 0 while the tube is still out when the drum stops at the top-switch holder (F251, 2026-11-06). Every roll up now runs two passes (D95), accepted as enough for now (user); the drum stopping at the holder is still open for roadmap 2. The field runs show the switches and the encoder working in use, but the top-switch presses at wrong lengths (F241), a move that passed 0 cm (F245) and the wooden up-switch holder (F246) are open. Drum diameter (`SPOOL_DRUM_DIAMETER_CM`, `spool_calibrate`) and the drain path are still unmeasured. The down end-stop interrupt is still not attached (the move loop reads the switch).
 - **O-ring lock tri-state (FW2):** LOCKED / UNLOCKED / UNKNOWN, **UNKNOWN at every boot** and after `linear_actuator` / `calibrate_actuator`. `rotateMotor()` and every direct-motor test refuse unless UNLOCKED; `lock_oring`/`unlock_oring` refuse while UNKNOWN. After a reset, run `actuator_home` (needs the manifold within ±3° of a slot, PLACEHOLDER). **No escape** if the state is UNKNOWN and the rotor is not aligned (user decision, F60).
 - **`PRESSURE_SENSOR_AVAILABLE` is `true` (Settings.h, since 2026-10-12):** the ABP is calibrated and the dead-sensor stop passed, so the procedures that need pressure run (`sample_process`, `step_*`, `load_slot*`, `pump`, `full_cycle`, ...), and the sensorless test mode (NOSENSOR) refuses. The panel Pump mode, `calibrate_flow` and `fillContainerFunction` poll the cap on every pass since 2026-10-23 (F201). `purgePipesFunction` and `cal_DNA` still do not poll it while pumping (F202): don't use them.
-- The V23 valve (D40) is physically removed, but the code still switches its relay (F51, cleaned up in FW4).
-- **Rest state decided in FW1 (2026-09-25): the O-ring is LOCKED at rest, unlocked only to rotate** (ROADMAP §3.2, docs/software/protocol.md §5.1). Implemented in FW4; until then `sample_process()` and `load_slot*()` still end unlocked.
+- The V23 valve (D40) is physically removed, but the code still switches its relay (F51, cleaned up in stage 2 A5).
+- **Rest state decided in FW1 (2026-09-25): the O-ring is LOCKED at rest, unlocked only to rotate** (ROADMAP §3.2, docs/software/protocol.md §5.1). Planned in stage 2 A5 (was FW4); until then `sample_process()` and `load_slot*()` still end unlocked.
 - `scale_angle()`'s loop guard is dead (inherited, kept in FW0): ±inf would hang it. `go_to_zero` (`zero`) has no timeout.
 
 ## Working here

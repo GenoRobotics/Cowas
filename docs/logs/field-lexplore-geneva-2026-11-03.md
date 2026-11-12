@@ -1187,4 +1187,4 @@ The user's current hypothesis: low voltage of the platform batteries and a power
 
 ### 39.4 For the report
 
-Only the main hypothesis (A with B) is kept in the [field report](../reports/field-report-2026-11.md), marked as in progress. This section and §38 hold the rest.
+Only the main hypothesis (A with B) is kept in the [field report](../archive/reports/field-report-2026-11.md), marked as in progress. This section and §38 hold the rest.

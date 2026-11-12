@@ -120,7 +120,7 @@ A sample takes about 20 min without the spool and about 29 min with it (field re
 
 ## 7. Next
 
-The next steps are in the [stage 2 roadmap](../roadmap/stage2-pilots.md): power-dropout robustness first, then the hardware fixes from the field, then the lake pilots.
+The next steps are in the [stage 2 roadmap](../../roadmap/stage2-pilots.md): power-dropout robustness first, then the hardware fixes from the field, then the lake pilots.
 
 ## Appendix A. Timeline
 

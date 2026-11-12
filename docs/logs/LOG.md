@@ -2013,7 +2013,7 @@ Condensed on 2026-10-23 at the user's request. The findings and decisions are in
 - Not run: the Due (no bench; not flashed). No firmware build (no firmware change).
 
 **Open:**
-1. The field test ([stage 1, quick test](../roadmap/stage1-FINISHED-prototype.md#quick-test-the-timed-sample-list-field)): not done yet. Do it before the night run.
+1. The field test ([stage 1, quick test](../archive/roadmap-stage1-2026-11-05.md#quick-test-the-timed-sample-list-field)): not done yet. Do it before the night run.
 2. F208: no check that the samples fit the timeline.
 3. The schedule needs `session` on the Due before the first time. Without it the first run is refused and its slot released. Check the first row.
 4. A `run_sample` typed in `pio device monitor` still skips the tool and the loading order (see the entry above).
@@ -2130,7 +2130,7 @@ Condensed on 2026-10-23 at the user's request. The findings and decisions are in
 
 **Why.** The user asked for only the useful tests, and for the open items to be parked in stage 2.
 
-**Open items, moved to stage 2 [§7b](../roadmap/stage2-pilots.md#7b-carried-from-the-stage-1-operator-test):**
+**Open items, moved to stage 2 [§7b](../archive/roadmap-stage2-2026-11-12.md#7b-carried-from-the-stage-1-operator-test):**
 - F208: the timed list does not check that the samples fit the timeline (host, new step).
 - A `run_sample` typed in `pio device monitor` skips the session tool: no record, no loading order, no timed list (FW7). A line in the stage 1 "Limits" also tells the operator to use the tool for every sample.
 - The stage 1 field test (quick test) is still to be done before the night run. It stays in stage 1, not in stage 2.
@@ -2152,10 +2152,10 @@ Condensed on 2026-10-23 at the user's request. The findings and decisions are in
 
 **Decisions:** D52 (timed list), D53 (explicit start, saved list), D54 (`+N` counts from the first `schedule start`; no 15-minute rule written).
 
-**Findings:** F208 (no fit check for the timeline, open), F210 (`run_sample` in `pio device monitor` bypasses the tool, open, fix FW7). Both are in stage 2 [§7b](../roadmap/stage2-pilots.md#7b-carried-from-the-stage-1-operator-test).
+**Findings:** F208 (no fit check for the timeline, open), F210 (`run_sample` in `pio device monitor` bypasses the tool, open, fix FW7). Both are in stage 2 [§7b](../archive/roadmap-stage2-2026-11-12.md#7b-carried-from-the-stage-1-operator-test).
 
 **Still to do:**
-1. Stage 1 field test, the quick test in [stage 1](../roadmap/stage1-FINISHED-prototype.md#quick-test-the-timed-sample-list-field). Before the night run.
+1. Stage 1 field test, the quick test in [stage 1](../archive/roadmap-stage1-2026-11-05.md#quick-test-the-timed-sample-list-field). Before the night run.
 2. Bench: none needed for the tool. The firmware is unchanged.
 3. Commit: the user, on `stage1-field`.
 
@@ -3938,3 +3938,234 @@ E2_T7_20M_R1 (the first row of schedule 3, 16:00) uses the last filter available
 ### Session 2026-11-11 (fifteenth part): checks before the commit
 
 **Run before committing:** `pio run -e due` SUCCESS; `pio test -e native` 221 passed (one failure first: `test_a_stop_after_turning_stalls` in `test/test_manifold_guard`, whose timing assumed the last 3-degree progress step at exactly 1000 ms; it is at about 938 ms, so the stall comes 62 ms earlier. The guard is right; the test now checks OK at 1000 ms + stall time − 100 ms and STALLED at +1 ms); host pytest 364 passed (needs `PYTHONPATH=src` in this venv: the editable install of `cowas` is not active); `pytest tools` 235 passed. **Correction:** the revision report gave "316 more tests" (a count of test functions); the pytest counts are 364 and 235.
+
+### Session 2026-11-12: checks of the revision report (host, protocol, simulator, Core claims)
+
+**Asked (user):** explain the host program, the message protocol, the simulator and the console tool; was the host there before August; was the simulator useful or used; what "logic separated from hardware and unit-tested … bit for bit" means. Then: document what is relevant in the logs.
+
+**Checked against git history (`c75c79b` = the code before the work, 2024-07-09; the user's first commit is 2026-09-23):**
+- **Protocol v1** (`docs/software/protocol.md`, `protocol/vectors.json`): first added 25 Sep 2026 (commit `d5f6215`, FW1). Not in the earlier code.
+- **Host program** (`host/`, package `cowas`, 35 files tracked): first added 28 Sep 2026 (commit `72284cc`, HO1: "host skeleton (protocol client, simulator, CLI)"). Not in the earlier code.
+- **Simulator** (`host/src/cowas/sim/`, `FakeController`): part of HO1, 28 Sep 2026. Used by the host tests (364 pass with `PYTHONPATH=src`; the simulated protocol test vectors are among them). **Not used in any field run**: no `--sim` line in `docs/logs/test-logs/`, and the field work used the console tool.
+- **Console tool** (`tools/session_log.py`): the tool used in the field, from 21 Oct 2026 (LOG entries of that date).
+- **Firmware side of protocol v1 (FW7): not built.** The Due speaks the text console and does not answer `host/`. So the host and the protocol have run only against the simulator.
+- **`computer_interface/`** (legacy Raspberry Pi script, PyQt5 and ZMQ, mentioned in `CLAUDE.md`): first tracked in the FW0 commit `3c94926` (24 Sep 2026), not in the 2024 code. Its origin before that is not in the git history; the user knows whether it predates August.
+
+**Checked against the code (the "logic separated from hardware" claim):**
+- No file in `src/Core/` includes `Arduino.h`; the 23 matches are in comments only.
+- The 221 `RUN_TEST` cases are in the 22 `test/test_*` suites that cover Core. The native run took about 17 to 30 s on the laptop.
+- "Bit for bit" applies only to the manifold geometry: `test/test_manifold_geometry` compares the slot table, the clock labels and 1,335 `scale_angle` inputs with the outputs of the earlier `Manifold.cpp` (`golden_manifold.h`). Other moved logic has no recorded old-output comparison.
+
+**Report wording that is now too broad (not changed in the reports yet; the user to decide):**
+- `docs/reports/revision-report-2026-11.md`, section 2 and the scope table, "computer side": the host and protocol were built and tested in simulation and wait for FW7; the field used the console tool.
+- The same report, section 2 "Logic separated from hardware": "221 unit tests … in seconds" → "in under a minute"; "bit for bit" for the manifold geometry only.
+- The "Before August 2026" column: the computer interface row must say that the earlier code had no host program, and that `computer_interface/` is not confirmed before August.
+
+**Open, from the same session:** a broken plastic outlet on a sample, labelled E2T1XXMR2. Candidates from the logs (all T1, replicate 2): auto E2_T1_20M_R2 (slot 2, 5 Nov 18:06), E2_T1_05M_R2 (slot 13, 19:08), E2_T1_01M_R2 (slot 11, 20:25, clogged); manual E2-T1-20M-R2 (18:00), E2-T1-05M-R2 (18:52), E2-T1-01M-R2 (20:17). The depth is not known; the logs do not record an outlet fault. To be settled from the filter label or the user's memory.
+
+**Not changed:** code, firmware, tests, reports (pending the user's decision above). Not committed.
+
+### Session 2026-11-12 (second part): roadmaps 2 and 3 reorganised
+
+**Asked (user):** revise roadmaps 2 and 3. Stage 2 = upgrades of the current system, stage 3 = what needs a new design. Include the field feedback. Put the software that Claude can do first, before the hardware (slower, to be delegated to a future team member); firmware follows the hardware changes. The prototype must stay usable. Prioritise, with optional items. Then draft a one-page project description to recruit a robotics engineer.
+
+**User decisions (2026-11-12)**
+- The host grows out of the session tool: its logic moves into `host/` step by step; FW7 adds protocol v1 on Native USB beside the console.
+- The LéXPLORE run (3–6 Nov) counts as **Pilot A** (lab results pending).
+- Kept in stage 2 (current machine): the field cartridges (HW14, Opt) and the measured DNA Shield dose (HW13, P1). Moved to stage 3: the stiffer frame and the pump swap or damper.
+- The position to recruit: a master's thesis or internship.
+
+**Changed**
+- `docs/roadmap/stage2-pilots.md` rewritten. §1 gives the order in one view: Phase 0 (R1 diagnose F257, R2 repair with the pull-downs, R3 flash and bench checks, R4 commit), then lane A software (FW5a, FW11, FW13, HO7 at P0; FW4, FW5b, FW6, FW12, FW8, FW7, HO2/HO3, HO4/HO5 at P1; FW14–FW18, HO8, HO9 optional) in parallel with lane B hardware (PW1a, HW9, HW4 at P0; PW1b, HW3, HW10, HW13, HW5, HW8, HW7, FW9, HO4-hw at P1; HW14, HW9b, HW15, relief valve optional), and lane C (LA0 new, LA2–LA4, VA5 new, VA1 with the soak, VA4). Gates G0 back in service, G1 field-safe, G2 Pilot B ready. Priorities P0 / P1 / Opt, sizes S/M/L. §3, §4, §6, §11 keep their numbers; §4 lists the field findings with their step; §7b maps every old §7b item to its new step; §10 maps the old IDs. New rule 10: the prototype stays usable after every step.
+- `docs/roadmap/stage3-full-system.md` rewritten as the V2 machine: V2-0 requirements (can start now), V2-1 frame and manifold, V2-2 fluidics, V2-3 spool and depth, V2-4 electronics and power, V2-5 enclosure, V2-6 compute, V2-7 validation; a table of lessons from the prototype; the old P2-n steps mapped (software upgrades moved to stage 2 as Opt).
+- Archived the previous versions: `docs/archive/roadmap-stage2-2026-11-12.md`, `docs/archive/roadmap-stage3-2026-11-12.md` (archive README updated).
+- `CLAUDE.md`: rule 10 added (copied from stage 2 §6); the stage 2 and 3 descriptions updated. `docs/README.md`: "where we are". Stage 1 "Left to do": pointer to stage 2.
+
+**Not changed:** code, firmware, tests, findings, decisions. Not committed.
+
+### Session 2026-11-12 (third part): V2 sensors, FW11 resume rule, pilots refined from the intended projects
+
+**Asked (user):** add the relevant physical sensors to stage 3; FW11: resume on the filtered pressure, with a smart check of the raw reading against artefacts (safety); remove from the pitch the duration, start date, lab, supervisors and contact; do not assume who does what, only organise the work. Two research master projects in preparation (rivers: a sample every 6 h for weeks, an array of three units, a DNA tracer; caves: Jura karst) were given as context to refine the pilots, not as plans, and without adding work to the machine for them.
+
+**Changed**
+- **D99** (decisions.md): the resume uses the filtered pressure; the raw reading is checked for artefacts (rate limit, count, `sensor` stop); the pause and the cap act on the raw reading after that check. Written into stage 2 FW11. Not built.
+- Stage 2: the named owners replaced by an organisation of the work by lane (§0); no names in Phase 0, HW13, LA0, LA3. New **§8.0 Intended uses that shape the pilots** (context, not plans): river station, river array, caves, with what each would ask and where the gaps go. Pilot B (§8.2) may run on a lake or a river; a fixed interval with blanks per filter set and mid-run; UTC times; success as 90 % of planned cycles and alerts within 15 min. Small notes in HW5 (off-grid sizing), HO4 (UTC clock offset in each record), HW8 (river debris, flood-safe mounting), LA4 (carry-over against a qPCR tracer), HW14 (first optional step for a 6 h run over 3 days).
+- Stage 3: new **§2b Physical sensors for V2** (22 measurements with why, sensor class, role safety/core/site/optional, and step), rules for the sensor set; V2-0 takes the intended uses and the sensor set into account; V2-5 points to §2b.
+- Recruitment pitch (Claude Docs): the Practicalities section removed; the line on who writes the software replaced by "a parallel lane"; one hedged line on the intended next uses.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-12 (fourth part): stage 1 rewritten as the record of the work done
+
+**Asked (user):** stage 1 was shortened each time something was done; rewrite it as the list of what was done from August to now, from the log, decisions and findings, in the style of stages 2 and 3, all done. Pilot A goes there. Add the field-work goals and achievements. The improvements from the field are (or should be) in the stage 2 structure.
+
+**Changed**
+- `docs/roadmap/stage1-FINISHED-prototype.md` rewritten: phases P0–P5 in one table (Aug – 12 Nov); start versus end; the steps done per phase with dates, status (☑, ◐, ✗) and the F/D references (prehistory, FW0–FW2, HO1, LA1–LA4, HW1 part 1, S1-0, S1-1, S1-1b, S1-A, S1-B not met, S1-C, the 23 Oct fixes, field preparation, the changes made during the campaigns, the analysis); §4 the two campaigns with their goals and achievements, and **Pilot A (LéXPLORE)** against its success criteria (blanks and comparability pending the lab, LA0); §5 where the leftovers went (the old "Left to do" list mapped to stage 2) and the field limits that still apply.
+- The previous version archived: `docs/archive/roadmap-stage1-2026-11-05.md` (from the last commit), archive README updated.
+- Stage 2: Pilot A's detail replaced by a pointer to stage 1 §4.2 (§7 done table, §8.1); R2 gains the ethanol purge of the three slots used last (schedule 3), an open item of the old stage 1 list.
+- `CLAUDE.md`: the stage 1 description.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-12 (fifth part): V2 safety sensors at inlet and outlet; stage 2 steps renamed by lane
+
+**Asked (user):** V2 safety sensors: two pressure and two flow sensors (more precise at low flow), one at the inlet and one at the outlet; the flow difference gives automatic leak detection, the pressure difference clogging detection and reports. Rename the steps of stages 1, 2 and 3 only if it makes the structure better, and keep every link right.
+
+**Changed**
+- Stage 3 §2b: `P_in`, `P_out`, `Q_in`, `Q_out` are all **safety** sensors; both flowmeters accurate at low flow (about 10–1000 mL/min, not turbines). V2-2: the flow difference stops the pump on a leak (end reason `leak`, tolerance from the sensors' accuracy); the pressure difference against the flow gives the filter resistance, the clog end condition and the start/end resistance and clog index in every record; done-when adds a calibrated 5 % leak (PLACEHOLDER) stopped within 30 s and no false leak in 10 runs.
+- **Stage 2 steps renamed** by lane and in the order of §1: R1–R4 (Phase 0, unchanged), A1–A19 (software), B1–B16 (hardware), C1–C7 (lab and validation). Each card says "was <old ID>"; §10 maps every old ID (FW, HO, HW, PW, LA, VA, and the old stage 3 P2-n). Reason: the old IDs did not follow the order (FW5a, FW11, FW13 at P0 before FW4; HW13 beside HW3) and mixed lanes. §7.0 heading shortened to "Power-dropout robustness (PW1)". Cards reordered to match the numbers (B11 before B12, C2–C4).
+- Stage 1: its historical step IDs kept (FW0, S1-1, …); its phases P0–P5 renamed Phase 1–6 so they do not read as priorities; its references to stage 2 steps updated. Stage 3: V2-n kept; its references to stage 2 updated.
+- `CLAUDE.md` (stage 2 description, Native USB, rule 4, V23, rest state), D99, findings.md (a note on step IDs; the F258 link): new IDs. LOG.md: two links to old roadmap anchors now point to the archived versions.
+- Links: every relative link into `docs/roadmap/` resolves, anchors included (checked by script). Older broken anchors inside the logs (field log sections cited with wrong slugs, not related to the roadmaps) are not changed.
+
+**Not changed:** code, firmware, tests. Old IDs in the code comments, the log entries and the findings' Step column stay as written (mapped in stage 2 §10). Not committed.
+
+### Session 2026-11-12 (sixth part): sample list checked, DNA extraction protocol documented
+
+**Asked (user):** the LéXPLORE sample list does not seem to open; check the file. Document the DNA extraction protocol used after the field work.
+
+**Sample list (`docs/reports/lexplore-sample-list-2026-11.xlsx`, 7318 bytes, committed in `56b6878`):** no fault found. The ZIP container tests clean; every XML part parses; the content types and relationships are complete; the cells are in order with valid references and numbers; there is no download block on the file. **Excel on this laptop opens it** (read-only, through COM): sheets "Auto sampler" (49 rows: header + 48) and "Manual" (20 rows: header + 19). A likely cause is opening it inside VS Code, which shows `.xlsx` as a binary file; open it from the file explorer. Not changed.
+
+**Changed**
+- New `docs/lab/extraction-protocol.md`: the Zymo Quick-DNA Miniprep Plus protocol adapted for eDNA (E. Wisely 2025, protocols.io ID 227632, V.2, CC BY, credited): materials, preparation with the extraction negative control, lysis, recovery of the lysate from the Sterivex, binding, washing, elution, Qubit 1× HS quantification. Volumes, speeds and times as in the source; the eluate is frozen after the Qubit aliquot is taken. §6, notes for the CoWaS filters (open points, not changes): the protocol assumes 400 µL of shield per filter while the CoWaS doses about 2.2 mL by time (F255) and the manual filters got 1 mL, so the handling per batch and a matching negative control must be recorded; residual water (F28); one extraction negative per batch; traceability to the sample list with the field flags (F253, F244, the hand-added shield of E2_T7_05M_R1); the extraction dates, operators and deviations are not known yet.
+- `docs/lab/README.md`: the protocol in the index; the pilots line updated (Pilot A = LéXPLORE, Pilot B = stage 2 C7).
+- Stage 2 C1: links the protocol and asks for the shield handling per batch.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-12 (seventh part): extraction dates and the shield volume
+
+**User:** the shield in the CoWaS filters is more than the protocol's 400 µL, and the amount varies between samples (probably with the filter clogging). The extractions ran on 10–12 November 2026; notes to be added.
+
+**Changed:** `docs/lab/extraction-protocol.md` §6 states the shield volume as confirmed (more than the protocol, variable, F255); new §7 extraction record: dates 10–12 Nov 2026; batches, negative controls, Qubit results, shield handling and deviations to be added.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-12 (eighth part): one combined report, in the style of the user's edits
+
+**Asked (user):** the user edited the revision report docx; apply the same kind of changes to the rest, with a simpler structure: 1 Summary (the revision made the sampler effectively autonomous and robust); 2 Stage 1 repairs and improvements; 3 the current sampler; 4 field work (achievements combined from the field report, problems by category, repairs on site showing modestly that the operator can fix problems in remote places, short lessons); 5 Stage 2; 6 Stage 3 (work in progress: moving filters with a fixed inlet and outlet instead of the rotating manifold, needs a bench test; self-sealing valves). Straight to the point, readable.
+
+**The user's edits in `revision-report-2026-11.docx` (read with pandoc):** new title "Autosampler robustness update report" and author line; the summary starts from the concrete problems (cap not applied everywhere, leaks at the manifold, plates, outlet and junctions, damaged spool driver), then the aim, the main upgrades as a sub-list, the result; "Now/Why" became "Upgrade/Significance"; the seal section explains the spring compromise and lists the new parts, and the bottom-up fill order as a cross-contamination measure; scope table reworded. The field report docx has no content edits (formatting only).
+
+**Changed**
+- New `docs/reports/robustness-update-report-2026-11.md` and `.docx` (pandoc, with the user's edited docx as the style reference; opened in Word: 11 pages, 10 tables). The user's wording kept, typos fixed (frame, vice versa, sampling order, "from"); "a more accurate pressure sensor" for the lock read as a contact sensor. Appendices: timeline, settings before and now, pump-control trials, spool refinements on site, samples collected.
+- Stage 3 roadmap V2-1: the moving-filter concept (bench test before choosing) and self-sealing valves.
+- `docs/reports/README.md`: the new report first; the field and revision reports kept as its detailed sources (nothing deleted).
+
+**Not changed:** code, firmware, tests; the user's edited `revision-report-2026-11.docx` (left as the user saved it). Not committed.
+
+### Session 2026-11-12 (ninth part): the two earlier reports archived
+
+**Asked (user):** archive the older reports; keep only the new one.
+
+**Changed**
+- Moved to `docs/archive/reports/`: `field-report-2026-11.md` and `revision-report-2026-11.md` (git moves) and their `.docx` (untracked; the revision docx holds the user's edits of 2026-11-12). Their relative links fixed for the new folder. Archive README: a "Reports" table.
+- `docs/reports/` keeps the robustness update report (md + docx), the sample list and the README (rewritten).
+- Links updated: stage 2 (where we are; the done table), stage 1 (sources; Pilot A; "what the field showed" → report §4), `lexplore-field-protocol.md` (its link to an old draft path was already broken; now the new report). Historical links (findings F255, field log §39.4) point to the archived field report.
+- The record corrections that only the old field report listed (§4 item 4: E1_T5_01M_R1 not valid, E1_T7_20M_R1 flagged, the E2 T3 1 m label, the hand-added shield of E2_T7_05M_R1) moved to stage 2 C1; stage 1 and stage 2 §8.1 point there. The ethanol clean of the last slots was already in R2.
+- Not moved: the Word lock file `~$vision-report-2026-11.docx` in `docs/reports/` (left by Word; delete it by hand once Word is closed). Three old archive links to a former draft path now point to the archived field report.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-12 (tenth part): report section 2 as one "what changed" list
+
+**Asked (user):** the scope table and the code organisation should be part of one "what changed" section, which is section 2 (Stage 1: prototype repairs and improvements). The user also edited the docx slightly.
+
+**The user's docx edit (pandoc diff):** one sentence in the summary's starting point ("in August it was not field deployable nor autonomous"); carried into the markdown.
+
+**Changed** (`docs/reports/robustness-update-report-2026-11.md`, docx rebuilt with the user's edited docx as the style reference; opened in Word: 9 tables, 11 pages): section 2 has no subsections any more; one intro line, then the areas in the Before → Upgrade → Significance form. The scope table's rows went into the areas: "Records and operation" (one command per sample, schedule, record, console tool, host program), a new "Firmware structure and tests" (size of the code, the tests, logic apart from hardware, one place per safety rule, fixed safety rules, traceability), and "Calibration, cleaning and documentation". The user's edited docx is kept in the scratchpad as the style reference.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-12 (eleventh part): report made complete and descriptive
+
+**Asked (user):** list in section 2 everything that changed, as for the linear actuator, including what was tried and dropped (to report the work, not to show off); split the code part if too long. Keep the report factual and descriptive: a reader who does not know the work should understand what was done, how the field work went, what it taught and what it was useful for, and the next steps.
+
+**Changed** (`docs/reports/robustness-update-report-2026-11.md`, docx rebuilt with the user's edited docx as the style reference)
+- Section 2: every area lists its changes and a "tried and dropped" line where relevant (force sensor; four pump controllers, calm gains and full power with water; the 0.04 bar air threshold, the 1 s air hold and the weighing checkpoint; the spool keep-out and dive-once plans). New areas: "DNA Shield"; the code part split into "Firmware structure and safety rules" and "Tests and traceability". Sources: the archived revision report, stage 1 record, findings and decisions.
+- Section 4 rewritten as description: what each campaign was for (Bois Chamblard: first test on real water beside the air/water project; LéXPLORE: the diel bacterial study at three depths, the method comparison with manual samples, the first spool use and the supervised lake pilot), the results as facts, the problems by category, the repairs on site, what the field taught. Section 5 says the machine is out of service until repaired.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-12 (twelfth part): report checked against the log
+
+**Asked (user):** check the log to see that everything relevant is in the report.
+
+**Method:** every LOG entry from the prehistory to 12 Nov, and the findings and decisions they cite, compared with `docs/reports/robustness-update-report-2026-11.md`.
+
+**Added to the report** (docx rebuilt)
+- Section 2: the actuator wiring soldered after the loose-wire vibrations (F167, F171); the slot-count fix (F168); the encoder slip of 23 Oct and the planned coupling lock (F187); droplets at the seal near 3 bar on the bench before the realignment (F144); readings above 2.0 bar extrapolated (F136); the purge counted by the flowmeter (0.5 L / 3 L, first 7 L, full power: D44, D50, D51); the bench volumes (1000 mL for 1006 g; a new filter clogged at 673 mL, 865 g: F153); the forced slot in the schedule (D64); the sensorless bench test mode (FW2); the electrical audit (first part); the shield and carry-over analysis tools; the sample list.
+- Section 4: river vs lake volumes at Bois Chamblard and the 414 mL river blank; the pressure sensor fault unnoticed for about 3.5 h (F234); the pump relay at reset (F215); the USB drop and the console freeze (F230, F238); the depth as an estimate in a current (F240); the blank tip out of the water (F252).
+
+**Checked and already in the report:** the stage 1 bench steps, the pump-control trials, the vent, the end rules, the records and the schedule, the spool changes on site (Appendix D), the prefilter and slot-list errors, the expired filter, the shield joint, the flowmeter bucket checks, the incident of 6 Nov, the extraction dates, stages 2 and 3.
+
+**Left out on purpose** (internal or too detailed for the report): roadmap and document reorganisations, step IDs, the timing-estimator spec (HO6), the planned renames, the recruitment pitch.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-12 (thirteenth part): report: the state before August described neutrally
+
+**Asked (user):** "logic separated from hardware" is not really an upgrade (it existed before); do not criticise the state before August; state factually what changed.
+
+**Checked in the original code (`c75c79b`):** 48 files organised by module (`src/Hardware/` drivers, `Step_functions.cpp`, the console test menu `Tests.cpp`), `include/Settings.h` for the settings, the ABP pressure driver (`Trustability_ABP_Gage`) already there, a test menu with component tests and two calibrations (`cal` for the manifold encoder, `cal_DNA`), spool test procedures; no Markdown documentation and no unit tests.
+
+**Changed** (`robustness-update-report-2026-11.md`, docx rebuilt): the "Before" lines of the pressure sensor, DNA Shield, records, firmware, tests, spool and calibration areas now state the original features without judgement; "Logic separated from hardware" became "The module organisation kept", with the move of the calculations into a hardware-free, testable part as the change; "Settings in one file" became "Placeholders marked"; the spool's new move loop says what it does (homing on the end switch, a known zero) instead of listing the old faults. The user's own wording (the starting point, the seal compromise, the pressure cap) is kept.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-12 (fourteenth part): report: the sampler described before the improvements
+
+**Asked (user):** put the machine description before the improvements.
+
+**Changed** (`robustness-update-report-2026-11.md`, docx rebuilt): section 2 is now "The current autonomous sampler" (2.1 the machine, 2.2 one sample, 2.3 time per sample), with one introductory line; section 3 is "Stage 1: prototype repairs and improvements". The internal reference to the end rules updated (§2.2).
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-12 (fifteenth part): report: the field work as pilot experiments
+
+**Asked (user):** phrase the field work as pilot experiments to test the machine.
+
+**Changed** (`robustness-update-report-2026-11.md`, docx rebuilt): section 4 is "Pilot experiments: testing the machine in the field", with an introductory sentence; Bois Chamblard is "Pilot 1" (first test on real water, without the spool) and LéXPLORE "Pilot 2" (first test of the spool and of long unattended series; its sampling design came from the diel study, with manual samples to compare the machine with the standard method). Summary, timeline, section 4.4–4.5 and section 5 use the same words; the unattended pilot of stage 2 is "the third pilot".
+
+**Naming note:** the roadmaps keep "Pilot A" (= LéXPLORE) and "Pilot B" (unattended); the report numbers the pilots 1, 2, 3 for readers outside the project.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-12 (sixteenth part): report: stages 2 and 3 described in full; the incident not singled out
+
+**Asked (user):** do not insist on the out-of-service state after 6 Nov (one problem among others, it will be solved); stages 2 and 3 are not descriptive enough: the reader should understand the future stakes, the work they need and where they lead.
+
+**Changed** (`robustness-update-report-2026-11.md`, docx rebuilt; Word: 19 pages, 10 tables)
+- The "out of service" sentence removed from section 5; the incident row of the problems table says "the controller is to be replaced".
+- Section 5 (stage 2) rewritten from the stage 2 roadmap: the goal (unattended 1–2 weeks, the third pilot), how the work is organised (two lanes, the prototype usable at every step, the order of checks), 5.1 safety at any power loss, 5.2 fault detection and supervision (including the filtered resume with the raw artefact check, D99), 5.3 the hardware upgrades as a table with their pass criteria, 5.4 operation, data and remote monitoring, 5.5 lab work and validation with the third pilot's plan and success criteria, and where it leads (the intended uses).
+- Section 6 (stage 3) rewritten from the stage 3 roadmap: the goal and the requirements first; 6.1 filter handling and sealing (moving filters with a fixed inlet and outlet, bench mock-up first; self-sealing valves); 6.2 fluidics and the safety sensors (two pressures and two flows: leak detection by the flow difference, clogging by the pressure difference), the pump and damper, reservoirs; 6.3 depth, electronics, enclosure, site sensors, several units; 6.4 validation.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-12 (seventeenth part): report: the timeline cut to milestones
+
+**Asked (user):** the timeline lacks hierarchy (for example the manifold realignment, which happened many times); a short timeline should give the very important milestones only.
+
+**Changed** (`robustness-update-report-2026-11.md`, docx rebuilt): Appendix A is now "Milestones", ten rows, one milestone each: the seal redesign (Aug–Sep), the firmware foundations (28 Sep), the pressure sensor calibrated and the limit enforced (12 Oct), first water through filters under pressure control (19 Oct), the first complete sample from one command (23 Oct), the timed schedule (26 Oct), Pilot 1 (26–29 Oct), the spool in operation (2 Nov), Pilot 2 (3–6 Nov), the DNA extraction (10–12 Nov). Routine work (realignments, reprints, tools) stays in section 3.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-12 (eighteenth part): report wording
+
+**Asked (user):** "E2_T7_01M_R1 (power incident)" → "LéXPLORE platform power incident". **Changed:** Appendix E row and the matching sentence of section 4.2 (`robustness-update-report-2026-11.md`, docx rebuilt). Not committed.
+
+### Session 2026-11-12 (nineteenth part): report revised as a whole
+
+**Asked (user):** revise the entire report so that it reads as an engineer reporting facts about the development: straight to the point, clear, concise, bullet points where relevant.
+
+**Changed** (`robustness-update-report-2026-11.md`, docx rebuilt; Word: 18 pages, 10 tables): every section rewritten with shorter sentences, one fact each, and consistent terms ("pressure limit", "pilot", "dropped"). Section 3 numbered by area (3.1–3.10) with *Before / Changes / Why*; the *Why* lines cut to the purpose. Section 2 headings: components, sampling cycle, cycle time. Section 4: the pilots as a list and a table, a note explaining the 66 filters (14 + 48 + 4 for the partner project at LéXPLORE), results grouped (unattended operation, end rules, seal and pressure, comparison, samples not taken), the problems table kept. Sections 5 and 6 kept in content, tightened (acceptance column in the hardware table). Appendix B columns: August 2026 / Now / Reason. No fact added or removed.
+
+**Not changed:** code, firmware, tests. Not committed.
+
+### Session 2026-11-12 (twentieth part): report markdown synced with the user's docx, commit
+
+**Asked (user):** the docx was updated; bring the markdown in line, then commit to GitHub.
+
+**The user's docx edits, copied verbatim into `robustness-update-report-2026-11.md`:** title "Report: autosampler robustness upgrade and pilots experiments"; the "Next" line (third pilot experiment; stage 3 as a step towards the future auto sequencer); cycle time with the spool 30 min; the lessons reworded (swelling wood, connectors affected during transport, operator error; volumes and dose measured more precisely; leaks detected by future flow sensors; lessons "integrated in" stages 2 and 3); section 6 title without "(in progress)"; a milestone on 11 Sep (manifold seal resolved with the linear actuator); the two missing samples labelled "human error" and "LéXPLORE platform error: power reset". A pandoc comparison shows the two files match.
+
+**Committed and pushed:** all the documentation work of 2026-11-12 (roadmaps, reports, lab protocol, archive, logs) on `shield_V2`. Not committed: Word's lock file `docs/reports/~$vision-report-2026-11.docx`.

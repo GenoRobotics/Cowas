@@ -1,6 +1,6 @@
 # L'eXPLORE "First Step" project description (initial, 2026)
 
-> Archived 2026-11-06. The initial project description, kept verbatim as the user supplied it. It is context only and is out of date: the sampling design changed a lot on site (depths, time points, sample count). What happened: [field-lexplore-geneva-2026-11-03.md](../../logs/field-lexplore-geneva-2026-11-03.md) §32 and [field-report-draft-2026-11.md](../../field/field-report-draft-2026-11.md).
+> Archived 2026-11-06. The initial project description, kept verbatim as the user supplied it. It is context only and is out of date: the sampling design changed a lot on site (depths, time points, sample count). What happened: [field-lexplore-geneva-2026-11-03.md](../../logs/field-lexplore-geneva-2026-11-03.md) §32 and [field-report-draft-2026-11.md](../reports/field-report-2026-11.md).
 
 First Step project
 Project title
